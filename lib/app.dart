@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-// import 'package:pratical_exercises/core/theme/app_theme.dart';
-// import 'package:pratical_exercises/module/auth/auth_routes.dart';
-// import 'package:pratical_exercises/module/auth/auth_service.dart';
-// import 'package:pratical_exercises/module/home/home_routes.dart';
+import 'module/auth/auth_routes.dart';
+import 'module/auth/auth_service.dart';
+import 'module/home/admin_routes.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -18,12 +17,12 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
 
-    // AuthService.listenToAuthChanges(() {
-    //   navigatorKey.currentState?.pushNamedAndRemoveUntil(
-    //     AuthRoutes.login,
-    //         (route) => false,
-    //   );
-    // });
+    AuthService.listenToAuthChanges(() {
+      navigatorKey.currentState?.pushNamedAndRemoveUntil(
+        AuthRoutes.login,
+            (route) => false,
+      );
+    });
   }
 
   @override
@@ -31,12 +30,10 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: "Flutter Authentication",
       debugShowCheckedModeBanner: false,
-      //
-      // theme: AppTheme.lightTheme,
-      //
-      // initialRoute: AuthRoutes.login,
-      //
-      // routes: {...AuthRoutes.routes, ...HomeRoutes.routes},
+
+      initialRoute: AuthRoutes.login,
+
+      routes: {...AuthRoutes.routes, ...HomeRoutes.routes},
     );
   }
 }
