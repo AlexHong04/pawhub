@@ -2,6 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:pawhub/module/Profile/profile_model.dart';
+import 'package:pawhub/module/auth/auth_model.dart' hide AuthModel;
 import '../../core/constants/string.dart';
 
 import '../../core/widgets/appDecorations.dart';
@@ -31,19 +33,25 @@ class LoginPageState extends State<LoginPage> {
   Future<void> login() async {
     setState(() => loading = true);
 
-    final data = await AuthService.login(
+    final AuthModel? userData = await AuthService.login(
       emailController.text.trim(),
       passwordController.text.trim(),
     );
 
-    setState(() => loading = false);
+    if (mounted) {
+      setState(() => loading = false);
 
-    if (data) {
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Invalid email or password')));
+      if (userData != null) {
+        if (userData.role == "staff" || userData.role == 'admin') {
+          Navigator.pushReplacementNamed(context, '/staff_layout');
+        }else{
+          Navigator.pushReplacementNamed(context, '/user_layout');
+        }
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Invalid email or password')));
+      }
     }
   }
 

@@ -1,22 +1,29 @@
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../Profile/profile_model.dart';
+
 class AuthService {
   // static const email = 'Hong@gmail.com';
   // static const password = '123456';
 
   static final supabase = Supabase.instance.client;
 
-  static Future<bool> login(String email, String password) async {
+  static Future<AuthModel?> login(String email, String password) async {
     try {
       final response = await supabase.auth.signInWithPassword(
         email: email,
         password: password,
       );
-      return response.session != null;
+      if(response.session != null && response.user != null){
+        final userData = await supabase.from('users').select().eq('user_id', response.user!.id).single();
+        final userModel = AuthModel.fromJson(userData);
+        return userModel;
+      }
+      return null;
     } catch (e) {
       print('login error: $e');
-      return false;
+      return null;
     }
   }
 
