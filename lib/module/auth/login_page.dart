@@ -1,8 +1,10 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
-
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../core/constants/string.dart';
 
+import '../../core/widgets/appDecorations.dart';
 import 'auth_routes.dart';
 import 'auth_service.dart';
 
@@ -29,14 +31,14 @@ class LoginPageState extends State<LoginPage> {
   Future<void> login() async {
     setState(() => loading = true);
 
-    final success = await AuthService.login(
+    final data = await AuthService.login(
       emailController.text.trim(),
       passwordController.text.trim(),
     );
 
     setState(() => loading = false);
 
-    if (success) {
+    if (data) {
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       ScaffoldMessenger.of(
@@ -59,89 +61,215 @@ class LoginPageState extends State<LoginPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    "Welcome Back",
+                    "Welcome",
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textBody,
                     ),
                   ),
-                  SizedBox(height: 24),
-                  CircleAvatar(
-                    radius: 80,
-                    backgroundColor: AppColors.primaryLight,
-                    child: Icon(Icons.pets, size: 60),
+                  const SizedBox(height: 24),
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.pets,
+                      size: 60,
+                      color: AppColors.primaryLight,
+                    ),
                   ),
-                  SizedBox(height: 24),
+                  const SizedBox(height: 24),
                   Text(
-                    "Pet Manager Login",
+                    "Pet Login",
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     "Access your adoption applications",
-                    style: TextStyle(color: AppColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                  SizedBox(height: 24),
-                  TextField(
+                  const SizedBox(height: 24),
+                  TextFormField(
                     controller: emailController,
-                    decoration: InputDecoration(
-                      labelText: AppStrings.email,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: AppDecorations.outlineInputDecoration(
+                      labelText: "Email",
                       hintText: "you@example.com",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      prefixIcon: Icons.email,
                     ),
+                    validator: (value) {
+                      if (value == null || !value.contains('@')) {
+                        return "Enter a valid email";
+                      }
+                      return null;
+                    },
                   ),
-                  SizedBox(height: 16),
-                  TextField(
+                  const SizedBox(height: 16),
+                  TextFormField(
                     controller: passwordController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: AppStrings.password,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
+                    obscureText: obscurePassword,
+                    decoration:
+                        AppDecorations.outlineInputDecoration(
+                          hintText: "••••••••",
+                          prefixIcon: Icons.lock,
+                          labelText: "Password",
+                        ).copyWith(
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              color: AppColors.textLight,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                obscurePassword = !obscurePassword;
+                              });
+                            },
+                          ),
+                        ),
+                    validator: (value) {
+                      if (value == null || value.length < 8) {
+                        return "Password must be at least 8 characters";
+                      }
+                      return null;
+                    },
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
+                  // forgot password
                   Align(
                     alignment: Alignment.centerRight,
-                    child: Text(
-                      AppStrings.forgotPassword,
-                      style: TextStyle(color: AppColors.primary),
+                    child: GestureDetector(
+                      onTap: () {
+                        // handle forgot password
+                      },
+                      child: Text(
+                        "forgotPassword",
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                  // login button
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
-                        padding: EdgeInsets.symmetric(vertical: 15),
+                        foregroundColor: AppColors.white,
+                        padding: EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       onPressed: loading ? null : () => login(),
-                      child: Text(loading ? 'Logging In...' : AppStrings.login),
+                      child: Text(
+                        loading ? 'Logging In...' : "login",
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
-                  SizedBox(height: 24),
-                  Divider(),
-                  SizedBox(height: 16),
-                  OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: Icon(Icons.g_mobiledata),
-                    label: Text("Google"),
-                    style: OutlinedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 24),
+                  // Sign Up button
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        side: const BorderSide(color: AppColors.border),
+                        // Using your border color
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.pushReplacementNamed(context, '/register');
+                      },
+                      child: const Text(
+                        "Register",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textDark,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Divider
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Divider(
+                          color: AppColors.borderGray,
+                          thickness: 1,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          "OR CONTINUE WITH",
+                          style: TextStyle(
+                            color: AppColors.textLight,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Divider(
+                          color: AppColors.borderGray,
+                          thickness: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  // signup text
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        // handle google sign in
+                      },
+                      icon: const FaIcon(
+                        FontAwesomeIcons.google,
+                        size: 20,
+                        color: AppColors.textDark,
+                      ),
+                      // icon: Image.asset('assets/images/googleLogo.jpg', height: 24),
+                      label: Text(
+                        "Google",
+                        style: TextStyle(
+                          color: AppColors.textDark,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: AppColors.white,
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
