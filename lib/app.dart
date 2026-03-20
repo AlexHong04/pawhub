@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'module/auth/auth_routes.dart';
 import 'module/auth/auth_service.dart';
-import 'module/home/admin_routes.dart';
+import 'module/home/home_routes.dart';
+import 'module/home/staff_layout.dart';
+import 'module/home/user_layout.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -20,7 +22,7 @@ class _MyAppState extends State<MyApp> {
     AuthService.listenToAuthChanges(() {
       navigatorKey.currentState?.pushNamedAndRemoveUntil(
         AuthRoutes.login,
-            (route) => false,
+        (route) => false,
       );
     });
   }
@@ -31,9 +33,14 @@ class _MyAppState extends State<MyApp> {
       title: "Flutter Authentication",
       debugShowCheckedModeBanner: false,
 
-      initialRoute: AuthRoutes.login,
+      initialRoute: '/user_layout',
 
-      routes: {...AuthRoutes.routes, ...HomeRoutes.routes},
+      routes: {
+        ...AuthRoutes.routes,
+        ...HomeRoutes.routes,
+        '/user_layout': (context) => const UserLayout(),
+        '/staff_layout': (context) => const StaffLayout(),
+      },
     );
   }
 }
