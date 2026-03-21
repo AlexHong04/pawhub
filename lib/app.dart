@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:pawhub/module/Profile/profile_routes.dart';
 import 'module/auth/auth_routes.dart';
-import 'module/auth/auth_service.dart';
+import 'module/auth/service/auth_service.dart';
 import 'module/home/home_routes.dart';
 import 'module/home/staff_layout.dart';
 import 'module/home/user_layout.dart';
@@ -38,6 +39,7 @@ class _MyAppState extends State<MyApp> {
       routes: {
         ...AuthRoutes.routes,
         ...HomeRoutes.routes,
+        ...ProfileRoutes.routes,
         '/user_layout': (context) => const UserLayout(),
         '/staff_layout': (context) => const StaffLayout(),
       },

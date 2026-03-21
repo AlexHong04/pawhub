@@ -1,5 +1,5 @@
-import 'register_page.dart';
-import 'login_page.dart';
+import 'presentation/register_page.dart';
+import 'presentation/login_page.dart';
 
 class AuthRoutes {
   static const login = '/login';
