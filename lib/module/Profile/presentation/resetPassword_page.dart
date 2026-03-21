@@ -56,6 +56,32 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          },
+          icon: const Icon(Icons.arrow_back, color: AppColors.iconColor),
+        ),
+        title: const Text(
+          "Reset Password",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.textDark,
+            fontSize: 20,
+          ),
+        ),
+        centerTitle: false,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: AppColors.white,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(color: AppColors.borderGray, height: 1.0),
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -187,14 +213,14 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                           ).copyWith(
                             suffixIcon: IconButton(
                               icon: Icon(
-                                obscureNewPassword
+                                obscureConfirmPassword
                                     ? Icons.visibility_outlined
                                     : Icons.visibility_off_outlined,
                                 color: AppColors.iconColor,
                               ),
                               onPressed: () {
                                 setState(() {
-                                  obscureNewPassword = !obscureNewPassword;
+                                  obscureConfirmPassword = !obscureConfirmPassword;
                                 });
                               },
                             ),
