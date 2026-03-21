@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
-
-import '../../core/constants/string.dart';
-import '../../core/widgets/appDecorations.dart';
+import '../../../core/widgets/appDecorations.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
   @override
-  State<RegisterPage> createState() => RegisterPageState();
+  State<RegisterPage> createState() => _RegisterPageState();
 }
 
-class RegisterPageState extends State<RegisterPage> {
+class _RegisterPageState extends State<RegisterPage> {
   final formKey = GlobalKey<FormState>();
   final nameController = TextEditingController();
   final emailController = TextEditingController();
@@ -205,17 +203,17 @@ class RegisterPageState extends State<RegisterPage> {
                           const SizedBox(height: 16),
 
                           // sign up button
-                          Container(
+                          SizedBox(
                             width: double.infinity,
-                            decoration: BoxDecoration(
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.primary,
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
+                            // decoration: BoxDecoration(
+                            //   boxShadow: [
+                            //     BoxShadow(
+                            //       color: AppColors.primary,
+                            //       blurRadius: 12,
+                            //       offset: const Offset(0, 4),
+                            //     ),
+                            //   ],
+                            // ),
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,

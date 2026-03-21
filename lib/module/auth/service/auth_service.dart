@@ -1,7 +1,7 @@
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../Profile/profile_model.dart';
+import '../../Profile/model/profile_model.dart';
 
 class AuthService {
   // static const email = 'Hong@gmail.com';

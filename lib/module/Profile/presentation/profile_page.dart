@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/colors.dart';
+import '../../../core/constants/colors.dart';
 // import 'package:pawhub/core/constants/colors.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -27,7 +27,8 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         elevation: 0,
-        scrolledUnderElevation: 0, // Prevents color change on scroll
+        scrolledUnderElevation: 0,
+        // Prevents color change on scroll
         surfaceTintColor: Colors.transparent,
         centerTitle: true,
         backgroundColor: AppColors.background,
@@ -87,21 +88,26 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   _buildSettingTile(
                     icon: Icons.person,
-                    iconBgColor: AppColors.primary.withOpacity(0.15),
+                    iconBgColor: AppColors.primary,
                     iconColor: AppColors.primary,
                     title: "Edit Profile",
                     onTap: () {
                       // Handle Edit Profile
+                      Navigator.pushReplacementNamed(context, '/edit_profile');
                     },
                   ),
                   const Divider(height: 1, color: AppColors.border),
                   _buildSettingTile(
                     icon: Icons.lock,
-                    iconBgColor: Colors.orange.withOpacity(0.15),
+                    iconBgColor: Colors.orange,
                     iconColor: Colors.orange,
                     title: "Reset Password",
                     onTap: () {
                       // Handle Reset Password
+                      Navigator.pushReplacementNamed(
+                        context,
+                        '/reset_password',
+                      );
                     },
                   ),
                 ],
@@ -124,21 +130,22 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ),
-            const SizedBox(height: 40), // Extra space for scrolling above bottom nav
+            const SizedBox(height: 40),
+            // Extra space for scrolling above bottom nav
           ],
         ),
       ),
 
       // 6. Floating Action Button (Heart)
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.white,
-        shape: const CircleBorder(),
-        elevation: 4,
-        onPressed: () {
-          // Handle favorite action
-        },
-        child: const Icon(Icons.favorite, color: Colors.red, size: 28),
-      ),
+      // floatingActionButton: FloatingActionButton(
+      //   backgroundColor: Colors.white,
+      //   shape: const CircleBorder(),
+      //   elevation: 4,
+      //   onPressed: () {
+      //     // Handle favorite action
+      //   },
+      //   child: const Icon(Icons.favorite, color: Colors.red, size: 28),
+      // ),
     );
   }
 
@@ -154,13 +161,18 @@ class _ProfilePageState extends State<ProfilePage> {
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary.withOpacity(0.5), width: 3),
+                border: Border.all(
+                  color: AppColors.primary.withOpacity(0.5),
+                  width: 3,
+                ),
               ),
               child: const CircleAvatar(
                 radius: 45,
                 backgroundColor: AppColors.inputFill,
                 // Replace with NetworkImage when connected to backend
-                backgroundImage: AssetImage('assets/images/profile_placeholder.png'),
+                // backgroundImage: AssetImage(
+                //   'assets/images/profile_placeholder.png',
+                // ),
               ),
             ),
             Positioned(
@@ -172,13 +184,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   color: AppColors.primary,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.edit,
-                  color: Colors.white,
-                  size: 14,
-                ),
+                child: const Icon(Icons.edit, color: Colors.white, size: 14),
               ),
-            )
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -193,17 +201,18 @@ class _ProfilePageState extends State<ProfilePage> {
         const SizedBox(height: 4),
         const Text(
           "sarah.j@example.com",
-          style: TextStyle(
-            fontSize: 15,
-            color: AppColors.textLight,
-          ),
+          style: TextStyle(fontSize: 15, color: AppColors.textLight),
         ),
       ],
     );
   }
 
   // Helper for the Adopted/Favorites Cards
-  Widget _buildStatCard({required String number, required String label, required Color numberColor}) {
+  Widget _buildStatCard({
+    required String number,
+    required String label,
+    required Color numberColor,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(
@@ -248,10 +257,7 @@ class _ProfilePageState extends State<ProfilePage> {
       onTap: onTap,
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: iconBgColor,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: iconBgColor, shape: BoxShape.circle),
         child: Icon(icon, color: iconColor, size: 22),
       ),
       title: Text(
@@ -262,10 +268,7 @@ class _ProfilePageState extends State<ProfilePage> {
           color: AppColors.textDark,
         ),
       ),
-      trailing: const Icon(
-        Icons.chevron_right,
-        color: AppColors.textLight,
-      ),
+      trailing: const Icon(Icons.chevron_right, color: AppColors.textLight),
     );
   }
 }

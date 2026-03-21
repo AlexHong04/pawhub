@@ -2,22 +2,21 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:pawhub/module/Profile/profile_model.dart';
-import 'package:pawhub/module/auth/auth_model.dart' hide AuthModel;
-import '../../core/constants/string.dart';
+import 'package:pawhub/module/Profile/model/profile_model.dart';
+import 'package:pawhub/module/auth/model/auth_model.dart' hide AuthModel;
 
-import '../../core/widgets/appDecorations.dart';
-import 'auth_routes.dart';
-import 'auth_service.dart';
+import '../../../core/widgets/appDecorations.dart';
+import '../auth_routes.dart';
+import '../service/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => LoginPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   bool loading = false;
