@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pawhub/module/Profile/profile_page.dart';
+import 'package:pawhub/module/Profile/presentation/profile_page.dart';
 
 import '../../core/constants/colors.dart';
 
