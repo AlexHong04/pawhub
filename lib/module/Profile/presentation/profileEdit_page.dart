@@ -68,7 +68,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         backgroundColor: AppColors.white,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
-          child: Container(color: AppColors.borderGray, height: 1.0),
+          child: Container(color: const Color(0xFFE0E5EC), height: 1.0),
         ),
       ),
       body: SafeArea(

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pawhub/module/Profile/presentation/peopleAndRoles_page.dart';
 import 'package:pawhub/module/Profile/presentation/profile_page.dart';
 
 import '../../core/constants/colors.dart';
@@ -21,8 +20,7 @@ class UserLayoutState extends State<UserLayout> {
     const Center(child: Text("Event Page")),
     const Center(child: Text("Community Page")),
     const Center(child: Text("Home Page")),
-    // const Center(child: Text("History Page")),
-    const PeopleAndRolesPage(),
+    const Center(child: Text("History Page")),
     const ProfilePage(),
   ];
 

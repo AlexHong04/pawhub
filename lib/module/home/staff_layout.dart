@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/constants/colors.dart';
-import 'admin_dashboard_page.dart';
+import 'admin_home_page.dart';
 
 class StaffLayout extends StatefulWidget {
   const StaffLayout({super.key});
@@ -19,7 +19,7 @@ class StaffLayoutState extends State<StaffLayout> {
   final List<Widget> _pages = [
     const Center(child: Text("Event Page")),
     const Center(child: Text("Community Page")),
-    const AdminDashboardPage(),
+    const AdminHomePage(),
     const Center(child: Text("Pet Page")),
     const Center(child: Text("Adoption Page")),
     const Center(child: Text("Account Page")),

@@ -2,8 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:pawhub/module/Profile/model/user_model.dart';
-import 'package:pawhub/module/auth/model/auth_model.dart';
+import 'package:pawhub/module/Profile/model/profile_model.dart';
+import 'package:pawhub/module/auth/model/auth_model.dart' hide AuthModel;
 
 import '../../../core/widgets/appDecorations.dart';
 import '../auth_routes.dart';
@@ -184,7 +184,7 @@ class _LoginPageState extends State<LoginPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      onPressed: loading ? null : () => login,
+                      onPressed: loading ? null : () => login(),
                       child: Text(
                         loading ? 'Logging In...' : "login",
                         style: const TextStyle(

@@ -1,4 +1,4 @@
-class UserModel {
+class AuthModel {
   final String id;
   final String name;
   final String gender;
@@ -11,7 +11,7 @@ class UserModel {
   final String avatarUrl;
   final String email;
 
-  UserModel({
+  AuthModel({
     required this.id,
     required this.name,
     required this.gender,
@@ -25,7 +25,7 @@ class UserModel {
     required this.email,
   });
 
-  factory UserModel.fromJson(Map<String, dynamic> data) => UserModel(
+  factory AuthModel.fromJson(Map<String, dynamic> data) => AuthModel(
     id: data["user_id"],
     name: data['name'],
     gender: data['gender'],
