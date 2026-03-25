@@ -24,7 +24,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
   @override
   void dispose() {
-    // TODO: implement dispose
     currentPasswordController.dispose();
     newPasswordController.dispose();
     confirmPasswordController.dispose();
@@ -103,7 +102,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                       ),
                     ),
                     const SizedBox(height: 32),
-                    Image.asset('assets/images/overlay.png', height: 100),
+                    Image.asset('assets/images/overlayLock.png', height: 100),
                     const SizedBox(height: 24),
                     const Text(
                       "Change Password",

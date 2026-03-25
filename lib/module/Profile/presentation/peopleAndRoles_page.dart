@@ -75,17 +75,30 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        leading: IconButton(
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          },
+          icon: const Icon(Icons.arrow_back, color: AppColors.iconColor),
+        ),
         title: const Text(
           "People & Roles",
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: AppColors.textDark,
             fontSize: 20,
           ),
         ),
-        centerTitle: true,
+        centerTitle: false,
         elevation: 0,
+        scrolledUnderElevation: 0,
         backgroundColor: AppColors.white,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(color: AppColors.borderGray, height: 1.0),
+        ),
       ),
       body: Column(
         children: [
@@ -178,13 +191,6 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black,
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -341,9 +347,7 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: isActive
-                  ? AppColors.textSecondary
-                  : AppColors.textLight,
+              color: isActive ? AppColors.textSecondary : AppColors.textLight,
             ),
           ),
         ],
