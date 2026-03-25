@@ -13,6 +13,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final formKey = GlobalKey<FormState>();
   final nameController = TextEditingController();
   final emailController = TextEditingController();
+  final genderController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
 
@@ -23,6 +24,7 @@ class _RegisterPageState extends State<RegisterPage> {
   void dispose() {
     nameController.dispose();
     emailController.dispose();
+    genderController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
     super.dispose();
@@ -138,6 +140,14 @@ class _RegisterPageState extends State<RegisterPage> {
                               return null;
                             },
                           ),
+                          TextFormField(
+                            controller: genderController,
+                            decoration: AppDecorations.outlineInputDecoration(
+                              hintText: "Eg. female",
+                              prefixIcon: Icons.mail_outline,
+                              labelText: 'Gender',
+                            ),
+                          ),
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: passwordController,
@@ -205,15 +215,6 @@ class _RegisterPageState extends State<RegisterPage> {
                           // sign up button
                           SizedBox(
                             width: double.infinity,
-                            // decoration: BoxDecoration(
-                            //   boxShadow: [
-                            //     BoxShadow(
-                            //       color: AppColors.primary,
-                            //       blurRadius: 12,
-                            //       offset: const Offset(0, 4),
-                            //     ),
-                            //   ],
-                            // ),
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
@@ -296,43 +297,3 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 }
-
-//   Widget _buildTextField({
-//     required TextEditingController Controller,
-//     required String hintText,
-//     required IconData prefixIcon,
-//     bool obscureText = false,
-//     TextInputType keyboardType = TextInputType.text,
-//     Widget? suffixIcon,
-//     String? Function(String?)? validator,
-//   }) {
-//     return TextFormField(
-//         controller: Controller,
-//         obscureText: obscureText,
-//         keyboardType: keyboardType,
-//         validator: validator,
-//         style: TextStyle(color: AppColors.textDark, fontSize: 16),
-//         decoration: InputDecoration(
-//           hintText: hintText,
-//           hintStyle: TextStyle(color: AppColors.textLight),
-//           prefixIcon: Icon(prefixIcon, color: AppColors.textLight),
-//           suffix: suffixIcon,
-//           filled: true,
-//           fillColor: AppColors.white,
-//           contentPadding: const EdgeInsets.symmetric(vertical: 16),
-//           border: OutlineInputBorder(
-//             borderRadius: BorderRadius.circular(12),
-//             borderSide: BorderSide(color: AppColors.borderGray),
-//           ),
-//           enabledBorder: OutlineInputBorder(
-//             borderRadius: BorderRadius.circular(12),
-//             borderSide: BorderSide(color: AppColors.borderGray),
-//           ),
-//           focusedBorder: OutlineInputBorder(
-//             borderRadius: BorderRadius.circular(12),
-//             borderSide: BorderSide(color: AppColors.primaryLight),
-//           ),
-//         )
-//     );
-//   }
-// }

@@ -41,7 +41,7 @@ class _LoginPageState extends State<LoginPage> {
       setState(() => loading = false);
 
       if (userData != null) {
-        if (userData.role == "staff" || userData.role == 'admin') {
+        if (userData.role == 'Admin') {
           Navigator.pushReplacementNamed(context, '/staff_layout');
         }else{
           Navigator.pushReplacementNamed(context, '/user_layout');
@@ -53,6 +53,8 @@ class _LoginPageState extends State<LoginPage> {
       }
     }
   }
+
+
 
   @override
   Widget build(BuildContext context) {
