@@ -2,20 +2,21 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import '../../core/constants/string.dart';
+import 'package:pawhub/module/Profile/model/user_model.dart';
+import 'package:pawhub/module/auth/model/auth_model.dart';
 
-import '../../core/widgets/appDecorations.dart';
-import 'auth_routes.dart';
-import 'auth_service.dart';
+import '../../../core/widgets/appDecorations.dart';
+import '../auth_routes.dart';
+import '../service/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => LoginPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   bool loading = false;
@@ -31,21 +32,29 @@ class LoginPageState extends State<LoginPage> {
   Future<void> login() async {
     setState(() => loading = true);
 
-    final data = await AuthService.login(
+    final AuthModel? userData = await AuthService.login(
       emailController.text.trim(),
       passwordController.text.trim(),
     );
 
-    setState(() => loading = false);
+    if (mounted) {
+      setState(() => loading = false);
 
-    if (data) {
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Invalid email or password')));
+      if (userData != null) {
+        if (userData.role == 'Admin') {
+          Navigator.pushReplacementNamed(context, '/staff_layout');
+        }else{
+          Navigator.pushReplacementNamed(context, '/user_layout');
+        }
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Invalid email or password')));
+      }
     }
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -177,7 +186,7 @@ class LoginPageState extends State<LoginPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      onPressed: loading ? null : () => login(),
+                      onPressed: loading ? null : () => login,
                       child: Text(
                         loading ? 'Logging In...' : "login",
                         style: const TextStyle(

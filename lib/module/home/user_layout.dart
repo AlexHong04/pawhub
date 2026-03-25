@@ -21,7 +21,7 @@ class UserLayoutState extends State<UserLayout> {
     const Center(child: Text("Community Page")),
     const Center(child: Text("Home Page")),
     const Center(child: Text("History Page")),
-    // const ProfilePage(),
+    const ProfilePage(),
   ];
 
   @override
