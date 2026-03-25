@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pawhub/module/Profile/profile_page.dart';
 
 import '../../core/constants/colors.dart';
+import '../Profile/presentation/profile_page.dart';
 
 class UserLayout extends StatefulWidget {
   const UserLayout({super.key});
