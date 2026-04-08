@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import 'package:pawhub/module/auth/service/auth_service.dart';
 
 import '../../../core/widgets/appDecorations.dart';
 
@@ -29,19 +30,35 @@ class _SetNewPasswordPageState extends State<SetNewPasswordPage> {
     super.dispose();
   }
 
-  void updatePassword() {
+  void updatePassword()async {
+    if (newPasswordController.text != confirmPasswordController.text) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Password do not match')));
+      return;
+    }
+    if (newPasswordController.text.length < 8) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Password must be 8 characters')));
+      return;
+    }
+
     setState(() => loading = true);
 
-    // Simulate API Call (e.g., Firebase password update)
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
+    bool success = await AuthService.updatePassword(newPasswordController.text);
+    if (mounted) {
+      setState(() => loading = false);
+      if (success) {
         setState(() {
-          loading = false;
-          isSuccess =
-              true; // This triggers the UI to fade into the Success screen!
+          isSuccess = true; // Triggers the smooth animation to the Success UI!
         });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update password. Try again.')),
+        );
       }
-    });
+    }
   }
 
   @override

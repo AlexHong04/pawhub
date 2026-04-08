@@ -16,11 +16,11 @@ class AuthModel {
   });
 
   factory AuthModel.fromJson(Map<String, dynamic> data) => AuthModel(
-    id: data["user_id"],
-    name: data['name'],
-    role: data['role'],
-    email: data['email'],
-    password: data['encrypted_password'],
-    createAt: data['created_at'],
+    id: (data['user_id'] ?? '').toString(),
+    name: (data['name'] ?? '').toString(),
+    role: (data['role'] ?? '').toString(),
+    email: (data['email'] ?? '').toString(),
+    password: (data['encrypted_password'] ?? data['password'] ?? '').toString(),
+    createAt: DateTime.tryParse((data['created_at'] ?? '').toString()) ?? DateTime.now(),
   );
 }

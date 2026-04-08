@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import 'package:pawhub/module/auth/service/auth_service.dart';
 import '../../../core/widgets/appDecorations.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -30,22 +31,43 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
-  void register() {
-    // check if the form is valid before processing
+  void register() async {
+    // Hide the keyboard immediately to prevent TimeoutException
+    FocusScope.of(context).unfocus();
     if (formKey.currentState!.validate()) {
       setState(() {
         loading = true;
       });
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          setState(() {
-            loading = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Processing Registration...')),
-          );
-        }
+
+      final user = await AuthService.register(
+        nameController.text.trim(),
+        emailController.text.trim(),
+        passwordController.text.trim(),
+        genderController.text.trim(),
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        loading = false;
       });
+
+      if (user != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registration Successful')),
+        );
+
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/login',
+          (route) => false,
+        );
+      } else {
+        final errorMessage = AuthService.lastError ?? 'Registration Failed';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
     }
   }
 
@@ -53,21 +75,6 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      // appBar: AppBar(
-      //   title: const Text(
-      //     "Register",
-      //     style: TextStyle(
-      //       fontWeight: FontWeight.bold,
-      //       color: AppColors.textBody, // Changes the text color
-      //     ),
-      //   ),
-      //   elevation: 0,
-      //   centerTitle: true,
-      //   backgroundColor: AppColors.background,
-      //   iconTheme: const IconThemeData(
-      //     color: AppColors.textBody, // Ensures the back button arrow matches the text color
-      //   ),
-      // ),
       body: SafeArea(
         child: Column(
           children: [
@@ -134,44 +141,70 @@ class _RegisterPageState extends State<RegisterPage> {
                             ),
                             keyboardType: TextInputType.emailAddress,
                             validator: (value) {
-                              if (value == null || !value.contains('@')) {
+                              if (value == null || value.isEmpty) {
+                                return "Enter your email";
+                              }
+                              final emailRegex =
+                              RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
+                              if (!emailRegex.hasMatch(value)) {
                                 return "Enter a valid email";
                               }
                               return null;
                             },
                           ),
-                          TextFormField(
-                            controller: genderController,
+                          const SizedBox(height: 16),
+                          DropdownButtonFormField<String>(
+                            initialValue: genderController.text.isEmpty ? null : genderController.text,
+                            items: const [
+                              DropdownMenuItem(value: "Male", child: Text("Male")),
+                              DropdownMenuItem(value: "Female", child: Text("Female")),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                genderController.text = value;
+                              }
+                            },
+                            // Added validation to prevent database errors!
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Please select your gender";
+                              }
+                              return null;
+                            },
                             decoration: AppDecorations.outlineInputDecoration(
-                              hintText: "Eg. female",
-                              prefixIcon: Icons.mail_outline,
+                              hintText: "Select gender",
+                              prefixIcon: Icons.wc,
                               labelText: 'Gender',
                             ),
+                            // Keeps the dropdown menu background clean and white
+                            dropdownColor: AppColors.white,
+                            // Styles the little arrow on the right
+                            icon: const Icon(Icons.arrow_drop_down, color: AppColors.iconColor),
                           ),
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: passwordController,
                             obscureText: obscurePassword,
                             decoration:
-                                AppDecorations.outlineInputDecoration(
-                                  hintText: "••••••••",
-                                  prefixIcon: Icons.lock_outline,
-                                  labelText: "Password",
-                                ).copyWith(
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      obscurePassword
-                                          ? Icons.visibility_outlined
-                                          : Icons.visibility_off_outlined,
-                                      color: AppColors.iconColor,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        obscurePassword = !obscurePassword;
-                                      });
-                                    },
-                                  ),
+                            AppDecorations.outlineInputDecoration(
+                              hintText: "••••••••",
+                              prefixIcon: Icons.lock_outline,
+                              labelText: "Password",
+                            ).copyWith(
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  obscurePassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                  color: AppColors.iconColor,
                                 ),
+                                onPressed: () {
+                                  setState(() {
+                                    obscurePassword = !obscurePassword;
+                                  });
+                                },
+                              ),
+                            ),
                             validator: (value) {
                               if (value == null || value.length < 8) {
                                 return "Password must be at least 8 characters";
@@ -184,25 +217,25 @@ class _RegisterPageState extends State<RegisterPage> {
                             controller: confirmPasswordController,
                             obscureText: obscurePassword,
                             decoration:
-                                AppDecorations.outlineInputDecoration(
-                                  hintText: "••••••••",
-                                  prefixIcon: Icons.verified_user_outlined,
-                                  labelText: "Confirm Password",
-                                ).copyWith(
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      obscurePassword
-                                          ? Icons.visibility_outlined
-                                          : Icons.visibility_off_outlined,
-                                      color: AppColors.iconColor,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        obscurePassword = !obscurePassword;
-                                      });
-                                    },
-                                  ),
+                            AppDecorations.outlineInputDecoration(
+                              hintText: "••••••••",
+                              prefixIcon: Icons.verified_user_outlined,
+                              labelText: "Confirm Password",
+                            ).copyWith(
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  obscurePassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                  color: AppColors.iconColor,
                                 ),
+                                onPressed: () {
+                                  setState(() {
+                                    obscurePassword = !obscurePassword;
+                                  });
+                                },
+                              ),
+                            ),
                             validator: (value) {
                               if (value != passwordController.text) {
                                 return "Password do not match";

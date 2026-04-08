@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import 'package:pawhub/module/auth/service/auth_service.dart';
+
+import '../auth_routes.dart';
 
 class OtpVerificationPage extends StatefulWidget {
   const OtpVerificationPage({super.key});
@@ -10,33 +12,72 @@ class OtpVerificationPage extends StatefulWidget {
 }
 
 class _OtpVerificationPageState extends State<OtpVerificationPage> {
-  // Focus nodes for automatic jumping
+  // Focus nodes for automatic jumping (Now 6)
   final focus1 = FocusNode();
   final focus2 = FocusNode();
   final focus3 = FocusNode();
   final focus4 = FocusNode();
+  final focus5 = FocusNode();
+  final focus6 = FocusNode();
 
+  // Controllers (Now 6)
   final ctrl1 = TextEditingController();
   final ctrl2 = TextEditingController();
   final ctrl3 = TextEditingController();
   final ctrl4 = TextEditingController();
+  final ctrl5 = TextEditingController();
+  final ctrl6 = TextEditingController();
 
   bool loading = false;
 
-  void verifyOtp() {
+  @override
+  void dispose() {
+    focus1.dispose(); focus2.dispose(); focus3.dispose();
+    focus4.dispose(); focus5.dispose(); focus6.dispose();
+    ctrl1.dispose(); ctrl2.dispose(); ctrl3.dispose();
+    ctrl4.dispose(); ctrl5.dispose(); ctrl6.dispose();
+    super.dispose();
+  }
+
+  void verifyOtp() async {
+    final email = ModalRoute.of(context)!.settings.arguments as String;
+
+    // Combine all 6 controllers
+    final otpCode = ctrl1.text + ctrl2.text + ctrl3.text + ctrl4.text + ctrl5.text + ctrl6.text;
+
+    // Check for 6 digits
+    if (otpCode.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter all 6 digits')),
+      );
+      return;
+    }
+
     setState(() => loading = true);
-    // Simulate verification
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => loading = false);
-        // Navigate to Reset Password Screen
-        Navigator.pushNamed(context, '/set_new_password');
+
+    bool success = await AuthService.verifyOtp(email, otpCode);
+
+    if (mounted) {
+      setState(() => loading = false);
+      if (success) {
+        Navigator.pushReplacementNamed(context, AuthRoutes.newPassword);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AuthService.lastError ?? 'Invalid OTP code. Please try again.',
+            ),
+          ),
+        );
       }
-    });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Grab the email safely for the UI
+    final email = ModalRoute.of(context)?.settings.arguments as String? ?? "your email";
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -62,19 +103,19 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                 const SizedBox(height: 12),
                 RichText(
                   textAlign: TextAlign.center,
-                  text: const TextSpan(
-                    style: TextStyle(
+                  text: TextSpan(
+                    style: const TextStyle(
                       fontSize: 15,
                       color: AppColors.textSecondary,
                       height: 1.5,
                     ),
                     children: [
-                      TextSpan(
-                        text: "Enter the 4-digit code sent to your email\n",
+                      const TextSpan(
+                        text: "Enter the 6-digit code sent to your email\n",
                       ),
                       TextSpan(
-                        text: "user@example.com",
-                        style: TextStyle(
+                        text: email, // Dynamic email display!
+                        style: const TextStyle(
                           color: AppColors.textPrimary,
                           fontWeight: FontWeight.bold,
                         ),
@@ -83,14 +124,17 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                   ),
                 ),
                 const SizedBox(height: 40),
-                // OTP Input Boxes
+
+                // OTP Input Boxes (Now 6)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _buildOtpBox(ctrl1, focus1, focus2),
                     _buildOtpBox(ctrl2, focus2, focus3),
                     _buildOtpBox(ctrl3, focus3, focus4),
-                    _buildOtpBox(ctrl4, focus4, null),
+                    _buildOtpBox(ctrl4, focus4, focus5),
+                    _buildOtpBox(ctrl5, focus5, focus6),
+                    _buildOtpBox(ctrl6, focus6, null), // Last one has no nextFocus
                   ],
                 ),
                 const SizedBox(height: 32),
@@ -158,14 +202,22 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                   ),
                 ),
                 const SizedBox(height: 40),
+
+                // Back Button
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                  ),
                   onPressed: () {
                     if (Navigator.canPop(context)) {
                       Navigator.pop(context);
+                    } else {
+                      Navigator.pushReplacementNamed(context, '/login');
                     }
                   },
                   child: const Text(
-                    "Back",
+                    "Back to Login",
                     style: TextStyle(
                       color: AppColors.textLight,
                       fontSize: 16,
@@ -185,15 +237,6 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // Container(
-        //   width: 100,
-        //   height: 100,
-        //   decoration: BoxDecoration(
-        //     color: const Color(0xFF2E82F4).withOpacity(0.08),
-        //     shape: BoxShape.circle,
-        //   ),
-        //   child: const Icon(Icons.lock, size: 40, color: Color(0xFF2E82F4)),
-        // ),
         Image.asset('assets/images/lock.png', height: 100, width: 100),
         Positioned(
           bottom: 0,
@@ -209,7 +252,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
               Icons.check_circle,
               size: 20,
               color: Color(0xFF12B76A),
-            ), // Success Green
+            ),
           ),
         ),
       ],
@@ -217,16 +260,17 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   }
 
   Widget _buildOtpBox(
-    TextEditingController controller,
-    FocusNode currentFocus,
-    FocusNode? nextFocus,
-  ) {
+      TextEditingController controller,
+      FocusNode currentFocus,
+      FocusNode? nextFocus,
+      ) {
     return Container(
-      width: 68,
-      height: 68,
+      // Reduced width and height from 68 to 48/56 so 6 boxes fit on screen!
+      width: 48,
+      height: 56,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: currentFocus.hasFocus
               ? AppColors.primary
@@ -241,11 +285,10 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
           textAlign: TextAlign.center,
           keyboardType: TextInputType.number,
           maxLength: 1,
-          // Max 1 digit per box
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           decoration: const InputDecoration(
             border: InputBorder.none,
-            counterText: "", // Hides the "0/1" character counter
+            counterText: "",
           ),
           onChanged: (value) {
             if (value.isNotEmpty && nextFocus != null) {

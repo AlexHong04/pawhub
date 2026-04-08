@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../auth/service/auth_service.dart';
 // import 'package:pawhub/core/constants/colors.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -11,9 +12,6 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  // Mock Bottom Nav Index
-  int _selectedIndex = 4; // Assuming 'Account' is index 4
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -117,8 +115,15 @@ class _ProfilePageState extends State<ProfilePage> {
 
             // 5. Sign Out Button
             TextButton.icon(
-              onPressed: () {
-                // Handle Sign Out
+              onPressed: () async {
+                await AuthService.logout();
+                if (!context.mounted) return;
+
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/login',
+                  (route) => false,
+                );
               },
               icon: const Icon(Icons.logout, color: AppColors.textLight),
               label: const Text(
@@ -135,17 +140,6 @@ class _ProfilePageState extends State<ProfilePage> {
           ],
         ),
       ),
-
-      // 6. Floating Action Button (Heart)
-      // floatingActionButton: FloatingActionButton(
-      //   backgroundColor: Colors.white,
-      //   shape: const CircleBorder(),
-      //   elevation: 4,
-      //   onPressed: () {
-      //     // Handle favorite action
-      //   },
-      //   child: const Icon(Icons.favorite, color: Colors.red, size: 28),
-      // ),
     );
   }
 
