@@ -153,6 +153,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   onPressed: () {
                     if (Navigator.canPop(context)) {
                       Navigator.pop(context);
+                    }else{
+                      Navigator.pushReplacementNamed(context, '/login');
                     }
                   },
                   child: const Text(

@@ -9,7 +9,7 @@ class AuthRoutes {
   static const register = '/register';
   static const forgotPassword = '/forgotPassword';
   static const otpVerify = '/otp_verification';
-  static const newPassword = 'set_new_password';
+  static const newPassword = '/set_new_password';
 
   static final routes = {
     login: (context) => LoginPage(),

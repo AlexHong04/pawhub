@@ -34,7 +34,7 @@ class _MyAppState extends State<MyApp> {
       title: "Flutter Authentication",
       debugShowCheckedModeBanner: false,
 
-      initialRoute: '/user_layout',
+      initialRoute: '/login',
 
       routes: {
         ...AuthRoutes.routes,

@@ -159,10 +159,15 @@ class _LoginPageState extends State<LoginPage> {
                   // forgot password
                   Align(
                     alignment: Alignment.centerRight,
-                    child: GestureDetector(
-                      onTap: () {
-                        // handle forgot password
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.pushReplacementNamed(context, '/forgotPassword');
                       },
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
                       child: Text(
                         "forgotPassword",
                         style: TextStyle(
@@ -186,7 +191,7 @@ class _LoginPageState extends State<LoginPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      onPressed: loading ? null : () => login,
+                      onPressed: loading ? null : login,
                       child: Text(
                         loading ? 'Logging In...' : "login",
                         style: const TextStyle(

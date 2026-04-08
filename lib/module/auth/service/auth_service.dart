@@ -1,136 +1,178 @@
-import 'package:pawhub/core/utils/generatorId.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../Profile/model/user_model.dart';
 import '../model/auth_model.dart';
 
 class AuthService {
-  static final supabase = Supabase.instance.client;
+	// Shared Supabase client used by all auth operations.
+	static final supabase = Supabase.instance.client;
+	static String? lastError;
 
-  static Future<AuthModel?> login(String email, String password) async {
-    try {
-      // login in auth.users
-      final response = await supabase.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
-      if (response.session != null && response.user != null) {
-        // fetch data from public.User match with the user id column to the auth id
-        final userData = await supabase
-            .from('users')
-            .select()
-            .eq('user_id', response.user!.id)
-            .single();
+	static Future<AuthModel?> login(String email, String password) async {
+		try {
+			// Sign in against auth.users first.
+			final response = await supabase.auth.signInWithPassword(
+				email: email,
+				password: password,
+			);
 
-        // convert the database row into the userModel
-        final userModel = AuthModel.fromJson(userData);
-        return userModel;
-      }
-      return null;
-    } catch (e) {
-      print('login error: $e');
-      return null;
-    }
-  }
+			if (response.session != null && response.user != null) {
+				// Load the app profile row linked by auth_id.
+				final userData = await supabase
+						.from('User')
+						.select()
+						.eq('auth_id', response.user!.id)
+						.single();
 
-  static Future<AuthModel?> register(
-    String name,
-    String email,
-    String password,
-    String gender,
-  ) async {
-    try {
-      // create the user in auth.users
-      final response = await supabase.auth.signUp(
-        email: email,
-        password: password,
-      );
-      if (response.user != null) {
-        final String newUserId = await GeneratorId.generateId(
-          tableName: 'User',
-          idColumnName: 'User_id',
-          prefix: 'U',
-          numberLength: 5,
-        );
-        final userData = await supabase
-            .from('User')
-            .insert({
-              'user_id': newUserId,
-              'email': email,
-              'name': name,
-              'gender': gender,
-              'contact': null,
-              'role': 'User',
-              'online_status': 'Online',
-              'is_volunteer': false,
-              'updated_at': null,
-              'avatar_url': null,
-              'auth_id': response.user!.id,
-            })
-            .select()
-            .single();
-        final userModel = AuthModel.fromJson(userData);
-        return userModel;
-      }
-    } catch (e) {
-      print('register error: $e');
-      return null;
-    }
-    return null;
-  }
+				return AuthModel.fromJson(userData);
+			}
 
-  // send OTP to email
-  static Future<bool> sendOtp(String email) async {
-    try {
-      await supabase.auth.signInWithOtp(email: email, shouldCreateUser: false);
-      return true;
-    } catch (e) {
-      print('sendOtp error: $e');
-      return false;
-    }
-  }
+			return null;
+		} catch (e) {
+			print('login error: $e');
+			return null;
+		}
+	}
 
-  // verify OTP (return session if correct)
-  static Future<bool> verifyOtp(String email, String otp) async {
-    try {
-      final response = await supabase.auth.verifyOTP(
-        email: email,
-        token: otp,
-        type: OtpType.recovery,
-      );
-      return response.session != null;
-    } catch (e) {
-      print('verifyOtp error: $e');
-      return false;
-    }
-  }
+	static Future<AuthModel?> register(
+		String name,
+		String email,
+		String password,
+		String gender,
+	) async {
+		lastError = null;
 
-  // update password after OTP verified
-  static Future<bool> updatePassword(String newPassword) async {
-    try {
-      await supabase.auth.updateUser(UserAttributes(password: newPassword));
-      return true;
-    } catch (e) {
-      print('updatePassword error: $e');
-      return false;
-    }
-  }
+		try {
+			// Step 1: create the user in auth.users.
+			final response = await supabase.auth.signUp(
+				email: email,
+				password: password,
+			);
 
-  static Future<void> logout() async {
-    await supabase.auth.signOut();
-  }
+			final authUserId = response.user?.id;
+			if (authUserId == null) {
+				lastError = 'Sign up did not return a user id. Try login if account already exists.';
+				return null;
+			}
 
-  static bool isLoggedIn() {
-    return supabase.auth.currentSession != null;
-  }
+			// Step 2: check whether the profile already exists for this auth user.
+			final existingUser = await supabase
+					.from('User')
+					.select()
+					.eq('auth_id', authUserId)
+					.maybeSingle();
 
-  static void listenToAuthChanges(Function onSignedOut) {
-    supabase.auth.onAuthStateChange.listen((data) {
-      final event = data.event;
+			if (existingUser != null) {
+				return AuthModel.fromJson(existingUser);
+			}
 
-      if (event == AuthChangeEvent.signedOut) {
-        onSignedOut();
-      }
-    });
-  }
+			// Step 3: create the public.User profile row linked by auth_id.
+			final userData = await supabase
+					.from('User')
+					.insert({
+						'user_id': authUserId,
+						'name': name,
+						'gender': gender,
+						'contact': '',
+						'address': '',
+						'role': 'User',
+						'online_status': 'Online',
+						'is_volunteer': false,
+						'updated_at': DateTime.now().toIso8601String(),
+						'avatar_url': '',
+						'auth_id': authUserId,
+					})
+					.select()
+					.single();
+
+			return AuthModel.fromJson(userData);
+		} on AuthException catch (e, stackTrace) {
+			lastError = e.message;
+			// Auth-layer errors such as duplicate email or signup restrictions.
+			print('register auth error: ${e.message}');
+			print('register auth stackTrace: $stackTrace');
+			return null;
+		} on PostgrestException catch (e, stackTrace) {
+			lastError = e.message;
+			// Database-layer errors such as RLS or constraint failures.
+			print('register database error: ${e.message}');
+			print('register database stackTrace: $stackTrace');
+			return null;
+		} catch (e, stackTrace) {
+			lastError = e.toString();
+			// Fallback for any unexpected runtime error.
+			print('register error: $e');
+			print('register stackTrace: $stackTrace');
+			return null;
+		}
+	}
+
+	static Future<bool> sendOtp(String email) async {
+		try {
+			// Send a recovery/login OTP without creating a new account.
+			await supabase.auth.resetPasswordForEmail(email);
+			return true;
+		} catch (e) {
+			print('sendOtp error: $e');
+			return false;
+		}
+	}
+
+	static Future<bool> verifyOtp(String email, String otp) async {
+		lastError = null;
+		try {
+			// Verify the recovery OTP.
+			final response = await supabase.auth.verifyOTP(
+				email: email,
+				token: otp,
+				type: OtpType.recovery,
+			);
+			// Some environments attach session to currentSession instead of response.
+			final hasSession = response.session != null || supabase.auth.currentSession != null;
+
+			if (!hasSession) {
+				lastError ='OTP verified but no recovery session was created. Check Supabase recovery email template and auth settings.';
+			}
+
+			return hasSession;
+		} on AuthException catch (e) {
+			lastError = e.message;
+			print('verifyOtp auth error: ${e.message}');
+			return false;
+
+		} catch (e) {
+			lastError = e.toString();
+			print('verifyOtp general error: $e');
+			return false;
+		}
+	}
+
+	static Future<bool> updatePassword(String newPassword) async {
+		try {
+			// Update the currently signed-in user's password.
+			await supabase.auth.updateUser(UserAttributes(password: newPassword));
+			return true;
+		} catch (e) {
+			print('updatePassword error: $e');
+			return false;
+		}
+	}
+
+	static Future<void> logout() async {
+		// End the current Supabase session.
+		await supabase.auth.signOut();
+	}
+
+	static bool isLoggedIn() {
+		// Simple session check for UI guards.
+		return supabase.auth.currentSession != null;
+	}
+
+	static void listenToAuthChanges(Function onSignedOut) {
+		// Trigger a callback whenever the user signs out.
+		supabase.auth.onAuthStateChange.listen((data) {
+			if (data.event == AuthChangeEvent.signedOut) {
+				onSignedOut();
+			}
+		});
+	}
 }

@@ -32,6 +32,8 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void register() async {
+    // Hide the keyboard immediately to prevent TimeoutException
+    FocusScope.of(context).unfocus();
     if (formKey.currentState!.validate()) {
       setState(() {
         loading = true;
@@ -55,10 +57,15 @@ class _RegisterPageState extends State<RegisterPage> {
           const SnackBar(content: Text('Registration Successful')),
         );
 
-        Navigator.pop(context);
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/login',
+          (route) => false,
+        );
       } else {
+        final errorMessage = AuthService.lastError ?? 'Registration Failed';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registration Failed')),
+          SnackBar(content: Text(errorMessage)),
         );
       }
     }
@@ -145,6 +152,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               return null;
                             },
                           ),
+                          const SizedBox(height: 16),
                           DropdownButtonFormField<String>(
                             initialValue: genderController.text.isEmpty ? null : genderController.text,
                             items: const [
@@ -152,13 +160,26 @@ class _RegisterPageState extends State<RegisterPage> {
                               DropdownMenuItem(value: "Female", child: Text("Female")),
                             ],
                             onChanged: (value) {
-                              genderController.text = value!;
+                              if (value != null) {
+                                genderController.text = value;
+                              }
+                            },
+                            // Added validation to prevent database errors!
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Please select your gender";
+                              }
+                              return null;
                             },
                             decoration: AppDecorations.outlineInputDecoration(
                               hintText: "Select gender",
-                              prefixIcon: Icons.person_outline,
+                              prefixIcon: Icons.wc,
                               labelText: 'Gender',
                             ),
+                            // Keeps the dropdown menu background clean and white
+                            dropdownColor: AppColors.white,
+                            // Styles the little arrow on the right
+                            icon: const Icon(Icons.arrow_drop_down, color: AppColors.iconColor),
                           ),
                           const SizedBox(height: 16),
                           TextFormField(
