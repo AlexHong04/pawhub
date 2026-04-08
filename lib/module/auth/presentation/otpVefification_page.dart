@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import 'package:pawhub/module/auth/service/auth_service.dart';
 
 class OtpVerificationPage extends StatefulWidget {
   const OtpVerificationPage({super.key});
@@ -23,16 +24,31 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
 
   bool loading = false;
 
-  void verifyOtp() {
+  void verifyOtp() async {
+    final email = ModalRoute.of(context)!.settings.arguments as String;
+    final otpCode = ctrl1.text + ctrl2.text + ctrl3.text + ctrl4.text;
+
+    if (otpCode.length < 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter all 4 digits')),
+      );
+      return;
+    }
+
     setState(() => loading = true);
-    // Simulate verification
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => loading = false);
-        // Navigate to Reset Password Screen
-        Navigator.pushNamed(context, '/set_new_password');
+
+    bool success = await AuthService.verifyOtp(email, otpCode);
+
+    if (mounted) {
+      setState(() => loading = false);
+      if (success) {
+        Navigator.pushReplacementNamed(context, '/set_new_password');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid OTP code. Please try again.')),
+        );
       }
-    });
+    }
   }
 
   @override
@@ -185,15 +201,6 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // Container(
-        //   width: 100,
-        //   height: 100,
-        //   decoration: BoxDecoration(
-        //     color: const Color(0xFF2E82F4).withOpacity(0.08),
-        //     shape: BoxShape.circle,
-        //   ),
-        //   child: const Icon(Icons.lock, size: 40, color: Color(0xFF2E82F4)),
-        // ),
         Image.asset('assets/images/lock.png', height: 100, width: 100),
         Positioned(
           bottom: 0,

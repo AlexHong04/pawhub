@@ -79,6 +79,43 @@ class AuthService {
     return null;
   }
 
+  // send OTP to email
+  static Future<bool> sendOtp(String email) async {
+    try {
+      await supabase.auth.signInWithOtp(email: email, shouldCreateUser: false);
+      return true;
+    } catch (e) {
+      print('sendOtp error: $e');
+      return false;
+    }
+  }
+
+  // verify OTP (return session if correct)
+  static Future<bool> verifyOtp(String email, String otp) async {
+    try {
+      final response = await supabase.auth.verifyOTP(
+        email: email,
+        token: otp,
+        type: OtpType.recovery,
+      );
+      return response.session != null;
+    } catch (e) {
+      print('verifyOtp error: $e');
+      return false;
+    }
+  }
+
+  // update password after OTP verified
+  static Future<bool> updatePassword(String newPassword) async {
+    try {
+      await supabase.auth.updateUser(UserAttributes(password: newPassword));
+      return true;
+    } catch (e) {
+      print('updatePassword error: $e');
+      return false;
+    }
+  }
+
   static Future<void> logout() async {
     await supabase.auth.signOut();
   }
@@ -96,45 +133,4 @@ class AuthService {
       }
     });
   }
-
-  // static Future<bool> login(String email, String password) async {
-  //   if (email == AuthService.email && password == AuthService.password) {
-  //     final accessToken = TokenGenerator.tokenGenerator('U0001', expiresIn:Duration(days: 1));
-  //     final refreshToken = TokenGenerator.tokenGenerator('U0001', expiresIn:Duration(days: 7));
-  //     await TokenStorage.saveTokens(accessToken,refreshToken);
-  //     return true;
-  //   }
-  //   return false;
-  // }
-
-  // check login state
-  // static Future<bool> isLoggedIn() async{
-  //   final access = await TokenStorage.getAccessToken();
-  //   if (access == null){
-  //     return false;
-  //   }
-  //   if(!TokenGenerator.tokenExpired(access)){
-  //     return true;
-  //   }
-  //   return await refreshAccessToken();
-  // }
-
-  // static Future<bool> refreshAccessToken() async{
-  //   final refresh = await TokenStorage.getRefreshToken();
-  //   if (refresh == null){
-  //     return false;
-  //   }
-  //   if (TokenGenerator.tokenExpired(refresh)){
-  //     await TokenStorage.clear();
-  //     return false;
-  //   }
-  //   final newAccessToken = TokenGenerator.tokenGenerator('U0001',   expiresIn: Duration(minutes: 5),);
-  //
-  //   await TokenStorage.saveTokens(newAccessToken, refresh);
-  //   return true;
-  // }
-
-  // static Future<void> logout() async {
-  //   await TokenStorage.clear();
-  // }
 }

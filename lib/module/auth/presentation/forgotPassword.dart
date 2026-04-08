@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:pawhub/core/constants/colors.dart';
 import 'package:pawhub/core/widgets/appDecorations.dart';
+import 'package:pawhub/module/auth/service/auth_service.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -14,16 +15,31 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final emailController = TextEditingController();
   bool loading = false;
 
-  void sendResetCode() {
+  void sendResetCode() async {
+    if (emailController.text.isEmpty || !emailController.text.contains('@')) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter a valid email')));
+      return;
+    }
     setState(() => loading = true);
-    // Simulate API call
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => loading = false);
-        // Navigate to OTP Screen
-        Navigator.pushNamed(context, '/otp_verification');
+
+    bool sent = await AuthService.sendOtp(emailController.text.trim());
+
+    if (mounted) {
+      setState(() => loading = false);
+      if (sent) {
+        Navigator.pushNamed(
+          context,
+          '/otp_verification',
+          arguments: emailController.text.trim(),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to send OTP. Try again')),
+        );
       }
-    });
+    }
   }
 
   @override
@@ -165,15 +181,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // Container(
-        //   width: 100,
-        //   height: 100,
-        //   decoration: BoxDecoration(
-        //     color: AppColors.primary,
-        //     shape: BoxShape.circle,
-        //   ),
-        //   child: Icon(mainIcon, size: 40, color: AppColors.primary),
-        // ),
         Image.asset('assets/images/overlayLock.png', height: 100, width: 100),
         Positioned(
           bottom: 0,
