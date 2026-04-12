@@ -115,4 +115,16 @@ class ProfileService {
       return false;
     }
   }
+  static Future<List<UserModel>> getAllUsers() async {
+    try {
+      // Fetch all rows from the public.User table
+      final data = await supabase.from('User').select();
+
+      // Convert the raw JSON data into a List of UserModels
+      return (data as List).map((json) => UserModel.fromJson(json)).toList();
+    } catch (e) {
+      print('Error fetching all users: $e');
+      return []; // Return empty list if it fails
+    }
+  }
 }

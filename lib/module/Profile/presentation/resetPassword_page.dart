@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:pawhub/core/widgets/appDecorations.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../auth/service/auth_service.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   const ResetPasswordPage({super.key});
@@ -30,25 +31,63 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     super.dispose();
   }
 
-  void resetPassword() {
+  void resetPassword() async {
+    // Validate the text fields
     if (!formKey.currentState!.validate()) {
       return;
     }
     setState(() {
       loading = true;
     });
-
-    Future.delayed(const Duration(seconds: 2), () {
+    // Get the currently logged-in user's email
+    final currentUser = AuthService.supabase.auth.currentUser;
+    if (currentUser == null || currentUser.email == null) {
+      setState(() => loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: No authenticated user found.')),
+      );
+      return;
+    }
+    // Verify the "Current Password" by attempting a silent login
+    final verifyOldPassword = await AuthService.login(
+        currentUser.email!,
+        currentPasswordController.text.trim()
+    );
+    if (verifyOldPassword == null) {
       if (mounted) {
-        setState(() {
-          loading = false;
-        });
+        setState(() => loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password updated Successfully!!!')),
+          const SnackBar(
+            content: Text('Current password is incorrect!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return; // Stop here if the old password is wrong
+    }
+    // If old password is correct, update to the New Password
+    bool success = await AuthService.updatePassword(newPasswordController.text.trim());
+    if (mounted) {
+      setState(() {
+        loading = false;
+      });
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Password updated successfully!'),
+            backgroundColor: Colors.green,
+          ),
         );
         Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update password. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-    });
+    }
   }
 
   @override
