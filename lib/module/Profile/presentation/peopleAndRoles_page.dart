@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
 
 import '../model/user_model.dart';
+import '../service/profile_service.dart';
 // import 'user_model.dart'; // Make sure to import your UserModel file here!
 
 class PeopleAndRolesPage extends StatefulWidget {
@@ -16,49 +17,109 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
   final List<String> _filters = ['All', 'Volunteers', 'Adopters', 'Admin'];
 
   // Mock data using your EXACT UserModel structure
-  final List<UserModel> _users = [
-    UserModel(
-      id: "1",
-      name: "Sarah Jenkins",
-      gender: "Female",
-      contact: "555-0101",
-      address: "123 Main St",
-      role: "Admin",
-      onlineStatus: "Active 2m ago",
-      isVolunteer: false,
-      updatedAt: DateTime.now(),
-      avatarUrl: "assets/images/profile_placeholder.png",
-      // Or a network URL
-      email: "sarah.j@shelter.org",
-    ),
-    UserModel(
-      id: "2",
-      name: "David Torres",
-      gender: "Male",
-      contact: "555-0102",
-      address: "456 Oak Ave",
-      role: "Volunteer",
-      onlineStatus: "Inactive (3mo)",
-      isVolunteer: true,
-      updatedAt: DateTime.now(),
-      avatarUrl: "",
-      // Empty URL forces it to show Initials automatically!
-      email: "david.t@example.com",
-    ),
-    UserModel(
-      id: "3",
-      name: "Jessica Alba",
-      gender: "Female",
-      contact: "555-0103",
-      address: "789 Pine Rd",
-      role: "User",
-      onlineStatus: "Active 2m ago",
-      isVolunteer: false,
-      updatedAt: DateTime.now(),
-      avatarUrl: "assets/images/profile_placeholder.png",
-      email: "jess.alba88@outlook.com",
-    ),
-  ];
+  // final List<UserModel> _users = [
+  //   UserModel(
+  //     id: "1",
+  //     name: "Sarah Jenkins",
+  //     gender: "Female",
+  //     contact: "555-0101",
+  //     address: "123 Main St",
+  //     role: "Admin",
+  //     onlineStatus: "Active 2m ago",
+  //     isVolunteer: false,
+  //     updatedAt: DateTime.now(),
+  //     avatarUrl: "assets/images/profile_placeholder.png",
+  //     // Or a network URL
+  //     email: "sarah.j@shelter.org",
+  //   ),
+  //   UserModel(
+  //     id: "2",
+  //     name: "David Torres",
+  //     gender: "Male",
+  //     contact: "555-0102",
+  //     address: "456 Oak Ave",
+  //     role: "Volunteer",
+  //     onlineStatus: "Inactive (3mo)",
+  //     isVolunteer: true,
+  //     updatedAt: DateTime.now(),
+  //     avatarUrl: "",
+  //     // Empty URL forces it to show Initials automatically!
+  //     email: "david.t@example.com",
+  //   ),
+  //   UserModel(
+  //     id: "3",
+  //     name: "Jessica Alba",
+  //     gender: "Female",
+  //     contact: "555-0103",
+  //     address: "789 Pine Rd",
+  //     role: "User",
+  //     onlineStatus: "Active 2m ago",
+  //     isVolunteer: false,
+  //     updatedAt: DateTime.now(),
+  //     avatarUrl: "assets/images/profile_placeholder.png",
+  //     email: "jess.alba88@outlook.com",
+  //   ),
+  // ];
+
+  List<UserModel> _allUsers = []; // Stores the master list from DB
+  List<UserModel> _filteredUsers = []; // Stores what is currently on screen
+  bool _isLoading = true;
+  String _searchQuery = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUsers();
+  }
+
+  // 1. Fetch data from Supabase
+  Future<void> _fetchUsers() async {
+    setState(() => _isLoading = true);
+
+    // Call the new service function
+    final users = await ProfileService.getAllUsers();
+
+    if (mounted) {
+      setState(() {
+        _allUsers = users;
+        _filteredUsers = users; // Initially, show everyone
+        _isLoading = false;
+      });
+    }
+  }
+
+  // 2. Filter Logic (Handles both Search typing AND Chip clicking)
+  void _applyFilters() {
+    List<UserModel> results = _allUsers;
+
+    // Apply Chip Filter
+    String selectedFilter = _filters[_selectedFilterIndex];
+    if (selectedFilter != 'All') {
+      // Map 'Volunteers' to 'Volunteer', 'Users' to 'User'
+      String targetRole = selectedFilter.replaceAll('s', '');
+      if(selectedFilter == "Admin") targetRole = "Admin";
+
+      results = results.where((u) => u.role == targetRole).toList();
+    }
+
+    // Apply Search Filter
+    if (_searchQuery.isNotEmpty) {
+      results = results.where((u) {
+        final nameLower = u.name.toLowerCase();
+        final emailLower = u.email.toLowerCase();
+        final roleLower = u.role.toLowerCase();
+        final searchLower = _searchQuery.toLowerCase();
+
+        return nameLower.contains(searchLower) ||
+            emailLower.contains(searchLower) ||
+            roleLower.contains(searchLower);
+      }).toList();
+    }
+
+    setState(() {
+      _filteredUsers = results;
+    });
+  }
 
   // Helper to extract "DT" from "David Torres"
   String _getInitials(String name) {
@@ -109,12 +170,16 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
           _buildFilterChips(),
           const SizedBox(height: 16),
           Expanded(
-            child: ListView.separated(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredUsers.isEmpty
+                ? const Center(child: Text("No users found."))
+                : ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              itemCount: _users.length,
+              itemCount: _filteredUsers.length,
               separatorBuilder: (context, index) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
-                return _buildUserCard(_users[index]);
+                return _buildUserCard(_filteredUsers[index]);
               },
             ),
           ),

@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:pawhub/module/Profile/model/user_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/colors.dart';
 import '../../auth/service/auth_service.dart';
-// import 'package:pawhub/core/constants/colors.dart';
+import '../service/profile_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -12,11 +16,53 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  static const String _avatarPathKey = 'profile_edit_avatar_path';
+
+  UserModel? _userProfile;
+  File? _localAvatarBackup;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  // Fetch the data from Supabase
+  Future<void> _loadUserData() async {
+    setState(() => _isLoading = true);
+    final profileData = await ProfileService.getCurrentUserProfile();
+    final localAvatarBackup = await _loadSavedLocalAvatar();
+
+    if (mounted) {
+      setState(() {
+        _userProfile = profileData;
+        _localAvatarBackup = localAvatarBackup;
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<File?> _loadSavedLocalAvatar() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedPath = prefs.getString(_avatarPathKey);
+    if (savedPath == null || savedPath.isEmpty) return null;
+
+    final backupFile = File(savedPath);
+    if (await backupFile.exists()) {
+      return backupFile;
+    }
+
+    await prefs.remove(_avatarPathKey);
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text(
           "Profile",
           style: TextStyle(
@@ -26,16 +72,18 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         elevation: 0,
         scrolledUnderElevation: 0,
-        // Prevents color change on scroll
         surfaceTintColor: Colors.transparent,
         centerTitle: true,
         backgroundColor: AppColors.background,
       ),
-      body: SingleChildScrollView(
+      // Show a loading spinner while fetching data
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          : SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
         child: Column(
           children: [
-            // 1. Profile Picture & Name
+            // 1. Profile Picture & Name (Now Dynamic!)
             _buildProfileHeader(),
             const SizedBox(height: 32),
 
@@ -86,25 +134,27 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   _buildSettingTile(
                     icon: Icons.person,
-                    iconBgColor: AppColors.primary,
+                    iconBgColor: AppColors.primary.withOpacity(0.1), // Made background lighter so icon pops!
                     iconColor: AppColors.primary,
                     title: "Edit Profile",
                     onTap: () {
-                      // Handle Edit Profile
-                      Navigator.pushReplacementNamed(context, '/edit_profile');
+                      // CHANGED: Use pushNamed instead of replacement so the back button works.
+                      // The .then() ensures the page refreshes when you come back!
+                      Navigator.pushNamed(context, '/edit_profile').then((_) {
+                        _loadUserData();
+                      });
                     },
                   ),
-                  const Divider(height: 1, color: AppColors.border),
+                  const Divider(height: 1, color: AppColors.borderGray),
                   _buildSettingTile(
                     icon: Icons.lock,
-                    iconBgColor: Colors.orange,
+                    iconBgColor: Colors.orange.withOpacity(0.1),
                     iconColor: Colors.orange,
                     title: "Reset Password",
                     onTap: () {
-                      // Handle Reset Password
-                      Navigator.pushReplacementNamed(
+                      Navigator.pushNamed(
                         context,
-                        '/reset_password',
+                        '/reset_password', // Or whatever your route is
                       );
                     },
                   ),
@@ -122,7 +172,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Navigator.pushNamedAndRemoveUntil(
                   context,
                   '/login',
-                  (route) => false,
+                      (route) => false,
                 );
               },
               icon: const Icon(Icons.logout, color: AppColors.textLight),
@@ -136,17 +186,27 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             const SizedBox(height: 40),
-            // Extra space for scrolling above bottom nav
           ],
         ),
       ),
     );
   }
 
-  // --- HELPER WIDGETS ---
-
-  // Helper for Profile Picture and Name
   Widget _buildProfileHeader() {
+    // Safely grab the data from our model with fallbacks
+    final name = _userProfile?.name ?? "Loading...";
+    final email = _userProfile?.email ?? "Loading...";
+    final avatarUrl = _userProfile?.avatarUrl;
+
+    ImageProvider? avatarImage;
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      // Primary source: Supabase URL
+      avatarImage = NetworkImage(avatarUrl);
+    } else if (_localAvatarBackup != null) {
+      // Fallback source: local backup path
+      avatarImage = FileImage(_localAvatarBackup!);
+    }
+
     return Column(
       children: [
         Stack(
@@ -160,42 +220,49 @@ class _ProfilePageState extends State<ProfilePage> {
                   width: 3,
                 ),
               ),
-              child: const CircleAvatar(
+              child: CircleAvatar(
                 radius: 45,
                 backgroundColor: AppColors.inputFill,
-                // Replace with NetworkImage when connected to backend
-                // backgroundImage: AssetImage(
-                //   'assets/images/profile_placeholder.png',
-                // ),
+                backgroundImage: avatarImage,
+                child: avatarImage == null
+                    ? const Icon(Icons.person, size: 45, color: Colors.grey)
+                    : null,
               ),
             ),
             Positioned(
               bottom: 0,
               right: 0,
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.pushNamed(context, '/edit_profile').then((_) {
+                    _loadUserData();
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.edit, color: Colors.white, size: 14),
                 ),
-                child: const Icon(Icons.edit, color: Colors.white, size: 14),
               ),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        const Text(
-          "Sarah Jenkins",
-          style: TextStyle(
+        Text(
+          name, // DYNAMIC NAME
+          style: const TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
             color: AppColors.textDark,
           ),
         ),
         const SizedBox(height: 4),
-        const Text(
-          "sarah.j@example.com",
-          style: TextStyle(fontSize: 15, color: AppColors.textLight),
+        Text(
+          email, // DYNAMIC EMAIL
+          style: const TextStyle(fontSize: 15, color: AppColors.textLight),
         ),
       ],
     );
