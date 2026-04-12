@@ -26,16 +26,18 @@ class UserModel {
   });
 
   factory UserModel.fromJson(Map<String, dynamic> data) => UserModel(
-    id: data["user_id"],
-    name: data['name'],
-    gender: data['gender'],
-    contact: data['contact'],
-    address: data['address'],
-    role: data['role'],
-    onlineStatus: data['online_status'],
-    isVolunteer: data['is_volunteer'],
-    updatedAt: data['updated_at'],
-    avatarUrl: data['avatar_url'],
-    email: data['email'],
+    id: data["user_id"] ?? '',
+    name: data['name'] ?? '',
+    gender: data['gender'] ?? '',
+    contact: data['contact'] ?? '',
+    address: data['address'] ?? '',
+    role: data['role'] ?? 'User',
+    onlineStatus: data['online_status'] ?? 'Online',
+    isVolunteer: data['is_volunteer'] ?? false,
+    updatedAt: data['updated_at'] != null
+        ? DateTime.parse(data['updated_at'])
+        : DateTime.now(),
+    avatarUrl: data['avatar_url'] ?? '',
+    email: data['email'] ?? '',
   );
 }

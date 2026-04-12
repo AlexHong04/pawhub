@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/utils/generatorId.dart';
 import '../model/auth_model.dart';
 
 class AuthService {
@@ -34,15 +35,15 @@ class AuthService {
 	}
 
 	static Future<AuthModel?> register(
-		String name,
-		String email,
-		String password,
-		String gender,
-	) async {
+			String name,
+			String email,
+			String password,
+			String gender,
+			) async {
 		lastError = null;
 
 		try {
-			// Step 1: create the user in auth.users.
+			// create the user in auth.users.
 			final response = await supabase.auth.signUp(
 				email: email,
 				password: password,
@@ -54,7 +55,7 @@ class AuthService {
 				return null;
 			}
 
-			// Step 2: check whether the profile already exists for this auth user.
+			// check whether the profile already exists for this auth user.
 			final existingUser = await supabase
 					.from('User')
 					.select()
@@ -65,11 +66,23 @@ class AuthService {
 				return AuthModel.fromJson(existingUser);
 			}
 
-			// Step 3: create the public.User profile row linked by auth_id.
-			final userData = await supabase
-					.from('User')
-					.insert({
-						'user_id': authUserId,
+			// create the public.User profile row linked by auth_id.
+			int maxRetries = 3;
+			Map<String, dynamic>? userData;
+
+			for (int i = 0; i < maxRetries; i++) {
+				try {
+					final newUserId = await GeneratorId.generateId(
+						tableName: 'User',
+						idColumnName: 'user_id',
+						prefix: 'U',
+						numberLength: 5,
+					);
+
+					userData = await supabase
+							.from('User')
+							.insert({
+						'user_id': newUserId,
 						'name': name,
 						'gender': gender,
 						'contact': '',
@@ -77,14 +90,34 @@ class AuthService {
 						'role': 'User',
 						'online_status': 'Online',
 						'is_volunteer': false,
-						'updated_at': DateTime.now().toIso8601String(),
-						'avatar_url': '',
+						'avatar_url': null,
 						'auth_id': authUserId,
 					})
-					.select()
-					.single();
+							.select()
+							.single();
+					break;
+				} on PostgrestException catch (e) {
+					// Duplicate Key / Unique Constraint Violation
+					// PostgreSQL  unique violation normal 23505
+					if (e.code == '23505' || e.message.toLowerCase().contains('duplicate') || e.message.toLowerCase().contains('unique')) {
+						print(' Duplicate Key, in  ${i + 1} please try again...');
 
-			return AuthModel.fromJson(userData);
+						if (i == maxRetries - 1) {
+							throw e;
+						}
+					} else {
+						throw e;
+					}
+				}
+			}
+
+			if (userData != null) {
+				return AuthModel.fromJson(userData);
+			} else {
+				lastError = 'server error, please try again。';
+				return null;
+			}
+
 		} on AuthException catch (e, stackTrace) {
 			lastError = e.message;
 			// Auth-layer errors such as duplicate email or signup restrictions.
@@ -93,7 +126,6 @@ class AuthService {
 			return null;
 		} on PostgrestException catch (e, stackTrace) {
 			lastError = e.message;
-			// Database-layer errors such as RLS or constraint failures.
 			print('register database error: ${e.message}');
 			print('register database stackTrace: $stackTrace');
 			return null;
