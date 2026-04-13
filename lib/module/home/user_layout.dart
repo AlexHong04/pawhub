@@ -26,11 +26,16 @@ class UserLayoutState extends State<UserLayout> {
 
   @override
   Widget build(BuildContext context) {
+    final hasPages = _pages.isNotEmpty;
+    final safeIndex = hasPages ? _selectedIndex.clamp(0, _pages.length - 1) : 0;
+
     return Scaffold(
-      // IndexedStack keeps the state of your pages alive even when you switch tabs!
-      body: IndexedStack(index: _selectedIndex, children: _pages),
+      // IndexedStack keeps page state alive when switching tabs.
+      body: hasPages
+          ? IndexedStack(index: safeIndex, children: _pages)
+          : const SizedBox.shrink(),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
+        currentIndex: safeIndex,
         type: BottomNavigationBarType.fixed,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.iconColor,
@@ -43,6 +48,7 @@ class UserLayoutState extends State<UserLayout> {
           fontSize: 12,
         ),
         onTap: (index) {
+          if (index < 0 || index >= _pages.length) return;
           setState(() {
             _selectedIndex = index;
           });

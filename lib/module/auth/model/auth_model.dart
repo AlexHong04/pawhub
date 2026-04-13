@@ -23,4 +23,14 @@ class AuthModel {
     password: (data['encrypted_password'] ?? data['password'] ?? '').toString(),
     createAt: DateTime.tryParse((data['created_at'] ?? '').toString()) ?? DateTime.now(),
   );
+
+  Map<String, dynamic> toJson() => {
+    'user_id': id,
+    'name': name,
+    'role': role,
+    'email': email,
+    // Never persist raw password locally.
+    'password': '',
+    'created_at': createAt.toIso8601String(),
+  };
 }

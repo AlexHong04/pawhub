@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pawhub/module/Profile/profile_routes.dart';
 import 'module/auth/auth_routes.dart';
+import 'module/auth/presentation/login_page.dart';
 import 'module/auth/service/auth_service.dart';
 import 'module/home/home_routes.dart';
 import 'module/home/staff_layout.dart';
@@ -16,9 +17,13 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  late Future<String> _initialRouteFuture;
+
   @override
   void initState() {
     super.initState();
+
+    _initialRouteFuture = _determineInitialRoute();
 
     AuthService.listenToAuthChanges(() {
       navigatorKey.currentState?.pushNamedAndRemoveUntil(
@@ -28,14 +33,42 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  Future<String> _determineInitialRoute() async {
+    final cachedUser = await AuthService.getStoredCurrentUser();
+
+    if (AuthService.isLoggedIn()) {
+      if (cachedUser?.role == 'Admin') {
+        return '/staff_layout';
+      }
+      return '/user_layout';
+    }
+
+    return AuthRoutes.login;
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: "Flutter Authentication",
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey,
+      home: FutureBuilder<String>(
+        future: _initialRouteFuture,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
 
-      initialRoute: '/login',
-
+          final route = snapshot.data ?? AuthRoutes.login;
+          if (route == '/staff_layout') return const StaffLayout();
+          if (route == '/user_layout') return const UserLayout();
+          return const LoginPage();
+        },
+      ),
       routes: {
         ...AuthRoutes.routes,
         ...HomeRoutes.routes,

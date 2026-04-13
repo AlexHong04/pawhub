@@ -6,6 +6,7 @@ import 'package:pawhub/core/utils/local_file_service.dart';
 import 'package:pawhub/core/widgets/appDecorations.dart';
 import 'package:pawhub/module/Profile/model/user_model.dart';
 import 'package:pawhub/module/Profile/service/profile_service.dart';
+import 'package:pawhub/module/auth/service/auth_service.dart';
 
 class ProfileEditPage extends StatefulWidget {
   const ProfileEditPage({super.key});
@@ -35,7 +36,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   String? _userId;
   bool loading = false;
 
-  void _exitEditPage() {
+  Future<void> _exitEditPage() async {
     bool reachedLayoutRoute = false;
     Navigator.popUntil(context, (route) {
       final routeName = route.settings.name;
@@ -47,7 +48,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     });
 
     if (!reachedLayoutRoute) {
-      Navigator.pushNamedAndRemoveUntil(context, '/user_layout', (route) => false);
+      final currentUser = await AuthService.getStoredCurrentUser();
+      final targetRoute = currentUser?.role == 'Admin' ? '/staff_layout' : '/user_layout';
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, targetRoute, (route) => false);
     }
   }
 
@@ -395,8 +399,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: () {
-                      _exitEditPage();
+                    onPressed: () async {
+                      await _exitEditPage();
                     },
                     child: const Text(
                       "Cancel",
@@ -483,3 +487,4 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     );
   }
 }
+

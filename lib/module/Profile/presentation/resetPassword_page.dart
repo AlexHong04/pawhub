@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/widgets/appDecorations.dart';
 
@@ -50,8 +49,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     }
     // Verify the "Current Password" by attempting a silent login
     final verifyOldPassword = await AuthService.login(
-        currentUser.email!,
-        currentPasswordController.text.trim()
+      currentUser.email!,
+      currentPasswordController.text.trim(),
+      persistLocal: false,
+      syncDatabase: false,
     );
     if (verifyOldPassword == null) {
       if (mounted) {

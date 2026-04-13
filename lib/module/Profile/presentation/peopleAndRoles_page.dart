@@ -14,7 +14,7 @@ class PeopleAndRolesPage extends StatefulWidget {
 
 class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
   int _selectedFilterIndex = 0;
-  final List<String> _filters = ['All', 'Volunteers', 'Adopters', 'Admin'];
+  final List<String> _filters = ['All', 'Volunteers', 'User', 'Admin'];
 
   // Mock data using your EXACT UserModel structure
   // final List<UserModel> _users = [
@@ -90,25 +90,33 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
 
   // 2. Filter Logic (Handles both Search typing AND Chip clicking)
   void _applyFilters() {
-    List<UserModel> results = _allUsers;
+    // Start with all users
+    List<UserModel> results = List.from(_allUsers);
 
-    // Apply Chip Filter
+    // 1. Apply Chip Filter (Case-insensitive & space-trimmed)
     String selectedFilter = _filters[_selectedFilterIndex];
     if (selectedFilter != 'All') {
-      // Map 'Volunteers' to 'Volunteer', 'Users' to 'User'
-      String targetRole = selectedFilter.replaceAll('s', '');
-      if(selectedFilter == "Admin") targetRole = "Admin";
+      String targetRole = '';
 
-      results = results.where((u) => u.role == targetRole).toList();
+      // Map to the database roles, but use strictly lowercase for safe comparing
+      if (selectedFilter == 'Volunteers') targetRole = 'volunteer';
+      if (selectedFilter == 'User') targetRole = 'user';
+      if (selectedFilter == 'Admin') targetRole = 'admin';
+
+      results = results.where((u) {
+        // .trim() removes accidental spaces, .toLowerCase() makes it ignore capitals
+        return u.role.trim().toLowerCase() == targetRole;
+      }).toList();
     }
 
-    // Apply Search Filter
-    if (_searchQuery.isNotEmpty) {
+    // 2. Apply Text Search (Case-insensitive & space-trimmed)
+    if (_searchQuery.trim().isNotEmpty) {
+      final searchLower = _searchQuery.trim().toLowerCase();
+
       results = results.where((u) {
-        final nameLower = u.name.toLowerCase();
-        final emailLower = u.email.toLowerCase();
-        final roleLower = u.role.toLowerCase();
-        final searchLower = _searchQuery.toLowerCase();
+        final nameLower = u.name.trim().toLowerCase();
+        final emailLower = u.email.trim().toLowerCase();
+        final roleLower = u.role.trim().toLowerCase();
 
         return nameLower.contains(searchLower) ||
             emailLower.contains(searchLower) ||
@@ -116,6 +124,7 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
       }).toList();
     }
 
+    // 3. Update the UI
     setState(() {
       _filteredUsers = results;
     });
@@ -175,13 +184,17 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
                 : _filteredUsers.isEmpty
                 ? const Center(child: Text("No users found."))
                 : ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              itemCount: _filteredUsers.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                return _buildUserCard(_filteredUsers[index]);
-              },
-            ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 8,
+                    ),
+                    itemCount: _filteredUsers.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      return _buildUserCard(_filteredUsers[index]);
+                    },
+                  ),
           ),
         ],
       ),
@@ -197,7 +210,11 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.border),
       ),
-      child: const TextField(
+      child: TextField(
+        onChanged: (value) {
+          _searchQuery = value;
+          _applyFilters();
+        },
         decoration: InputDecoration(
           hintText: "Search name, email or role...",
           hintStyle: TextStyle(color: AppColors.textLight, fontSize: 15),
@@ -219,7 +236,10 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
           return Padding(
             padding: const EdgeInsets.only(right: 12),
             child: GestureDetector(
-              onTap: () => setState(() => _selectedFilterIndex = index),
+              onTap: () => {
+                setState(() => _selectedFilterIndex = index),
+                _applyFilters(),
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,

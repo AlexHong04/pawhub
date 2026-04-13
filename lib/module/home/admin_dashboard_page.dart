@@ -92,7 +92,6 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -705,41 +704,6 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      currentIndex: _bottomNavIndex,
-      type: BottomNavigationBarType.fixed,
-      selectedItemColor: const Color(0xFF2E82F4),
-      unselectedItemColor: const Color(0xFF98A2B3),
-      selectedLabelStyle: const TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: 10,
-      ),
-      unselectedLabelStyle: const TextStyle(
-        fontWeight: FontWeight.w600,
-        fontSize: 10,
-      ),
-      onTap: (index) => setState(() => _bottomNavIndex = index),
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "DASH"),
-        BottomNavigationBarItem(icon: Icon(Icons.pets), label: "PETS"),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today_outlined),
-          label: "EVENTS",
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.badge_outlined),
-          label: "ADOPT",
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.people_outline),
-          label: "COMM",
-        ),
-        BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: "ACC"),
-      ],
     );
   }
 }

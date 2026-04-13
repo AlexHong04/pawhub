@@ -5,6 +5,8 @@ import 'package:pawhub/module/Profile/model/user_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../../core/utils/current_user_store.dart';
+import '../../auth/model/auth_model.dart';
 import '../../auth/service/auth_service.dart';
 import '../service/profile_service.dart';
 
@@ -28,11 +30,41 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadUserData();
   }
 
-  // Fetch the data from Supabase
+  // Fetch the data from Supabase (primary) → fallback to SharedPreferences if error
   Future<void> _loadUserData() async {
     setState(() => _isLoading = true);
-    final profileData = await ProfileService.getCurrentUserProfile();
     final localAvatarBackup = await _loadSavedLocalAvatar();
+
+    UserModel? profileData;
+    
+    // Step 1: Try to fetch from Supabase (primary source)
+    try {
+      profileData = await ProfileService.getCurrentUserProfile();
+    } catch (e) {
+      print('Supabase sync error, falling back to local cache: $e');
+      
+      // Step 2: If Supabase fails, fallback to local SharedPreferences cache
+      try {
+        final cachedAuth = await CurrentUserStore.read();
+        if (cachedAuth != null) {
+          profileData = UserModel(
+            id: cachedAuth.id,
+            name: cachedAuth.name,
+            email: cachedAuth.email,
+            gender: '',
+            contact: '',
+            address: '',
+            role: cachedAuth.role,
+            onlineStatus: 'Online',
+            isVolunteer: false,
+            updatedAt: cachedAuth.createAt,
+            avatarUrl: '',
+          );
+        }
+      } catch (fallbackError) {
+        print('Also failed to read local cache: $fallbackError');
+      }
+    }
 
     if (mounted) {
       setState(() {

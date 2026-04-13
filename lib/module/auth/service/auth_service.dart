@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/utils/current_user_store.dart';
 import '../../../core/utils/generatorId.dart';
 import '../model/auth_model.dart';
 
@@ -8,7 +9,12 @@ class AuthService {
 	static final supabase = Supabase.instance.client;
 	static String? lastError;
 
-	static Future<AuthModel?> login(String email, String password) async {
+	static Future<AuthModel?> login(
+		String email,
+		String password, {
+		bool persistLocal = true,
+		bool syncDatabase = true,
+	}) async {
 		try {
 			// Sign in against auth.users first.
 			final response = await supabase.auth.signInWithPassword(
@@ -17,14 +23,39 @@ class AuthService {
 			);
 
 			if (response.session != null && response.user != null) {
-				// Load the app profile row linked by auth_id.
-				final userData = await supabase
-						.from('User')
-						.select()
-						.eq('auth_id', response.user!.id)
-						.single();
+				AuthModel? authModel;
 
-				return AuthModel.fromJson(userData);
+				// Try to load profile from Supabase (primary source)
+				try {
+					final userData = await supabase
+							.from('User')
+							.select()
+							.eq('auth_id', response.user!.id)
+							.single();
+
+					// The User table may not store email, so keep auth email in the model.
+					userData['email'] = response.user!.email ?? email;
+					authModel = AuthModel.fromJson(userData);
+				} catch (supabseError) {
+					print('Failed to fetch profile from Supabase, falling back to local cache: $supabseError');
+
+					// If Supabase profile fetch fails, fallback to local cache
+					try {
+						authModel = await CurrentUserStore.read();
+					} catch (cacheError) {
+						print('Also failed to read local cache: $cacheError');
+					}
+				}
+
+				if (authModel != null) {
+					if (syncDatabase) {
+						await _syncLoginToDatabase(response.user!.id);
+					}
+					if (persistLocal) {
+						await CurrentUserStore.save(authModel);
+					}
+					return authModel;
+				}
 			}
 
 			return null;
@@ -56,15 +87,23 @@ class AuthService {
 			}
 
 			// check whether the profile already exists for this auth user.
-			final existingUser = await supabase
-					.from('User')
-					.select()
-					.eq('auth_id', authUserId)
-					.maybeSingle();
-
-			if (existingUser != null) {
-				return AuthModel.fromJson(existingUser);
+			Map<String, dynamic>? existingUser;
+			try {
+				existingUser = await supabase
+						.from('User')
+						.select()
+						.eq('auth_id', authUserId)
+						.maybeSingle();
+			} catch (e) {
+				print('Failed to check existing user from Supabase: $e');
+				// Continue anyway - existing user might be null
 			}
+
+		if (existingUser != null) {
+			existingUser['email'] = email;
+			final authModel = AuthModel.fromJson(existingUser);
+			return authModel;
+		}
 
 			// create the public.User profile row linked by auth_id.
 			int maxRetries = 3;
@@ -111,12 +150,14 @@ class AuthService {
 				}
 			}
 
-			if (userData != null) {
-				return AuthModel.fromJson(userData);
-			} else {
-				lastError = 'server error, please try again。';
-				return null;
-			}
+		if (userData != null) {
+			userData['email'] = email;
+			final authModel = AuthModel.fromJson(userData);
+			return authModel;
+		} else {
+			lastError = 'server error, please try again。';
+			return null;
+		}
 
 		} on AuthException catch (e, stackTrace) {
 			lastError = e.message;
@@ -189,9 +230,17 @@ class AuthService {
 		}
 	}
 
+	static Future<AuthModel?> getStoredCurrentUser() async {
+		return CurrentUserStore.read();
+	}
+
 	static Future<void> logout() async {
-		// End the current Supabase session.
-		await supabase.auth.signOut();
+		// End the current Supabase session and clear local cached user.
+		try {
+			await supabase.auth.signOut();
+		} finally {
+			await CurrentUserStore.clear();
+		}
 	}
 
 	static bool isLoggedIn() {
@@ -201,10 +250,23 @@ class AuthService {
 
 	static void listenToAuthChanges(Function onSignedOut) {
 		// Trigger a callback whenever the user signs out.
-		supabase.auth.onAuthStateChange.listen((data) {
+		supabase.auth.onAuthStateChange.listen((data) async {
 			if (data.event == AuthChangeEvent.signedOut) {
+				await CurrentUserStore.clear();
 				onSignedOut();
 			}
 		});
+	}
+
+	static Future<void> _syncLoginToDatabase(String authId) async {
+		try {
+			await supabase.from('User').update({
+				'online_status': 'Online',
+				'updated_at': DateTime.now().toIso8601String(),
+			}).eq('auth_id', authId);
+		} catch (e) {
+			// Keep login successful even if this non-critical sync fails.
+			print('sync login status error: $e');
+		}
 	}
 }
