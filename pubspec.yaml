@@ -28,6 +28,7 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  image_picker: ^1.2.1
   flutter:
     sdk: flutter
 
@@ -37,9 +38,10 @@ dependencies:
   supabase_flutter: ^2.12.0
   provider: ^6.1.5+1
   font_awesome_flutter: ^10.7.0
-  image_picker: ^1.0.7
-  path_provider: ^2.1.5
-  shared_preferences: ^2.3.3
+  pin_code_fields: ^8.0.1
+  qr_flutter: ^4.1.0
+  flutter_stripe: ^12.6.0
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
