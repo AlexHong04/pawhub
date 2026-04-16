@@ -2,11 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:pawhub/module/Profile/model/user_model.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/current_user_store.dart';
-import '../../auth/model/auth_model.dart';
+import '../../../core/utils/local_file_service.dart';
 import '../../auth/service/auth_service.dart';
 import '../service/profile_service.dart';
 
@@ -18,11 +17,15 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  static const String _avatarPathKey = 'profile_edit_avatar_path';
+  static const String _avatarPathKeyPrefix = 'profile_edit_avatar_path';
 
   UserModel? _userProfile;
   File? _localAvatarBackup;
   bool _isLoading = true;
+
+  String _avatarStorageKeyForUser(String userId) {
+    return '${_avatarPathKeyPrefix}_$userId';
+  }
 
   @override
   void initState() {
@@ -33,7 +36,6 @@ class _ProfilePageState extends State<ProfilePage> {
   // Fetch the data from Supabase (primary) → fallback to SharedPreferences if error
   Future<void> _loadUserData() async {
     setState(() => _isLoading = true);
-    final localAvatarBackup = await _loadSavedLocalAvatar();
 
     UserModel? profileData;
     
@@ -66,6 +68,11 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     }
 
+    File? localAvatarBackup;
+    if (profileData != null) {
+      localAvatarBackup = await _loadSavedLocalAvatar(profileData.id);
+    }
+
     if (mounted) {
       setState(() {
         _userProfile = profileData;
@@ -75,18 +82,9 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<File?> _loadSavedLocalAvatar() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedPath = prefs.getString(_avatarPathKey);
-    if (savedPath == null || savedPath.isEmpty) return null;
-
-    final backupFile = File(savedPath);
-    if (await backupFile.exists()) {
-      return backupFile;
-    }
-
-    await prefs.remove(_avatarPathKey);
-    return null;
+  Future<File?> _loadSavedLocalAvatar(String userId) async {
+    final storageKey = _avatarStorageKeyForUser(userId);
+    return LocalFileService.loadSavedImage(storageKey);
   }
 
   @override

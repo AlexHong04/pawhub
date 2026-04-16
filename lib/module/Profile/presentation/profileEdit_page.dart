@@ -7,6 +7,7 @@ import 'package:pawhub/core/widgets/appDecorations.dart';
 import 'package:pawhub/module/Profile/model/user_model.dart';
 import 'package:pawhub/module/Profile/service/profile_service.dart';
 import 'package:pawhub/module/auth/service/auth_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProfileEditPage extends StatefulWidget {
   const ProfileEditPage({super.key});
@@ -16,7 +17,7 @@ class ProfileEditPage extends StatefulWidget {
 }
 
 class _ProfileEditPageState extends State<ProfileEditPage> {
-  static const String _avatarPathKey = 'profile_edit_avatar_path';
+  static const String _avatarPathKeyPrefix = 'profile_edit_avatar_path';
   static const List<String> _genderOptions = <String>[
     'Male',
     'Female',
@@ -35,6 +36,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   String? _currentAvatarUrl;
   String? _userId;
   bool loading = false;
+
+  String _avatarStorageKeyForUser(String userId) {
+    return '${_avatarPathKeyPrefix}_$userId';
+  }
 
   Future<void> _exitEditPage() async {
     bool reachedLayoutRoute = false;
@@ -65,52 +70,27 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     super.dispose();
   }
 
-  // Future<File?> _loadSavedLocalAvatar() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final savedPath = prefs.getString(_avatarPathKey);
-  //
-  //   if (savedPath == null || savedPath.isEmpty) {
-  //     return null;
-  //   }
-  //
-  //   final savedFile = File(savedPath);
-  //   if (await savedFile.exists()) {
-  //     return savedFile;
-  //   }
-  //
-  //   await prefs.remove(_avatarPathKey);
-  //   return null;
-  // }
+  Future<void> _loadUserData() async {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    if (currentUser == null) {
+      if (!mounted) return;
+      setState(() => loading = false);
+      return;
+    }
 
-  // Future<File?> _storeAvatarLocally(XFile pickedFile) async {
-  //   try {
-  //     final appDir = await getApplicationDocumentsDirectory();
-  //     final profileDir = Directory('${appDir.path}${Platform.pathSeparator}profile',);
-  //     if (!await profileDir.exists()) {
-  //       await profileDir.create(recursive: true);
-  //     }
-  //
-  //     final fileExtension = pickedFile.path.contains('.') ? pickedFile.path.split('.').last : 'jpg';
-  //     final localFileName ='profile_avatar_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
-  //     final localFile = await File(pickedFile.path).copy('${profileDir.path}${Platform.pathSeparator}$localFileName',);
-  //
-  //     final prefs = await SharedPreferences.getInstance();
-  //     await prefs.setString(_avatarPathKey, localFile.path);
-  //
-  //     return localFile;
-  //   } catch (e) {
-  //     debugPrint('Error saving avatar locally: $e');
-  //     return null;
-  //   }
-  // }
+    final userId = currentUser.id;
+    final avatarStorageKey = _avatarStorageKeyForUser(userId);
 
-  Future<void> _loadUserData() async{
+    final localAvatar = await LocalFileService.loadSavedImage(avatarStorageKey);
+
     final UserModel? profileData = await ProfileService.getCurrentUserProfile();
 
-    if(profileData != null){
-      final localAvatar = await LocalFileService.loadSavedImage(_avatarPathKey);
+    if (!mounted) return;
 
-      if (!mounted) return;
+    if (profileData != null) {
+      if (profileData.avatarUrl.isNotEmpty) {
+        await LocalFileService.cacheRemoteUrl(avatarStorageKey, profileData.avatarUrl);
+      }
 
       setState(() {
         _userId = profileData.id;
@@ -122,16 +102,20 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
         _currentAvatarUrl = profileData.avatarUrl;
         _selectedImage = null;
+        _localBackupImage = localAvatar; // backup
+        loading = false;
+      });
+    } else {
+      // internet loss or failed to fetch profile for some reason
+      setState(() {
+        _userId = userId;
+        _currentAvatarUrl = null;
         _localBackupImage = localAvatar;
         loading = false;
       });
-    }else{
-      if (!mounted) return;
-      setState(() {
-        loading = false;
-      });
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load profile data.')),
+        const SnackBar(content: Text('Network error. Loading offline avatar.')),
       );
     }
   }
@@ -141,7 +125,22 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       final pickedFile = await picker.pickImage(source: source);
 
       if (pickedFile != null) {
-        final localAvatar = await LocalFileService.storeImageLocally(_userId ?? 'profile',pickedFile, _avatarPathKey, 'profile_avatar');
+        if (_userId == null) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile is still loading, please try again.')),
+          );
+          return;
+        }
+
+        final userId = _userId!;
+        final avatarStorageKey = _avatarStorageKeyForUser(userId);
+        final localAvatar = await LocalFileService.storeImageLocally(
+          userId,
+          pickedFile.path,
+          avatarStorageKey,
+          'profile_avatar',
+        );
 
         if (!mounted) return;
 
@@ -183,6 +182,11 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         return;
       }
       newAvatarUrl = uploadedAvatarUrl;
+
+      if (_userId != null) {
+        final avatarStorageKey = _avatarStorageKeyForUser(_userId!);
+        await LocalFileService.cacheRemoteUrl(avatarStorageKey, uploadedAvatarUrl);
+      }
     }
 
     bool success = await ProfileService.updateProfile(
