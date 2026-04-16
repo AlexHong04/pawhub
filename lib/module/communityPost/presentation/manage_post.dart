@@ -139,7 +139,17 @@ class _ManagePostPageState extends State<ManagePostPage> {
   // Capture photo via camera
   Future<void> _takePhoto() async {
     int currentTotal = _existingUrls.length + _selectedImages.length;
-    if (currentTotal >= _maxImages) return;
+    if (currentTotal >= _maxImages) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("You have reached the 10 images limit."),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
 
     final XFile? pickedFile = await _picker.pickImage(
       source: ImageSource.camera,
@@ -148,7 +158,17 @@ class _ManagePostPageState extends State<ManagePostPage> {
 
     if (pickedFile != null) {
       setState(() => _isLoadingImages = true);
-      _selectedImages.add(File(pickedFile.path));
+
+      bool isDuplicate = _selectedImages.any((file) => file.path == pickedFile.path);
+
+      if (!isDuplicate) {
+        _selectedImages.add(File(pickedFile.path));
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Duplicate image skipped.")),
+        );
+      }
+
       setState(() => _isLoadingImages = false);
     }
   }
@@ -156,7 +176,17 @@ class _ManagePostPageState extends State<ManagePostPage> {
   // Select multiple images from the gallery
   Future<void> _pickImages() async {
     int currentTotal = _existingUrls.length + _selectedImages.length;
-    if (currentTotal >= _maxImages) return;
+    if (currentTotal >= _maxImages) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("You have reached the 10 images limit."),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
 
     final List<XFile> pickedFiles = await _picker.pickMultiImage(
       imageQuality: 70,
@@ -164,12 +194,40 @@ class _ManagePostPageState extends State<ManagePostPage> {
 
     if (pickedFiles.isNotEmpty) {
       setState(() => _isLoadingImages = true);
+
+      bool hasDuplicates = false;
+      bool wasTruncated = false;
+
       for (var xFile in pickedFiles) {
+        bool isDuplicate = _selectedImages.any((file) => file.path == xFile.path);
+        if (isDuplicate) {
+          hasDuplicates = true;
+          continue;
+        }
+
         if ((_existingUrls.length + _selectedImages.length) < _maxImages) {
           _selectedImages.add(File(xFile.path));
+        } else {
+          wasTruncated = true;
         }
       }
+
       setState(() => _isLoadingImages = false);
+
+      if (hasDuplicates && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Duplicate images were skipped.")),
+        );
+      }
+
+      if (wasTruncated && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Only the first 10 images were added."),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
     }
   }
 
@@ -200,17 +258,16 @@ class _ManagePostPageState extends State<ManagePostPage> {
 
     try {
       final String activeUserId = await _service.getCurrentUserId();
-      List<String> finalImageNames = [];
+      List<String> finalUrls = [];
 
       for (String url in _existingUrls) {
-        finalImageNames.add(url.split('/').last.split('?').first);
+        finalUrls.add(url);
       }
 
       for (int i = 0; i < _selectedImages.length; i++) {
         File imageFile = _selectedImages[i];
 
-        String timestamp = DateTime.now().microsecondsSinceEpoch.toString();
-        String customPrefix = 'Post_${activeUserId}_$timestamp';
+        String customPrefix = 'Post_${activeUserId}';
 
         // Upload to Supabase Storage
         String? uploadedUrl = await SupabaseFileService.uploadImage(
@@ -221,24 +278,25 @@ class _ManagePostPageState extends State<ManagePostPage> {
         );
 
         if (uploadedUrl != null) {
-          // Extract pure filename
+          finalUrls.add(uploadedUrl);
           String fileName = uploadedUrl.split('/').last.split('?').first;
-          finalImageNames.add(fileName);
 
           // Store image locally using the exact filename as the key
           await LocalFileService.storeImageLocally(
             activeUserId,
-            XFile(imageFile.path),
+            imageFile.path,
             fileName,
             'post_images',
+            index: i,
+            remoteUrl: uploadedUrl,
           );
         }
       }
 
       // Convert list to comma-separated string for database
-      String? imgUrlResult = finalImageNames.isEmpty
+      String? imgUrlResult = finalUrls.isEmpty
           ? null
-          : finalImageNames.join(',');
+          : finalUrls.join(',');
 
       if (isEditMode) {
         await _service.updatePost(
@@ -538,7 +596,7 @@ class _ManagePostPageState extends State<ManagePostPage> {
                 scale: 0.8,
                 child: Switch(
                   value: _isAnonymous,
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                   activeTrackColor: AppColors.primary.withValues(alpha:0.3),
                   inactiveThumbColor: Colors.grey.shade400,
                   inactiveTrackColor: Colors.grey.shade200,

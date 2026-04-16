@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/utils/local_file_service.dart';
 import '../model/post_model.dart';
 import '../service/post_service.dart';
 
@@ -109,11 +111,39 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
                     onPageChanged: (index) =>
                         setDialogState(() => currentIndex = index),
                     itemBuilder: (context, index) {
+                      final String url = urls[index];
+                      final String fileName = url
+                          .split('/')
+                          .last
+                          .split('?')
+                          .first;
+
                       return InteractiveViewer(
                         child: Center(
                           child: Image.network(
-                            urls[index],
+                            url,
                             fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return FutureBuilder<File?>(
+                                future: LocalFileService.loadSavedImage(
+                                  fileName,
+                                ),
+                                builder: (context, snapshot) {
+                                  if (snapshot.hasData &&
+                                      snapshot.data != null) {
+                                    return Image.file(
+                                      snapshot.data!,
+                                      fit: BoxFit.contain,
+                                    );
+                                  }
+                                  return const Icon(
+                                    Icons.broken_image,
+                                    color: Colors.white54,
+                                    size: 50,
+                                  );
+                                },
+                              );
+                            },
                           ),
                         ),
                       );
@@ -168,7 +198,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
                             decoration: BoxDecoration(
                               color: currentIndex == index
                                   ? Colors.white
-                                  : Colors.white.withValues(alpha:0.4),
+                                  : Colors.white.withValues(alpha: 0.4),
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -434,7 +464,41 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
             margin: const EdgeInsets.only(right: 12),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.network(urls[i], width: 280, fit: BoxFit.cover),
+              child: Builder(
+                builder: (context) {
+                  final String url = urls[i];
+                  final String fileName = url.split('/').last.split('?').first;
+                  return Image.network(
+                    url,
+                    width: 280,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return FutureBuilder<File?>(
+                        future: LocalFileService.loadSavedImage(fileName),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData && snapshot.data != null) {
+                            return Image.file(
+                              snapshot.data!,
+                              width: 280,
+                              fit: BoxFit.cover,
+                            );
+                          }
+                          return Container(
+                            width: 280,
+                            color: Colors.grey.shade100,
+                            child: const Center(
+                              child: Icon(
+                                Icons.broken_image,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ),
         ),

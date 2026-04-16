@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/utils/local_file_service.dart';
 import '../model/post_model.dart';
 import '../service/post_service.dart';
 import 'manage_post.dart';
@@ -78,7 +80,7 @@ class _CommunityFeedPageState extends State<CommunityFeedPage>
   void _openFullScreenImage(List<String> urls, int initialIndex) {
     showDialog(
       context: context,
-      barrierColor: Colors.black.withValues(alpha:0.95),
+      barrierColor: Colors.black.withValues(alpha: 0.95),
       builder: (context) {
         PageController pageController = PageController(
           initialPage: initialIndex,
@@ -112,14 +114,43 @@ class _CommunityFeedPageState extends State<CommunityFeedPage>
                     itemCount: urls.length,
                     onPageChanged: (index) =>
                         setDialogState(() => current = index),
-                    itemBuilder: (context, index) => InteractiveViewer(
-                      panEnabled: true,
-                      minScale: 0.5,
-                      maxScale: 4.0,
-                      child: Center(
-                        child: Image.network(urls[index], fit: BoxFit.contain),
-                      ),
-                    ),
+                    itemBuilder: (context, index) {
+                      final String url = urls[index];
+                      final String fileName = url.split('/').last.split('?').first;
+
+                      return InteractiveViewer(
+                        panEnabled: true,
+                        minScale: 0.5,
+                        maxScale: 4.0,
+                        child: Center(
+                          child: Image.network(
+                            url,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return FutureBuilder<File?>(
+                                future: LocalFileService.loadSavedImage(
+                                  fileName,
+                                ),
+                                builder: (context, snapshot) {
+                                  if (snapshot.hasData &&
+                                      snapshot.data != null) {
+                                    return Image.file(
+                                      snapshot.data!,
+                                      fit: BoxFit.contain,
+                                    );
+                                  }
+                                  return const Icon(
+                                    Icons.broken_image,
+                                    color: Colors.white54,
+                                    size: 50,
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    },
                   ),
 
                   if (urls.length > 1)
@@ -139,7 +170,7 @@ class _CommunityFeedPageState extends State<CommunityFeedPage>
                             decoration: BoxDecoration(
                               color: current == index
                                   ? Colors.white
-                                  : Colors.white.withValues(alpha:0.4),
+                                  : Colors.white.withValues(alpha: 0.4),
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -285,7 +316,9 @@ class _CommunityFeedPageState extends State<CommunityFeedPage>
                         }
 
                         ImageProvider? avatarImage;
-                        if (post.userAvatar != null && post.userAvatar!.isNotEmpty && post.userAvatar!.startsWith('http')) {
+                        if (post.userAvatar != null &&
+                            post.userAvatar!.isNotEmpty &&
+                            post.userAvatar!.startsWith('http')) {
                           avatarImage = NetworkImage(post.userAvatar!);
                         }
 
@@ -297,7 +330,7 @@ class _CommunityFeedPageState extends State<CommunityFeedPage>
                             borderRadius: BorderRadius.circular(24),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha:0.03),
+                                color: Colors.black.withValues(alpha: 0.03),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -314,7 +347,9 @@ class _CommunityFeedPageState extends State<CommunityFeedPage>
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: Colors.grey.withValues(alpha: 0.1),
+                                        color: Colors.grey.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         width: 1,
                                       ),
                                     ),
@@ -324,10 +359,10 @@ class _CommunityFeedPageState extends State<CommunityFeedPage>
                                       backgroundImage: avatarImage,
                                       child: avatarImage == null
                                           ? const Icon(
-                                        Icons.person,
-                                        color: Colors.grey,
-                                        size: 24,
-                                      )
+                                              Icons.person,
+                                              color: Colors.grey,
+                                              size: 24,
+                                            )
                                           : null,
                                     ),
                                   ),
@@ -483,7 +518,7 @@ class _CommunityFeedPageState extends State<CommunityFeedPage>
                                                                   ),
                                                             ),
                                                           );
-                                                      if (res == true){
+                                                      if (res == true) {
                                                         _loadPosts(
                                                           silent: true,
                                                         );
@@ -553,28 +588,70 @@ class _CommunityFeedPageState extends State<CommunityFeedPage>
                                     child: ListView.builder(
                                       scrollDirection: Axis.horizontal,
                                       itemCount: post.fullImageUrls.length,
-                                      itemBuilder: (context, i) =>
-                                          GestureDetector(
-                                            onTap: () => _openFullScreenImage(
-                                              post.fullImageUrls,
-                                              i,
+                                      itemBuilder: (context, i) => GestureDetector(
+                                        onTap: () => _openFullScreenImage(
+                                          post.fullImageUrls,
+                                          i,
+                                        ),
+                                        child: Container(
+                                          margin: const EdgeInsets.only(
+                                            right: 12,
+                                          ),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              16,
                                             ),
-                                            child: Container(
-                                              margin: const EdgeInsets.only(
-                                                right: 12,
-                                              ),
-                                              child: ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(16),
-                                                child: Image.network(
-                                                  post.fullImageUrls[i],
+                                            child: Builder(
+                                              builder: (context) {
+                                                final String url =
+                                                    post.fullImageUrls[i];
+                                                final String fileName = url.split('/').last.split('?').first;
+                                                return Image.network(
+                                                  url,
                                                   width:
                                                       post.fullImageUrls.length == 1 ? 300 : 180,
                                                   fit: BoxFit.cover,
-                                                ),
-                                              ),
+                                                  errorBuilder: (context, error, stackTrace) {
+                                                    return FutureBuilder<File?>(
+                                                      future:
+                                                          LocalFileService.loadSavedImage(
+                                                            fileName,
+                                                          ),
+                                                      builder: (context, snapshot) {
+                                                        if (snapshot.hasData &&
+                                                            snapshot.data !=
+                                                                null) {
+                                                          return Image.file(
+                                                            snapshot.data!,
+                                                            width:
+                                                              post.fullImageUrls.length == 1 ? 300 : 180,
+                                                            fit: BoxFit.cover,
+                                                          );
+                                                        }
+                                                        return Container(
+                                                          width:
+                                                            post.fullImageUrls.length == 1 ? 300 : 180,
+                                                          color: Colors
+                                                              .grey
+                                                              .shade100,
+                                                          child: const Center(
+                                                            child: Icon(
+                                                              Icons
+                                                                  .broken_image,
+                                                              color:
+                                                                  Colors.grey,
+                                                            ),
+                                                          ),
+                                                        );
+                                                      },
+                                                    );
+                                                  },
+                                                );
+                                              },
                                             ),
                                           ),
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -647,10 +724,12 @@ class _CommunityFeedPageState extends State<CommunityFeedPage>
                                     ),
                                   ),
                                   const SizedBox(width: 24),
-                                  Icon(
-                                    Icons.share_outlined,
-                                    size: 20,
-                                    color: Colors.grey.shade500,
+                                  GestureDetector(
+                                    child: Icon(
+                                      Icons.share_outlined,
+                                      size: 20,
+                                      color: Colors.grey.shade500,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -680,19 +759,11 @@ class _CommunityFeedPageState extends State<CommunityFeedPage>
       context: context,
       builder: (context) => Dialog(
         backgroundColor: Colors.transparent,
-        elevation: 0,
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha:0.1),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -714,21 +785,21 @@ class _CommunityFeedPageState extends State<CommunityFeedPage>
               ),
               const SizedBox(height: 20),
               const Text(
-                "Delete Post?",
+                "Delete post?",
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
                   color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                "This action cannot be undone. Are you sure you want to permanently delete this post?",
+              const SizedBox(height: 12),
+              const Text(
+                "You can restore this post for the next 7 days from your Archive settings. After that, it will be permanently deleted.",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey.shade600,
-                  height: 1.4,
+                  color: Colors.black54,
+                  height: 1.5,
                 ),
               ),
               const SizedBox(height: 28),
@@ -749,7 +820,6 @@ class _CommunityFeedPageState extends State<CommunityFeedPage>
                         style: TextStyle(
                           color: Colors.grey,
                           fontWeight: FontWeight.bold,
-                          fontSize: 15,
                         ),
                       ),
                     ),
@@ -777,7 +847,6 @@ class _CommunityFeedPageState extends State<CommunityFeedPage>
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          fontSize: 15,
                         ),
                       ),
                     ),

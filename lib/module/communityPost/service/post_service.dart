@@ -167,7 +167,33 @@ class PostService {
   Future<void> deletePost(String postId) async {
     await _supabase
         .from('CommunityPost')
-        .update({'is_active': false})
+        .update({'is_active': false, 'updated_at': _getTimestamp()})
+        .eq('post_id', postId);
+  }
+
+  Future<List<CommunityPostModel>> fetchRecentlyDeletedPosts() async {
+    final String userId = await getCurrentUserId();
+    final threshold = DateTime.now().subtract(const Duration(days: 7)).toIso8601String();
+
+    final response = await _supabase
+        .from('CommunityPost')
+        .select('*, User!user_id(*)')
+        .eq('user_id', userId)
+        .eq('is_active', false)
+        .gte('updated_at', threshold)
+        .order('updated_at', ascending: false);
+
+    final List<dynamic> data = response as List;
+    return data.map((json) => CommunityPostModel.fromJson(json, userId)).toList();
+  }
+
+  Future<void> reactivePost(String postId) async {
+    await _supabase
+        .from('CommunityPost')
+        .update({
+      'is_active': true,
+      'updated_at': _getTimestamp(),
+    })
         .eq('post_id', postId);
   }
 }

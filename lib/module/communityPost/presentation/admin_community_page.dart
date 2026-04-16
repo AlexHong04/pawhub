@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/utils/local_file_service.dart';
 import '../model/post_model.dart';
 import '../service/post_service.dart';
 import 'manage_post.dart';
@@ -110,7 +112,7 @@ class _AdminCommunityPageState extends State<AdminCommunityPage>
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha:0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -215,7 +217,7 @@ class _AdminCommunityPageState extends State<AdminCommunityPage>
   void _openFullScreenImage(List<String> urls, int initialIndex) {
     showDialog(
       context: context,
-      barrierColor: Colors.black.withValues(alpha:0.95),
+      barrierColor: Colors.black.withValues(alpha: 0.95),
       builder: (context) {
         PageController pageController = PageController(
           initialPage: initialIndex,
@@ -249,14 +251,43 @@ class _AdminCommunityPageState extends State<AdminCommunityPage>
                     itemCount: urls.length,
                     onPageChanged: (index) =>
                         setDialogState(() => current = index),
-                    itemBuilder: (context, index) => InteractiveViewer(
-                      panEnabled: true,
-                      minScale: 0.5,
-                      maxScale: 4.0,
-                      child: Center(
-                        child: Image.network(urls[index], fit: BoxFit.contain),
-                      ),
-                    ),
+                    itemBuilder: (context, index) {
+                      final String url = urls[index];
+                      final String fileName = url.split('/').last.split('?').first;
+
+                      return InteractiveViewer(
+                        panEnabled: true,
+                        minScale: 0.5,
+                        maxScale: 4.0,
+                        child: Center(
+                          child: Image.network(
+                            url,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return FutureBuilder<File?>(
+                                future: LocalFileService.loadSavedImage(
+                                  fileName,
+                                ),
+                                builder: (context, snapshot) {
+                                  if (snapshot.hasData &&
+                                      snapshot.data != null) {
+                                    return Image.file(
+                                      snapshot.data!,
+                                      fit: BoxFit.contain,
+                                    );
+                                  }
+                                  return const Icon(
+                                    Icons.broken_image,
+                                    color: Colors.white54,
+                                    size: 50,
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    },
                   ),
 
                   if (urls.length > 1)
@@ -276,7 +307,7 @@ class _AdminCommunityPageState extends State<AdminCommunityPage>
                             decoration: BoxDecoration(
                               color: current == index
                                   ? Colors.white
-                                  : Colors.white.withValues(alpha:0.4),
+                                  : Colors.white.withValues(alpha: 0.4),
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -433,7 +464,7 @@ class _AdminCommunityPageState extends State<AdminCommunityPage>
                             borderRadius: BorderRadius.circular(24),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha:0.03),
+                                color: Colors.black.withValues(alpha: 0.03),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -701,28 +732,71 @@ class _AdminCommunityPageState extends State<AdminCommunityPage>
                                     child: ListView.builder(
                                       scrollDirection: Axis.horizontal,
                                       itemCount: post.fullImageUrls.length,
-                                      itemBuilder: (context, i) =>
-                                          GestureDetector(
-                                            onTap: () => _openFullScreenImage(
-                                              post.fullImageUrls,
-                                              i,
+                                      itemBuilder: (context, i) => GestureDetector(
+                                        onTap: () => _openFullScreenImage(
+                                          post.fullImageUrls,
+                                          i,
+                                        ),
+                                        child: Container(
+                                          margin: const EdgeInsets.only(
+                                            right: 12,
+                                          ),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              16,
                                             ),
-                                            child: Container(
-                                              margin: const EdgeInsets.only(
-                                                right: 12,
-                                              ),
-                                              child: ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(16),
-                                                child: Image.network(
-                                                  post.fullImageUrls[i],
+                                            child: Builder(
+                                              builder: (context) {
+                                                final String url =
+                                                    post.fullImageUrls[i];
+                                                final String fileName = url.split('/').last.split('?').first;
+                                                return Image.network(
+                                                  url,
                                                   width:
-                                                      post.fullImageUrls.length == 1 ? 300 : 180,
+                                                    post.fullImageUrls.length == 1 ? 300 : 180,
+
                                                   fit: BoxFit.cover,
-                                                ),
-                                              ),
+                                                  errorBuilder: (context, error, stackTrace) {
+                                                    return FutureBuilder<File?>(
+                                                      future:
+                                                          LocalFileService.loadSavedImage(
+                                                            fileName,
+                                                          ),
+                                                      builder: (context, snapshot) {
+                                                        if (snapshot.hasData &&
+                                                            snapshot.data !=
+                                                                null) {
+                                                          return Image.file(
+                                                            snapshot.data!,
+                                                            width:
+                                                                post.fullImageUrls.length == 1 ? 300 : 180,
+                                                            fit: BoxFit.cover,
+                                                          );
+                                                        }
+                                                        return Container(
+                                                          width:
+                                                            post.fullImageUrls.length == 1 ? 300 : 180,
+                                                          color: Colors
+                                                              .grey
+                                                              .shade100,
+                                                          child: const Center(
+                                                            child: Icon(
+                                                              Icons
+                                                                  .broken_image,
+                                                              color:
+                                                                  Colors.grey,
+                                                            ),
+                                                          ),
+                                                        );
+                                                      },
+                                                    );
+                                                  },
+                                                );
+                                              },
                                             ),
                                           ),
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),

@@ -9,6 +9,7 @@ class CommunityPostModel {
   final bool isAnonymous;
   final bool isActive;
   final DateTime createdAt;
+  final DateTime? updatedAt;
   final String userName;
   final String userRole;
   final String? userAvatar;
@@ -27,6 +28,7 @@ class CommunityPostModel {
     required this.isAnonymous,
     required this.isActive,
     required this.createdAt,
+    this.updatedAt, // 💡 这里不要加 required
     required this.userName,
     required this.userRole,
     this.userAvatar,
@@ -39,14 +41,7 @@ class CommunityPostModel {
 
   List<String> get fullImageUrls {
     if (imgUrl == null || imgUrl!.isEmpty) return [];
-    return imgUrl!
-        .split(',')
-        .map(
-          (fileName) => Supabase.instance.client.storage
-              .from('documents')
-              .getPublicUrl('post_images/${fileName.trim()}'),
-        )
-        .toList();
+    return imgUrl!.split(',').map((url) => url.trim()).toList();
   }
 
   factory CommunityPostModel.fromJson(
@@ -105,6 +100,9 @@ class CommunityPostModel {
       createdAt: data['created_at'] is String
           ? DateTime.parse(data['created_at'])
           : DateTime.now(),
+      updatedAt: data['updated_at'] != null
+          ? DateTime.parse(data['updated_at'])
+          : null,
       userName: finalUserName,
       userRole: userData['role'] ?? "User",
       isVolunteer: userData['is_volunteer'] ?? false,
