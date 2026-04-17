@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import '../model/donation_model.dart';
+import '../service/donation_service.dart';
 import 'payment_process_page.dart';
 
 class DonationPage extends StatefulWidget {
@@ -10,6 +13,8 @@ class DonationPage extends StatefulWidget {
 }
 
 class _DonationPageState extends State<DonationPage> {
+  final DonationService _donationService = DonationService();
+  bool _isProcessing = false;
   final TextEditingController _customAmountController = TextEditingController(
     text: "1",
   );
@@ -136,9 +141,12 @@ class _DonationPageState extends State<DonationPage> {
                 Expanded(
                   child: TextField(
                     controller: _customAmountController,
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     enabled: _selectedAmount == "Custom",
                     textAlign: TextAlign.center,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                    ],
                     decoration: InputDecoration(
                       prefix: const Padding(
                         padding: EdgeInsets.only(left: 20),
@@ -182,38 +190,58 @@ class _DonationPageState extends State<DonationPage> {
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-                onPressed: () {
+                onPressed: _isProcessing ? null : () async {
                   double amt = _selectedAmount == "Custom"
                       ? (double.tryParse(_customAmountController.text) ?? 0)
                       : double.parse(_selectedAmount.replaceAll("RM", ""));
+                  amt = double.parse(amt.toStringAsFixed(2));
                   if (amt <= 0) return;
+                  String method = _selectedPayment == "Card" ? "Credit/Debit" : "TNG";
 
-                  String method = _selectedPayment == "Card"
-                      ? "Credit/Debit"
-                      : "TNG";
+                  setState(() => _isProcessing = true);
 
-                  // Navigate to payment process page
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          PaymentProcessPage(amount: amt, method: method),
-                    ),
+                  String currentUserId = await _donationService.getCurrentUserId();
+
+                  DonationModel newDonation = DonationModel(
+                    donationId: "",
+                    userId: currentUserId,
+                    amount: amt,
+                    status: "pending",
+                    createdAt: DateTime.now(),
+                    userName: "User",
+                    donationMethod: method,
                   );
+
+                  String? newDonationId = await _donationService.createPendingDonation(newDonation);
+
+                  if (mounted) setState(() => _isProcessing = false);
+
+                  if (newDonationId != null && mounted) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => PaymentProcessPage(
+                          amount: amt,
+                          method: method,
+                          donationId: newDonationId,
+                        ),
+                      ),
+                    );
+                  } else if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Failed to initiate payment.", style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
-                child: const Text(
+                child: _isProcessing
+                    ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                    : const Text(
                   "Continue to Payment",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
               ),
             ),

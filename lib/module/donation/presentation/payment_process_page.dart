@@ -6,18 +6,18 @@ import 'package:http/http.dart' as http;
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:pawhub/core/constants/colors.dart';
-import '../../../core/widgets/appDecorations.dart';
-import '../model/donation_model.dart';
 import '../service/donation_service.dart';
 
 class PaymentProcessPage extends StatefulWidget {
   final double amount;
   final String method;
+  final String donationId;
 
   const PaymentProcessPage({
     super.key,
     required this.amount,
     required this.method,
+    required this.donationId,
   });
 
   @override
@@ -44,15 +44,6 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        setState(() {
-          _formKey.currentState?.reset();
-          _autovalidateMode = AutovalidateMode.disabled;
-          _hasPinError = false;
-        });
-      }
-    });
   }
 
   @override
@@ -61,6 +52,109 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
     _phoneController.dispose();
     _pinController.dispose();
     super.dispose();
+  }
+
+  void _showCancelDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                height: 64,
+                width: 64,
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.redAccent,
+                    size: 32,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                "Cancel Payment?",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                "Are you sure you want to cancel? This donation will be marked as failed.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.black54,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 28),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: BorderSide(color: Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text(
+                        "No, Stay",
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await _donationService.updateDonationStatus(
+                          widget.donationId,
+                          "failed",
+                        );
+                        if (mounted) Navigator.pop(context);
+                      },
+                      child: const Text(
+                        "Yes, Cancel",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _startStripePayment() async {
@@ -98,7 +192,7 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
       );
 
       await Stripe.instance.presentPaymentSheet();
-      await _handleDonationSuccess("Credit/Debit (Stripe)");
+      await _handleDonationSuccess("Credit/Debit");
     } catch (e) {
       debugPrint("Stripe Failed!: $e");
       if (mounted) {
@@ -119,31 +213,19 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
   }
 
   Future<void> _handleDonationSuccess(String finalMethod) async {
-    final myId = await _donationService.getCurrentUserId();
-
-    //Get user email
-    final String? userEmail = await _donationService.getUserEmail();
-
-    // Retrieve donation data from model
-    final donation = DonationModel(
-      donationId: "",
-      userId: myId,
-      amount: widget.amount,
-      status: "successful",
-      createdAt: DateTime.now(),
-      userName: "Me",
-      donationMethod: finalMethod,
+    final success = await _donationService.updateDonationStatus(
+      widget.donationId,
+      "successful",
     );
 
-    // update to db
-    final success = await _donationService.recordDonation(donation);
-
     if (success && mounted) {
-      //send email
+      final String? userEmail = await _donationService.getUserEmail();
       if (userEmail != null) {
         _triggerEmailAsync(userEmail);
       } else {
-        debugPrint("Unable to obtain user's email, skipping the email sending step.");
+        debugPrint(
+          "Unable to obtain user's email, skipping the email sending step.",
+        );
       }
 
       _showSuccessDialog();
@@ -224,7 +306,6 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
     });
   }
 
-
   Future<void> _onCompletePaymentPressed() async {
     if (widget.method == "TNG") {
       if (_tabController.index == 1) {
@@ -263,7 +344,7 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black..withValues(alpha:0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -272,7 +353,6 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Paw Logo Design
                   Container(
                     height: 80,
                     width: 80,
@@ -281,11 +361,7 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
                       shape: BoxShape.circle,
                     ),
                     child: const Center(
-                      child: Icon(
-                        Icons.pets,
-                        color: Colors.green,
-                        size: 45,
-                      ),
+                      child: Icon(Icons.pets, color: Colors.green, size: 45),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -304,7 +380,6 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
                     style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: 24),
-
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -358,8 +433,6 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
                     ),
                   ),
                   const SizedBox(height: 32),
-
-                  // Back button
                   SizedBox(
                     width: double.infinity,
                     height: 54,
@@ -397,108 +470,111 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
 
   @override
   Widget build(BuildContext context) {
-    final String tempRef =
-        "DON-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
-
-    return Scaffold(
-      backgroundColor: const Color(0xfff8f9fa),
-      appBar: AppBar(
-        title: Text(
-          widget.method == "TNG" ? "Touch 'n Go eWallet" : "Secure Payment",
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        centerTitle: true,
-        elevation: 0.5,
-        backgroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            color: AppColors.textPrimary,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 30),
-              child: Column(
-                children: [
-                  const SizedBox(height: 8),
-                  Text(
-                    "RM ${widget.amount.toStringAsFixed(2)}",
-                    style: const TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
-                    ),
-                  ),
-                ],
-              ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+        _showCancelDialog();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xfff8f9fa),
+        appBar: AppBar(
+          title: Text(
+            widget.method == "TNG" ? "Touch 'n Go eWallet" : "Secure Payment",
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
             ),
-            const SizedBox(height: 20),
-            Form(
-              key: _formKey,
-              autovalidateMode: _autovalidateMode,
-              child: Column(
-                children: [
-                  if (widget.method == "TNG")
-                    _buildTNGPayCard()
-                  else
-                    _buildStripeInfoCard(),
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: _isProcessing
-                            ? null
-                            : _onCompletePaymentPressed,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: _isProcessing
-                            ? const SizedBox(
-                                height: 24,
-                                width: 24,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2.5,
-                                ),
-                              )
-                            : const Text(
-                                "Complete Payment",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
+          ),
+          centerTitle: true,
+          elevation: 0.5,
+          backgroundColor: Colors.white,
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios_new,
+              color: AppColors.textPrimary,
+            ),
+            onPressed: () => _showCancelDialog(),
+          ),
+        ),
+        body: SingleChildScrollView(
+          child: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                color: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 30),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    Text(
+                      "RM ${widget.amount.toStringAsFixed(2)}",
+                      style: const TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 40),
-          ],
+              const SizedBox(height: 20),
+              Form(
+                key: _formKey,
+                autovalidateMode: _autovalidateMode,
+                child: Column(
+                  children: [
+                    if (widget.method == "TNG")
+                      _buildTNGPayCard()
+                    else
+                      _buildStripeInfoCard(),
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: _isProcessing
+                              ? null
+                              : _onCompletePaymentPressed,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: _isProcessing
+                              ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                              : const Text(
+                            "Complete Payment",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
   }
-
   Widget _buildStripeInfoCard() {
     return Container(
       margin: const EdgeInsets.all(20),
@@ -535,7 +611,7 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black..withValues(alpha:0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -576,7 +652,10 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
             height: 380,
             child: TabBarView(
               controller: _tabController,
-              children: [_buildTNGQRView(), _buildTNGPhoneView()],
+              children: [
+                _KeepAliveWrapper(child: _buildTNGQRView()),
+                _KeepAliveWrapper(child: _buildTNGPhoneView()),
+              ],
             ),
           ),
         ],
@@ -649,9 +728,23 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
                   keyboardType: TextInputType.phone,
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
-                    TextInputFormatter.withFunction((old, n) {
-                      int max = n.text.startsWith('11') ? 10 : 9;
-                      return n.text.length > max ? old : n;
+                    TextInputFormatter.withFunction((oldValue, newValue) {
+                      String text = newValue.text;
+                      if (text.isEmpty) return newValue;
+                      if (text.length >= 1 && text[0] != '1') return oldValue;
+                      if (text.length >= 2) {
+                        int? secondDigit = int.tryParse(text[1]);
+                        if (secondDigit == null ||
+                            secondDigit < 1 ||
+                            secondDigit > 9) {
+                          return oldValue;
+                        }
+                      }
+
+                      int maxLength = text.startsWith('11') ? 10 : 9;
+                      if (text.length > maxLength) return oldValue;
+
+                      return newValue;
                     }),
                   ],
                   decoration: InputDecoration(
@@ -689,6 +782,9 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return "Phone number required";
+                    if (v.length < 2 || !RegExp(r'^1[1-9]').hasMatch(v)) {
+                      return "Must start with 11-19";
+                    }
                     int req = v.startsWith('11') ? 10 : 9;
                     if (v.length != req) return "Must be $req digits";
                     return null;
@@ -736,5 +832,26 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
         ],
       ),
     );
+  }
+}
+
+class _KeepAliveWrapper extends StatefulWidget {
+  final Widget child;
+
+  const _KeepAliveWrapper({required this.child});
+
+  @override
+  State<_KeepAliveWrapper> createState() => _KeepAliveWrapperState();
+}
+
+class _KeepAliveWrapperState extends State<_KeepAliveWrapper>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }

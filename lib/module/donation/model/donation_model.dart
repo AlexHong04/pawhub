@@ -1,5 +1,3 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 class DonationModel {
   final String donationId;
   final String userId;

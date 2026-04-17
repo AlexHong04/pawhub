@@ -30,7 +30,7 @@ class DonationService {
     }
   }
 
-  Future<bool> recordDonation(DonationModel donation) async {
+  Future<String?> createPendingDonation(DonationModel donation) async {
     try {
       final String newId = await GeneratorId.generateId(
         tableName: 'Donation',
@@ -39,18 +39,26 @@ class DonationService {
         numberLength: 5,
       );
 
-      await _supabase.from('Donation').insert({
-        'donation_id': newId,
-        'user_id': donation.userId,
-        'amount': donation.amount,
-        'status': donation.status,
-        'donation_method': donation.donationMethod,
-        'created_at': _getCustomTimestamp(),
-      });
+      final Map<String, dynamic> donationData = donation.toJson();
+      donationData['donation_id'] = newId;
 
+      await _supabase.from('Donation').insert(donationData);
+
+      return newId;
+    } catch (e) {
+      print("Create Pending Donation Error: $e");
+      return null;
+    }
+  }
+
+  Future<bool> updateDonationStatus(String donationId, String newStatus) async {
+    try {
+      await _supabase.from('Donation').update({
+        'status': newStatus,
+      }).eq('donation_id', donationId);
       return true;
     } catch (e) {
-      print("🚨 Donation Record Error: $e");
+      print("Donation Record Error: $e");
       return false;
     }
   }
@@ -71,7 +79,7 @@ class DonationService {
 
       return response as List<dynamic>;
     } catch (e) {
-      print("🚨 Admin Fetch Donations Error: $e");
+      print("Admin Fetch Donations Error: $e");
       return [];
     }
   }

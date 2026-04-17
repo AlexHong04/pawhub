@@ -48,7 +48,11 @@ class _DonationHistoryPageState extends State<DonationHistoryPage> {
 
       double total = 0;
       for (var item in data) {
-        total += (item['amount'] ?? 0).toDouble();
+        final String status = (item['status'] ?? "failed").toString().toLowerCase();
+
+        if (status == 'successful') {
+          total += (item['amount'] ?? 0).toDouble();
+        }
       }
 
       if (mounted) {

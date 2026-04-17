@@ -29,6 +29,9 @@ class _AdminDonationPageState extends State<AdminDonationPage> {
   // Payment method filter
   String _selectedMethod = "ALL METHODS";
 
+  String _selectedStatus = "ALL STATUSES";
+  final List<String> _statusOptions = ["ALL STATUSES", "SUCCESSFUL", "FAILED"];
+
   @override
   void initState() {
     super.initState();
@@ -62,7 +65,7 @@ class _AdminDonationPageState extends State<AdminDonationPage> {
     return ["ALL METHODS", ...methods];
   }
 
-  // Filters data based on Search Query + Time + Payment Method
+  // Filters data based on Search Query + Time + Payment Method + Status
   void _applyFilters() {
     final now = DateTime.now();
     double tempSum = 0.0;
@@ -102,9 +105,18 @@ class _AdminDonationPageState extends State<AdminDonationPage> {
         continue;
       }
 
+      // --- Filter by Status ---
+      final txStatus = (tx['status'] ?? "failed").toString().toUpperCase();
+      if (_selectedStatus != "ALL STATUSES" && txStatus != _selectedStatus) {
+        continue;
+      }
+
       // Accumulate total amount
       tempList.add(tx);
-      tempSum += (tx['amount'] ?? 0).toDouble();
+
+      if (txStatus == 'SUCCESSFUL') {
+        tempSum += (tx['amount'] ?? 0).toDouble();
+      }
       if (tx['user_id'] != null) {
         tempUniqueDonors.add(tx['user_id'].toString());
       }
@@ -119,7 +131,7 @@ class _AdminDonationPageState extends State<AdminDonationPage> {
 
   String _formatDate(dynamic timestamp) {
     if (timestamp == null) return "Unknown";
-    DateTime time = timestamp is DateTime ? timestamp : DateTime.parse(timestamp.toString());
+    DateTime time = timestamp is DateTime ? timestamp : DateTime.parse(timestamp.toString()).toLocal();
     return "${time.year}-${time.month.toString().padLeft(2, '0')}-${time.day.toString().padLeft(2, '0')} ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
   }
 
@@ -137,9 +149,56 @@ class _AdminDonationPageState extends State<AdminDonationPage> {
     return Icons.monetization_on_rounded;
   }
 
+  Widget _buildDropdown({
+    required String label,
+    required String value,
+    required List<String> items,
+    required Function(String?) onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade600, fontSize: 11, letterSpacing: 0.5),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.blue.withValues(alpha: 0.1)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              isExpanded: true,
+              value: value,
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.blue),
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13),
+              items: items.map((String val) {
+                return DropdownMenuItem<String>(
+                  value: val,
+                  child: Text(val, maxLines: 1, overflow: TextOverflow.ellipsis),
+                );
+              }).toList(),
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Prevent errors if the selected method is no longer in the dynamic list
     if (!_dynamicMethodOptions.contains(_selectedMethod)) {
       _selectedMethod = "ALL METHODS";
     }
@@ -200,7 +259,7 @@ class _AdminDonationPageState extends State<AdminDonationPage> {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Padding(
-                padding: const EdgeInsets.only(bottom: 12.0, top: 8.0),
+                padding: const EdgeInsets.only(bottom: 16.0, top: 8.0),
                 child: Row(
                   children: _timeOptions.map((option) {
                     return Padding(
@@ -209,9 +268,7 @@ class _AdminDonationPageState extends State<AdminDonationPage> {
                         text: option,
                         isSelected: _timeFilter == option,
                         onPressed: () {
-                          setState(() {
-                            _timeFilter = option;
-                          });
+                          setState(() => _timeFilter = option);
                           _applyFilters();
                         },
                       ),
@@ -221,43 +278,36 @@ class _AdminDonationPageState extends State<AdminDonationPage> {
               ),
             ),
 
-            // --- Donation Method Dropdown ---
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("Donation Method", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700, fontSize: 13)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
+                Expanded(
+                  flex: 5,
+                  child: _buildDropdown(
+                    label: "PAYMENT METHOD",
+                    value: _selectedMethod,
+                    items: _dynamicMethodOptions,
+                    onChanged: (val) {
+                      if (val != null) setState(() => _selectedMethod = val);
+                      _applyFilters();
+                    },
                   ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedMethod,
-                      icon: const Icon(Icons.arrow_drop_down, color: Colors.blue),
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13),
-                      items: _dynamicMethodOptions.map((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        if (newValue != null) {
-                          setState(() {
-                            _selectedMethod = newValue;
-                          });
-                          _applyFilters();
-                        }
-                      },
-                    ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 4,
+                  child: _buildDropdown(
+                    label: "STATUS",
+                    value: _selectedStatus,
+                    items: _statusOptions,
+                    onChanged: (val) {
+                      if (val != null) setState(() => _selectedStatus = val);
+                      _applyFilters();
+                    },
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
             // --- Summary of the total fund and donors ---
             Row(
@@ -297,14 +347,14 @@ class _AdminDonationPageState extends State<AdminDonationPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:0.04), blurRadius: 20, offset: const Offset(0, 10))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 20, offset: const Offset(0, 10))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: color.withValues(alpha:0.1), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(height: 16),
@@ -323,13 +373,28 @@ class _AdminDonationPageState extends State<AdminDonationPage> {
     final double amount = (tx['amount'] ?? 0).toDouble();
     final String method = (tx['donation_method'] ?? "Unknown");
 
+    final String status = (tx['status'] ?? "failed").toString().toLowerCase();
+    Color statusColor;
+    Color statusBgColor;
+
+    if (status == 'successful') {
+      statusColor = Colors.green.shade700;
+      statusBgColor = Colors.green.shade50;
+    } else if (status == 'pending') {
+      statusColor = Colors.orange.shade700;
+      statusBgColor = Colors.orange.shade50;
+    } else {
+      statusColor = Colors.red.shade700;
+      statusBgColor = Colors.red.shade50;
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:0.02), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -378,13 +443,24 @@ class _AdminDonationPageState extends State<AdminDonationPage> {
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(14)),
-            child: Text(
-              "+ RM ${amount.toStringAsFixed(2)}",
-              style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.w900, fontSize: 14),
-            ),
+
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                "RM ${amount.toStringAsFixed(2)}",
+                style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w900, fontSize: 16),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: statusBgColor, borderRadius: BorderRadius.circular(8)),
+                child: Text(
+                  status.toUpperCase(),
+                  style: TextStyle(color: statusColor, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                ),
+              ),
+            ],
           ),
         ],
       ),
