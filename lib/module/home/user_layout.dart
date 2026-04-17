@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:pawhub/module/home/user_dashboard.dart';
+import 'package:pawhub/module/petAdoption/presentation/pet_adoption.dart';
 
 import '../../core/constants/colors.dart';
 import '../Profile/presentation/profile_page.dart';
+import '../history/history_page.dart';
 
 class UserLayout extends StatefulWidget {
   const UserLayout({super.key});
@@ -19,8 +22,8 @@ class UserLayoutState extends State<UserLayout> {
   final List<Widget> _pages = [
     const Center(child: Text("Event Page")),
     const Center(child: Text("Community Page")),
-    const Center(child: Text("Home Page")),
-    const Center(child: Text("History Page")),
+    const PetAdoptionHome(),
+    const UserCollectionsPage(),
     const ProfilePage(),
   ];
 

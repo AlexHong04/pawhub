@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/constants/colors.dart';
 import '../Profile/presentation/peopleAndRoles_page.dart';
 import '../Profile/presentation/profile_page.dart';
+import '../pet/presentation/pet_list_page.dart';
+import '../petAdoption/presentation/adoption_application_list.dart';
 import 'admin_dashboard_page.dart';
 
 class StaffLayout extends StatefulWidget {
@@ -23,8 +25,8 @@ class StaffLayoutState extends State<StaffLayout> {
     // const Center(child: Text("Community Page")),
     const PeopleAndRolesPage(),
     const AdminDashboardPage(),
-    const Center(child: Text("Pet Page")),
-    const Center(child: Text("Adoption Page")),
+    const PetListPage(),
+    const AdoptionApplicationListPage(),
     const ProfilePage(),
   ];
 
