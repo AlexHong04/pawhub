@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import 'package:pawhub/module/history/pet_adoption_history.dart';
 
 class UserCollectionsPage extends StatelessWidget {
   const UserCollectionsPage({super.key});
@@ -60,7 +61,7 @@ class UserCollectionsPage extends StatelessWidget {
                 icon: Icons.pets,
                 color: AppColors.primary,
                 onTap: () {
-                  // Navigator.push(context, MaterialPageRoute(builder: (_) => MyPetsPage()));
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => AdoptionHistoryPage()));
                 },
               ),
 
