@@ -24,7 +24,6 @@ class PetListPage extends StatefulWidget {
 class _PetListPageState extends State<PetListPage> {
   final PetService _petService = PetService();
 
-  // list to hold fetched pet
   List<Pet> _pets = [];
   Map<String, File?> _petImages = {};
   bool _isLoading = true;

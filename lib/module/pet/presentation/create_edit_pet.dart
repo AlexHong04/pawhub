@@ -222,68 +222,45 @@ class _PetDetailsState extends State<CreateEditPetPage> {
     try {
       List<String> finalImages = [];
 
-      // ✅ Find images to delete by comparing original URLs
+      // compare with original and current to identify the removed one
       final removedImages = _originalImageUrls
           .where((url) => !_currentImageUrls.contains(url))
           .toList();
 
-      debugPrint('🗑️ Original images: $_originalImageUrls');
-      debugPrint('🗑️ Current images: $_currentImageUrls');
-      debugPrint('🗑️ Attempting to delete ${removedImages.length} images');
-      debugPrint('Removed URLs: $removedImages');
-
-      // Delete each removed image one by one
       for (final url in removedImages) {
         try {
           String fileName;
 
           if (url.startsWith('http')) {
-            // ✅ FIXED: Remove query parameters from URL
-            // URL format: https://xxx.supabase.co/storage/v1/object/public/documents/pet_images/FILENAME?t=123456
-
-            // Remove query parameters (everything after ?)
+            // removes everything after ?
             final cleanUrl = url.split('?').first;
 
-            // Get the last part after the last /
+            // get the last part after the last /
             fileName = cleanUrl.split('/').last;
 
-            debugPrint('📌 Original URL: $url');
-            debugPrint('📌 Clean URL: $cleanUrl');
-            debugPrint('📌 Extracted filename: $fileName');
-
           } else {
-            // It's a local file path
             fileName = url.split('/').last;
-            debugPrint('📌 Local file path, extracted: $fileName');
           }
 
-          debugPrint('🗑️ Deleting file: $fileName');
-
-          // ✅ Call delete
           await SupabaseFileService.deleteImage(
             bucketName: 'documents',
             folderPath: 'pet_images',
             fileName: fileName,
           );
 
-          debugPrint('✅ Successfully deleted from storage: $fileName');
+          debugPrint('Successfully deleted from storage: $fileName');
         } catch (e) {
-          debugPrint('❌ Error deleting $url: $e');
-          // Continue with next deletion
+          debugPrint('Error deleting $url: $e');
         }
       }
 
-      // Keep only images that are in both current AND original
+      // keep only images that are in both current AND original
       finalImages.addAll(
           _currentImageUrls.where((url) => _originalImageUrls.contains(url))
       );
 
-      debugPrint('✅ Kept ${finalImages.length} original images');
-
-      // Upload new images
+      // upload new images
       int startIndex = _originalImageUrls.length;
-
-      debugPrint('📤 Uploading ${_newImageFiles.length} new images');
 
       for (int i = 0; i < _newImageFiles.length; i++) {
         try {
@@ -300,18 +277,15 @@ class _PetDetailsState extends State<CreateEditPetPage> {
 
           if (result != null) {
             finalImages.add(result);
-            debugPrint('✅ Uploaded: $fileName -> $result');
+            debugPrint('Uploaded: $fileName -> $result');
           }
         } catch (e) {
-          debugPrint('❌ Error uploading image $i: $e');
+          debugPrint('Error uploading image $i: $e');
           rethrow;
         }
       }
 
-      debugPrint('📝 Final images to save: ${finalImages.length}');
-      debugPrint('📝 Final image URLs: $finalImages');
-
-      // UPDATE DB
+      // update to db
       await _petService.updatePet(
         petId: widget.petId!,
         name: _nameCtrl.text,
