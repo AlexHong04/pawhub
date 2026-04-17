@@ -121,7 +121,7 @@ class LocalFileService {
       }
 
       final fileExtension = filePath.contains('.') ? filePath.split('.').last : 'jpg';
-      final localFileName = '${id}_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+      final localFileName = '${id}-${index}_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
       final localFile = await File(filePath).copy('${dir.path}${Platform.pathSeparator}$localFileName');
 
       final prefs = await SharedPreferences.getInstance();
