@@ -40,4 +40,26 @@ class SupabaseFileService {
       return null;
     }
   }
+
+  static Future<void> deleteImage({
+    required String bucketName,
+    required String folderPath,
+    required String fileName,
+  }) async {
+    try {
+      final path = '$folderPath/$fileName';
+
+      debugPrint('🗑️ Supabase delete path: $path');
+      debugPrint('🗑️ Bucket: $bucketName');
+
+      final result = await _supabase.storage
+          .from(bucketName)
+          .remove([path]);
+
+      debugPrint('✅ Supabase delete result: $result');
+    } catch (e) {
+      debugPrint('❌ Supabase delete error: $e');
+      rethrow;
+    }
+  }
 }
