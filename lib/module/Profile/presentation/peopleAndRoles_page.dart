@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import 'package:pawhub/core/widgets/filterButton.dart';
 
 import '../model/user_model.dart';
 import '../service/profile_service.dart';
+import '../../../core/widgets/profile_avatar.dart';
 // import 'user_model.dart'; // Make sure to import your UserModel file here!
 
 class PeopleAndRolesPage extends StatefulWidget {
@@ -15,51 +17,6 @@ class PeopleAndRolesPage extends StatefulWidget {
 class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
   int _selectedFilterIndex = 0;
   final List<String> _filters = ['All', 'Volunteers', 'User', 'Admin'];
-
-  // Mock data using your EXACT UserModel structure
-  // final List<UserModel> _users = [
-  //   UserModel(
-  //     id: "1",
-  //     name: "Sarah Jenkins",
-  //     gender: "Female",
-  //     contact: "555-0101",
-  //     address: "123 Main St",
-  //     role: "Admin",
-  //     onlineStatus: "Active 2m ago",
-  //     isVolunteer: false,
-  //     updatedAt: DateTime.now(),
-  //     avatarUrl: "assets/images/profile_placeholder.png",
-  //     // Or a network URL
-  //     email: "sarah.j@shelter.org",
-  //   ),
-  //   UserModel(
-  //     id: "2",
-  //     name: "David Torres",
-  //     gender: "Male",
-  //     contact: "555-0102",
-  //     address: "456 Oak Ave",
-  //     role: "Volunteer",
-  //     onlineStatus: "Inactive (3mo)",
-  //     isVolunteer: true,
-  //     updatedAt: DateTime.now(),
-  //     avatarUrl: "",
-  //     // Empty URL forces it to show Initials automatically!
-  //     email: "david.t@example.com",
-  //   ),
-  //   UserModel(
-  //     id: "3",
-  //     name: "Jessica Alba",
-  //     gender: "Female",
-  //     contact: "555-0103",
-  //     address: "789 Pine Rd",
-  //     role: "User",
-  //     onlineStatus: "Active 2m ago",
-  //     isVolunteer: false,
-  //     updatedAt: DateTime.now(),
-  //     avatarUrl: "assets/images/profile_placeholder.png",
-  //     email: "jess.alba88@outlook.com",
-  //   ),
-  // ];
 
   List<UserModel> _allUsers = []; // Stores the master list from DB
   List<UserModel> _filteredUsers = []; // Stores what is currently on screen
@@ -128,16 +85,6 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
     setState(() {
       _filteredUsers = results;
     });
-  }
-
-  // Helper to extract "DT" from "David Torres"
-  String _getInitials(String name) {
-    if (name.isEmpty) return "?";
-    List<String> nameParts = name.trim().split(" ");
-    if (nameParts.length > 1) {
-      return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
-    }
-    return nameParts[0][0].toUpperCase();
   }
 
   @override
@@ -235,34 +182,13 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
           final isSelected = _selectedFilterIndex == index;
           return Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: GestureDetector(
-              onTap: () => {
-                setState(() => _selectedFilterIndex = index),
-                _applyFilters(),
+            child: FilterButton(
+              text: _filters[index],
+              isSelected: isSelected,
+              onPressed: () {
+                setState(() => _selectedFilterIndex = index);
+                _applyFilters();
               },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: isSelected
-                        ? AppColors.primary
-                        : AppColors.borderGray,
-                  ),
-                ),
-                child: Text(
-                  _filters[index],
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : AppColors.textBody,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
             ),
           );
         }),
@@ -313,7 +239,7 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                _buildStatusBadge(user.onlineStatus),
+                _buildStatusBadge(user),
               ],
             ),
           ),
@@ -329,27 +255,14 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
   }
 
   Widget _buildAvatar(UserModel user) {
-    // Check if URL exists and is not empty
-    bool hasImage = user.avatarUrl.isNotEmpty;
-
     return Stack(
       children: [
-        CircleAvatar(
+        ProfileAvatar(
+          userId: user.id,
+          name: user.name,
+          avatarUrl: user.avatarUrl,
           radius: 28,
           backgroundColor: AppColors.background,
-          // Light Orange background for initials
-          // If has image, show it. Otherwise, show nothing so the child text shows.
-          backgroundImage: hasImage ? AssetImage(user.avatarUrl) : null,
-          child: !hasImage
-              ? Text(
-                  _getInitials(user.name), // Dynamically generates initials!
-                  style: const TextStyle(
-                    color: Color(0xFFD92D20),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
-                )
-              : null,
         ),
         if (user.role == "Admin")
           Positioned(
@@ -381,16 +294,16 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
     Color textColor;
     switch (role) {
       case 'Admin':
-        bgColor = const Color(0xFFD1E9FF);
-        textColor = const Color(0xFF026AA2);
+        bgColor = AppColors.adminBadgeBg;
+        textColor = AppColors.adminBadgeText;
         break;
       case 'Volunteer':
-        bgColor = const Color(0xFFF4EBFF);
-        textColor = const Color(0xFF6941C6);
+        bgColor = AppColors.volunteerBadgeBg;
+        textColor = AppColors.volunteerBadgeText;
         break;
       default:
-        bgColor = const Color(0xFFF2F4F7);
-        textColor = const Color(0xFF344054);
+        bgColor = AppColors.defaultBadgeBg;
+        textColor = AppColors.defaultBadgeText;
         break;
     }
     return Container(
@@ -410,29 +323,37 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
     );
   }
 
-  Widget _buildStatusBadge(String status) {
-    bool isActive =
-        status.toLowerCase().contains('active') &&
-        !status.toLowerCase().contains('inactive');
+  Widget _buildStatusBadge(UserModel user) {
+    final isOnline = ProfileService.isOnlineFromHeartbeat(
+      status: user.onlineStatus,
+      updatedAt: user.updatedAt,
+    );
+    final statusLabel = isOnline ? 'Online' : 'Offline';
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: isOnline ? AppColors.primary.withAlpha(20) : AppColors.white,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isOnline ? AppColors.primary.withAlpha(70) : AppColors.border,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (isActive) ...[
-            const Icon(Icons.access_time, size: 12, color: AppColors.textLight),
-            const SizedBox(width: 4),
-          ],
+          Icon(
+            isOnline ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+            size: 12,
+            color: isOnline ? AppColors.primary : AppColors.textLight,
+          ),
+          const SizedBox(width: 4),
           Text(
-            status,
+            statusLabel,
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: isActive ? AppColors.textSecondary : AppColors.textLight,
+              color: isOnline ? AppColors.primary : AppColors.textLight,
             ),
           ),
         ],

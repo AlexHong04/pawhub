@@ -8,6 +8,7 @@ import 'package:pawhub/module/Profile/model/user_model.dart';
 import 'package:pawhub/module/Profile/service/profile_service.dart';
 import 'package:pawhub/module/auth/service/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/widgets/profile_avatar.dart';
 
 class ProfileEditPage extends StatefulWidget {
   const ProfileEditPage({super.key});
@@ -17,7 +18,6 @@ class ProfileEditPage extends StatefulWidget {
 }
 
 class _ProfileEditPageState extends State<ProfileEditPage> {
-  static const String _avatarPathKeyPrefix = 'profile_edit_avatar_path';
   static const List<String> _genderOptions = <String>[
     'Male',
     'Female',
@@ -31,15 +31,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   final contactController = TextEditingController();
   final locationController = TextEditingController();
   File? _selectedImage;
-  File? _localBackupImage;
   String? _selectedGender;
   String? _currentAvatarUrl;
   String? _userId;
   bool loading = false;
-
-  String _avatarStorageKeyForUser(String userId) {
-    return '${_avatarPathKeyPrefix}_$userId';
-  }
 
   Future<void> _exitEditPage() async {
     bool reachedLayoutRoute = false;
@@ -79,9 +74,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     }
 
     final userId = currentUser.id;
-    final avatarStorageKey = _avatarStorageKeyForUser(userId);
-
-    final localAvatar = await LocalFileService.loadSavedImage(avatarStorageKey);
+    final avatarStorageKey = profileAvatarStorageKey(userId);
 
     final UserModel? profileData = await ProfileService.getCurrentUserProfile();
 
@@ -102,15 +95,12 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
         _currentAvatarUrl = profileData.avatarUrl;
         _selectedImage = null;
-        _localBackupImage = localAvatar; // backup
         loading = false;
       });
     } else {
-      // internet loss or failed to fetch profile for some reason
       setState(() {
         _userId = userId;
         _currentAvatarUrl = null;
-        _localBackupImage = localAvatar;
         loading = false;
       });
 
@@ -134,7 +124,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         }
 
         final userId = _userId!;
-        final avatarStorageKey = _avatarStorageKeyForUser(userId);
+        final avatarStorageKey = profileAvatarStorageKey(userId);
         final localAvatar = await LocalFileService.storeImageLocally(
           userId,
           pickedFile.path,
@@ -148,7 +138,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           // Show the preview instantly from local storage when possible
           final pickedLocal = localAvatar ?? File(pickedFile.path);
           _selectedImage = pickedLocal;
-          _localBackupImage = pickedLocal;
         });
       }
     } catch (e) {
@@ -163,7 +152,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       );
     }
   }
-  
+
   void updateProfile() async{
     if (!formKey.currentState!.validate()) return;
     setState(() => loading = true);
@@ -184,7 +173,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       newAvatarUrl = uploadedAvatarUrl;
 
       if (_userId != null) {
-        final avatarStorageKey = _avatarStorageKeyForUser(_userId!);
+        final avatarStorageKey = profileAvatarStorageKey(_userId!);
         await LocalFileService.cacheRemoteUrl(avatarStorageKey, uploadedAvatarUrl);
       }
     }
@@ -423,21 +412,12 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       ),
     );
   }
-  Widget _buildAvatarSection() {
-    // Determine what image to show
-    ImageProvider? imageProvider;
-    if (_selectedImage != null) {
-      imageProvider = FileImage(_selectedImage!); // Show newly picked image
-    } else if (_currentAvatarUrl != null && _currentAvatarUrl!.isNotEmpty) {
-      imageProvider = NetworkImage(_currentAvatarUrl!); // Primary source: Supabase
-    } else if (_localBackupImage != null) {
-      imageProvider = FileImage(_localBackupImage!); // Fallback: local backup
-    }
 
+  Widget _buildAvatarSection() {
     return Column(
       children: [
         GestureDetector(
-          onTap: _showImageSourceOptions, // Tap the avatar to change it
+          onTap: _showImageSourceOptions,
           child: Stack(
             children: [
               Container(
@@ -446,13 +426,13 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                   shape: BoxShape.circle,
                   border: Border.all(color: AppColors.borderGray, width: 2),
                 ),
-                child: CircleAvatar(
+                child: ProfileAvatar(
+                  userId: _userId ?? '',
+                  name: nameController.text,
+                  avatarUrl: _currentAvatarUrl,
+                  previewFile: _selectedImage,
                   radius: 45,
                   backgroundColor: AppColors.inputFill,
-                  backgroundImage: imageProvider,
-                  child: imageProvider == null
-                      ? const Icon(Icons.person, size: 45, color: Colors.grey)
-                      : null,
                 ),
               ),
               Positioned(
@@ -477,7 +457,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         ),
         const SizedBox(height: 12),
         GestureDetector(
-          onTap: _showImageSourceOptions, // Tap the text to change it
+          onTap: _showImageSourceOptions,
           child: const Text(
             "Change Photo",
             style: TextStyle(
@@ -491,4 +471,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     );
   }
 }
+
+
 

@@ -34,9 +34,10 @@ class UserModel {
     role: data['role'] ?? 'User',
     onlineStatus: data['online_status'] ?? 'Online',
     isVolunteer: data['is_volunteer'] ?? false,
-    updatedAt: data['updated_at'] != null
-        ? DateTime.parse(data['updated_at'])
-        : DateTime.now(),
+    updatedAt: DateTime.tryParse(
+          (data['last_seen'] ?? data['updated_at'] ?? '').toString(),
+        ) ??
+        DateTime.now(),
     avatarUrl: data['avatar_url'] ?? '',
     email: data['email'] ?? '',
   );

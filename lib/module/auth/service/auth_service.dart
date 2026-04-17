@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/utils/current_user_store.dart';
 import '../../../core/utils/generatorId.dart';
+import 'package:pawhub/module/Profile/service/profile_service.dart';
 import '../model/auth_model.dart';
 
 class AuthService {
@@ -49,7 +50,7 @@ class AuthService {
 
 				if (authModel != null) {
 					if (syncDatabase) {
-						await _syncLoginToDatabase(response.user!.id);
+						await _syncLoginToDatabase(response.user!.id, email: response.user!.email);
 					}
 					if (persistLocal) {
 						await CurrentUserStore.save(authModel);
@@ -100,6 +101,14 @@ class AuthService {
 			}
 
 		if (existingUser != null) {
+			await supabase
+					.from('User')
+					.update({
+						'email': email.trim(),
+						'updated_at': DateTime.now().toIso8601String(),
+					})
+					.eq('auth_id', authUserId);
+
 			existingUser['email'] = email;
 			final authModel = AuthModel.fromJson(existingUser);
 			return authModel;
@@ -128,8 +137,10 @@ class AuthService {
 						'address': '',
 						'role': 'User',
 						'online_status': 'Online',
+						'last_seen': DateTime.now().toIso8601String(),
 						'is_volunteer': false,
 						'avatar_url': null,
+						'email': email.trim(),
 						'auth_id': authUserId,
 					})
 							.select()
@@ -237,6 +248,10 @@ class AuthService {
 	static Future<void> logout() async {
 		// End the current Supabase session and clear local cached user.
 		try {
+			final userId = supabase.auth.currentUser?.id;
+			if (userId != null) {
+				await ProfileService.updateOnlineStatus(userId, 'Offline');
+			}
 			await supabase.auth.signOut();
 		} finally {
 			await CurrentUserStore.clear();
@@ -258,12 +273,17 @@ class AuthService {
 		});
 	}
 
-	static Future<void> _syncLoginToDatabase(String authId) async {
+	static Future<void> _syncLoginToDatabase(String authId, {String? email}) async {
 		try {
-			await supabase.from('User').update({
+			final updates = <String, dynamic>{
 				'online_status': 'Online',
-				'updated_at': DateTime.now().toIso8601String(),
-			}).eq('auth_id', authId);
+				'last_seen': DateTime.now().toIso8601String(),
+			};
+			if (email != null && email.trim().isNotEmpty) {
+				updates['email'] = email.trim();
+			}
+
+			await supabase.from('User').update(updates).eq('auth_id', authId);
 		} catch (e) {
 			// Keep login successful even if this non-critical sync fails.
 			print('sync login status error: $e');

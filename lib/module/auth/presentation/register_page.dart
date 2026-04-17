@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import 'package:pawhub/core/widgets/password_suffix.dart';
 import 'package:pawhub/module/auth/service/auth_service.dart';
 import '../../../core/widgets/appDecorations.dart';
 
@@ -20,6 +21,19 @@ class _RegisterPageState extends State<RegisterPage> {
 
   bool loading = false;
   bool obscurePassword = true;
+
+  bool get _isPasswordValid {
+    final value = passwordController.text;
+    return value.isNotEmpty &&
+        value.trim().length >= 8 &&
+        RegExp(r'\d').hasMatch(value) &&
+        RegExp(r'[^A-Za-z0-9]').hasMatch(value);
+  }
+
+  bool get _isConfirmPasswordValid {
+    final value = confirmPasswordController.text;
+    return _isPasswordValid && value.isNotEmpty && value == passwordController.text;
+  }
 
   @override
   void dispose() {
@@ -90,6 +104,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     // wrapped the column in a form widget
                     child: Form(
                       key: formKey,
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -185,20 +200,17 @@ class _RegisterPageState extends State<RegisterPage> {
                           TextFormField(
                             controller: passwordController,
                             obscureText: obscurePassword,
+                            onChanged: (_) => setState(() {}),
                             decoration:
                             AppDecorations.outlineInputDecoration(
                               hintText: "••••••••",
                               prefixIcon: Icons.lock_outline,
                               labelText: "Password",
                             ).copyWith(
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  obscurePassword
-                                      ? Icons.visibility_outlined
-                                      : Icons.visibility_off_outlined,
-                                  color: AppColors.iconColor,
-                                ),
-                                onPressed: () {
+                              suffixIcon: PasswordSuffix(
+                                showCheck: _isPasswordValid,
+                                isObscure: obscurePassword,
+                                onToggleVisibility: () {
                                   setState(() {
                                     obscurePassword = !obscurePassword;
                                   });
@@ -206,30 +218,36 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                             ),
                             validator: (value) {
-                              if (value == null || value.length < 8) {
+                              if (value == null || value.isEmpty) {
+                                return "Please enter a password";
+                              }
+                              if (value.trim().length < 8) {
                                 return "Password must be at least 8 characters";
+                              }
+                              if (!RegExp(r'\d').hasMatch(value)) {
+                                return "Password must include at least 1 number";
+                              }
+                              if (!RegExp(r'[^A-Za-z0-9]').hasMatch(value)) {
+                                return "Password must include at least 1 symbol";
                               }
                               return null;
                             },
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 8),
                           TextFormField(
                             controller: confirmPasswordController,
                             obscureText: obscurePassword,
+                            onChanged: (_) => setState(() {}),
                             decoration:
                             AppDecorations.outlineInputDecoration(
                               hintText: "••••••••",
                               prefixIcon: Icons.verified_user_outlined,
                               labelText: "Confirm Password",
                             ).copyWith(
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  obscurePassword
-                                      ? Icons.visibility_outlined
-                                      : Icons.visibility_off_outlined,
-                                  color: AppColors.iconColor,
-                                ),
-                                onPressed: () {
+                              suffixIcon: PasswordSuffix(
+                                showCheck: _isConfirmPasswordValid,
+                                isObscure: obscurePassword,
+                                onToggleVisibility: () {
                                   setState(() {
                                     obscurePassword = !obscurePassword;
                                   });

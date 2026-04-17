@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import 'package:pawhub/core/widgets/password_suffix.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:pawhub/module/Profile/model/user_model.dart';
 import 'package:pawhub/module/auth/model/auth_model.dart';
@@ -17,6 +18,8 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+
+  final formKey = GlobalKey<FormState>();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   bool loading = false;
@@ -30,26 +33,31 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> login() async {
-    setState(() => loading = true);
+    if (formKey.currentState!.validate()) {
+      setState(() {
+        loading = true;
+      });
 
-    final AuthModel? userData = await AuthService.login(
-      emailController.text.trim(),
-      passwordController.text.trim(),
-    );
 
-    if (mounted) {
-      setState(() => loading = false);
+      final AuthModel? userData = await AuthService.login(
+        emailController.text.trim(),
+        passwordController.text.trim(),
+      );
 
-      if (userData != null) {
-        if (userData.role == 'Admin') {
-          Navigator.pushReplacementNamed(context, '/staff_layout');
-        }else{
-          Navigator.pushReplacementNamed(context, '/user_layout');
+      if (mounted) {
+        setState(() => loading = false);
+
+        if (userData != null) {
+          if (userData.role == 'Admin') {
+            Navigator.pushReplacementNamed(context, '/staff_layout');
+          } else {
+            Navigator.pushReplacementNamed(context, '/user_layout');
+          }
+        } else {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Invalid email or password')));
         }
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Invalid email or password')));
       }
     }
   }
@@ -66,6 +74,8 @@ class _LoginPageState extends State<LoginPage> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 400),
+              child:Form(
+                key: formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -134,14 +144,10 @@ class _LoginPageState extends State<LoginPage> {
                           prefixIcon: Icons.lock,
                           labelText: "Password",
                         ).copyWith(
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              obscurePassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                              color: AppColors.textLight,
-                            ),
-                            onPressed: () {
+                          suffixIcon: PasswordSuffix(
+                            showCheck: false,
+                            isObscure: obscurePassword,
+                            onToggleVisibility: () {
                               setState(() {
                                 obscurePassword = !obscurePassword;
                               });
@@ -288,6 +294,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ],
+              ),
               ),
             ),
           ),

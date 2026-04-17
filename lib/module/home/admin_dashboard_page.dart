@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/colors.dart';
+
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
 
@@ -459,12 +461,12 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
           ],
         ),
         const SizedBox(height: 12),
-        Text(
+         Text(
           label,
           style: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF98A2B3),
+            color: AppColors.dashboardHint,
           ),
         ),
       ],
@@ -477,7 +479,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0E5EC)),
+        border: Border.all(color: AppColors.dashboardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -491,13 +493,13 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.0,
-                  color: Color(0xFF667085),
+                  color: AppColors.dashboardSubtitle,
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFCE8E8),
+                  color: AppColors.errorBg,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
@@ -505,7 +507,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFFF04438),
+                    color: AppColors.errorText,
                   ),
                 ),
               ),
@@ -517,7 +519,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF101828),
+              color: AppColors.dashboardHeading,
             ),
           ),
           const SizedBox(height: 24),
@@ -604,11 +606,11 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
           width: 20,
           child: Text(
             value,
-            style: const TextStyle(fontSize: 10, color: Color(0xFF98A2B3)),
+            style: const TextStyle(fontSize: 10, color: AppColors.dashboardHint),
           ),
         ),
         const SizedBox(width: 8),
-        Expanded(child: Container(height: 1, color: const Color(0xFFF2F4F7))),
+        Expanded(child: Container(height: 1, color: AppColors.chartBackground)),
       ],
     );
   }
