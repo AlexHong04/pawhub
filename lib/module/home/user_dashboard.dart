@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:pawhub/module/pet/presentation/pet_details.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pawhub/core/constants/colors.dart';
 import '../../core/widgets/search_field.dart';
 import '../../core/widgets/filterButton.dart';
 import '../../core/widgets/sorting.dart';
+import '../pet/service/pet_service.dart';
 
 class PetAdoptionHome extends StatefulWidget {
   const PetAdoptionHome({super.key});
@@ -14,6 +16,8 @@ class PetAdoptionHome extends StatefulWidget {
 
 class _PetAdoptionHomeState extends State<PetAdoptionHome> {
   final supabase = Supabase.instance.client;
+  final PetService _petService = PetService();
+
   final TextEditingController searchController = TextEditingController();
 
   List<Map<String, dynamic>> allPets = [];
@@ -38,17 +42,12 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
   Future<void> fetchPets() async {
     try {
       setState(() => isLoading = true);
-      final response = await supabase
-          .from('Pet')
-          .select('*')
-          .eq('adoption_status', false)
-          .eq('isDeleted', false)
-          .order('created_at', ascending: false);
 
-      final List data = response as List;
+      final pets = await _petService.userDashboardFetchPets();
+
       setState(() {
-        allPets = data.map((e) => Map<String, dynamic>.from(e)).toList();
-        filteredPets = allPets;
+        allPets = pets;
+        filteredPets = pets;
         isLoading = false;
       });
     } catch (e) {
@@ -60,23 +59,30 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
     setState(() {
       filteredPets = allPets.where((p) {
         final query = searchQuery.trim().toLowerCase();
-        final matchSpecies = selectedSpecies == 'All' ||
-            p['species'].toString().toLowerCase() == selectedSpecies.toLowerCase();
+        final matchSpecies =
+            selectedSpecies == 'All' ||
+            p['species'].toString().toLowerCase() ==
+                selectedSpecies.toLowerCase();
         final matchSearch = query.isEmpty
             ? true
-            : (
-            (p['name'] ?? '').toString().toLowerCase().contains(query) ||
-                (p['species'] ?? '').toString().toLowerCase().contains(query) ||
-                (p['age'] ?? '').toString().toLowerCase().contains(query) ||
-                (p['gender'] ?? '').toString().toLowerCase().contains(query) ||
-                (p['health_status'] ?? '').toString().toLowerCase().contains(query) ||
-                (p['vaccination_status'] == true && 'vaccinated'.contains(query)) ||
-                (query == 'urgent' &&
-                    DateTime.now()
-                        .difference(DateTime.parse(p['created_at']))
-                        .inDays >=
-                        30)
-        );
+            : ((p['name'] ?? '').toString().toLowerCase().contains(query) ||
+                  (p['species'] ?? '').toString().toLowerCase().contains(
+                    query,
+                  ) ||
+                  (p['age'] ?? '').toString().toLowerCase().contains(query) ||
+                  (p['gender'] ?? '').toString().toLowerCase().contains(
+                    query,
+                  ) ||
+                  (p['health_status'] ?? '').toString().toLowerCase().contains(
+                    query,
+                  ) ||
+                  (p['vaccination_status'] == true &&
+                      'vaccinated'.contains(query)) ||
+                  (query == 'urgent' &&
+                      DateTime.now()
+                              .difference(DateTime.parse(p['created_at']))
+                              .inDays >=
+                          30));
         return matchSpecies && matchSearch;
       }).toList();
     });
@@ -87,8 +93,13 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text("User Dashboard",
-            style: TextStyle(color: AppColors.textDark, fontWeight: FontWeight.bold)),
+        title: const Text(
+          "User Dashboard",
+          style: TextStyle(
+            color: AppColors.textDark,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -96,70 +107,75 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
       ),
       body: isLoading
           ? const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      )
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : Column(
-        children: [
-
-          // SEARCH + SORT ROW
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Row(
               children: [
-                Expanded(
-                  child: CustomSearchField(
-                    controller: searchController,
-                    hintText:
-                    "Search pets by name, species, age, status...",
-                    labelText: "Search",
-                    onChanged: (value) {
-                      searchQuery = value;
-                      applyFilter();
-                    },
-                  ),
-                ),
+                // SEARCH + SORT ROW
+                Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: CustomSearchField(
+                          controller: searchController,
+                          hintText:
+                              "Search pets by name, species, age, status...",
+                          labelText: "Search",
+                          onChanged: (value) {
+                            searchQuery = value;
+                            applyFilter();
+                          },
+                        ),
+                      ),
 
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 6,
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                        child: IconButton(
+                          icon: const Icon(
+                            Icons.sort,
+                            color: AppColors.primary,
+                          ),
+                          onPressed: _showSortOption,
+                        ),
                       ),
                     ],
                   ),
-                  child: IconButton(
-                    icon: const Icon(Icons.sort, color: AppColors.primary),
-                    onPressed: _showSortOption,
-                  ),
+                ),
+
+                // FILTER ROW
+                _buildFilterRow(),
+
+                const SizedBox(height: 16),
+                Expanded(
+                  child: filteredPets.isEmpty
+                      ? _buildEmptyState()
+                      : GridView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                childAspectRatio:
+                                    0.68, // Adjusted for image + text + tags
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 12,
+                              ),
+                          itemCount: filteredPets.length,
+                          itemBuilder: (context, index) =>
+                              _buildPetCard(filteredPets[index]),
+                        ),
                 ),
               ],
             ),
-          ),
-
-          // FILTER ROW
-          _buildFilterRow(),
-
-        const SizedBox(height: 16),
-          Expanded(
-            child: filteredPets.isEmpty
-                ? _buildEmptyState()
-                : GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.68, // Adjusted for image + text + tags
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: filteredPets.length,
-              itemBuilder: (context, index) => _buildPetCard(filteredPets[index]),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -203,19 +219,16 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
     final bool isMale = gender.toLowerCase() == 'male';
     final Color genderColor = isMale ? Colors.blue : Colors.pink;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: isUrgent ? Colors.redAccent.withOpacity(0.05) : Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                ViewPetDetailsPage(petId: pet['pet_id']),
           ),
-        ],
-      ),
+        );
+      },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -225,13 +238,18 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
                 // 1. The Pet Image
                 Positioned.fill(
                   child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
                     child: Image.network(
                       pet['image_url'] ?? '',
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(
                         color: AppColors.inputFill,
-                        child: const Icon(Icons.pets, color: AppColors.textPlaceholder),
+                        child: const Icon(
+                          Icons.pets,
+                          color: AppColors.textPlaceholder,
+                        ),
                       ),
                     ),
                   ),
@@ -243,7 +261,10 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
                     top: 0,
                     left: 0,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: const BoxDecoration(
                         color: Colors.redAccent,
                         borderRadius: BorderRadius.only(
@@ -253,9 +274,20 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
                       ),
                       child: const Row(
                         children: [
-                          Icon(Icons.priority_high, color: Colors.white, size: 12),
+                          Icon(
+                            Icons.priority_high,
+                            color: Colors.white,
+                            size: 12,
+                          ),
                           SizedBox(width: 4),
-                          Text("URGENT", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10)),
+                          Text(
+                            "URGENT",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -270,7 +302,9 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.9),
                       shape: BoxShape.circle,
-                      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black12, blurRadius: 4),
+                      ],
                     ),
                     child: Icon(
                       isMale ? Icons.male : Icons.female,
@@ -289,20 +323,23 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
               children: [
                 Text(
                   pet['name'] ?? 'Unknown',
-                  style: const TextStyle(color: AppColors.textDark, fontWeight: FontWeight.bold, fontSize: 15),
+                  style: const TextStyle(
+                    color: AppColors.textDark,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   "${pet['gender']} • ${pet['age']} yrs",
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 4,
-                  children: _buildPetTags(pet),
-                ),
+                Wrap(spacing: 4, runSpacing: 4, children: _buildPetTags(pet)),
               ],
             ),
           ),
@@ -321,7 +358,9 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
     if (status == "good") {
       tags.add(_tagChip("Good Health", Colors.teal, icon: Icons.check_circle));
     } else if (status == "fair") {
-      tags.add(_tagChip("Fair Health", Colors.orange, icon: Icons.info_outline));
+      tags.add(
+        _tagChip("Fair Health", Colors.orange, icon: Icons.info_outline),
+      );
     } else if (status == "poor") {
       tags.add(_tagChip("Needs Care", Colors.redAccent, icon: Icons.healing));
     }
@@ -343,7 +382,14 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
             Icon(icon, size: 10, color: color),
             const SizedBox(width: 3),
           ],
-          Text(label, style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.bold)),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
@@ -354,9 +400,16 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.search_off, size: 48, color: AppColors.textPlaceholder),
+          const Icon(
+            Icons.search_off,
+            size: 48,
+            color: AppColors.textPlaceholder,
+          ),
           const SizedBox(height: 12),
-          const Text("No pet match your search", style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+          const Text(
+            "No pet match your search",
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+          ),
         ],
       ),
     );
@@ -372,7 +425,6 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-
             ListTile(
               leading: const Icon(Icons.new_releases),
               title: const Text("Newest First"),

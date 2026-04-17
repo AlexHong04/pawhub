@@ -16,6 +16,25 @@ class PetService {
     return List<Map<String, dynamic>>.from(response);
   }
 
+  Future<List<Map<String, dynamic>>> userDashboardFetchPets() async {
+    try {
+      final response = await supabase
+          .from('Pet')
+          .select('*')
+          .eq('adoption_status', false)
+          .eq('isDeleted', false)
+          .order('created_at', ascending: false);
+
+      final List data = response as List;
+
+      return data
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to fetch pets: $e');
+    }
+  }
+
   // fetch pet details
   Future<Pet> fetchPetDetails(String petId) async {
     final data = await supabase
