@@ -9,14 +9,25 @@ class ProfileService {
   static final supabase = Supabase.instance.client;
   static const Duration onlineFreshness = Duration(minutes: 2);
 
-  static Future<void> updateOnlineStatus(String authId, String status) async {
+  static Future<bool> updateOnlineStatus(String authId, String status) async {
     try {
-      await supabase.from('User').update({
+      final updatedRow = await supabase.from('User').update({
         'online_status': status,
         'last_seen': DateTime.now().toIso8601String(),
-      }).eq('auth_id', authId);
+      }).eq('auth_id', authId).select('auth_id, online_status, last_seen').maybeSingle();
+
+      if (updatedRow == null) {
+        print('updateOnlineStatus: no User row matched auth_id=$authId');
+        return false;
+      }
+
+      return true;
+    } on PostgrestException catch (e) {
+      print('Error updating online status: ${e.message} (code: ${e.code})');
+      return false;
     } catch (e) {
       print('Error updating online status: $e');
+      return false;
     }
   }
 
@@ -132,6 +143,60 @@ class ProfileService {
       return false;
     }
   }
+
+  static Future<bool> updateUserRole(String userId, String role) async {
+    try {
+      final normalizedRole = role.trim();
+      final updatedRow = await supabase.from('User').update({
+        'role': normalizedRole,
+        'is_volunteer': normalizedRole.toLowerCase() == 'volunteer',
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('user_id', userId).select('user_id, role').maybeSingle();
+
+      if (updatedRow == null) {
+        print('updateUserRole: no User row matched user_id=$userId');
+        return false;
+      }
+
+      return true;
+    } on PostgrestException catch (e) {
+      print('Error updating user role: ${e.message} (code: ${e.code})');
+      return false;
+    } catch (e) {
+      print('Error updating user role: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> updateUserBanStatus(String userId, bool isBanned) async {
+    try {
+      final updatedRow = await supabase
+          .from('User')
+          .update({
+            'is_banned': isBanned,
+            'online_status': isBanned ? 'Offline' : 'Online',
+            'last_seen': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('user_id', userId)
+          .select('user_id, is_banned')
+          .maybeSingle();
+
+      if (updatedRow == null) {
+        print('updateUserBanStatus: no User row matched user_id=$userId');
+        return false;
+      }
+
+      return true;
+    } on PostgrestException catch (e) {
+      print('Error updating user ban status: ${e.message} (code: ${e.code})');
+      return false;
+    } catch (e) {
+      print('Error updating user ban status: $e');
+      return false;
+    }
+  }
+
   static Future<List<UserModel>> getAllUsers() async {
     try {
       final currentUser = supabase.auth.currentUser;

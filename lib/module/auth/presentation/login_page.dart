@@ -1,13 +1,10 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
 import 'package:pawhub/core/widgets/password_suffix.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:pawhub/module/Profile/model/user_model.dart';
 import 'package:pawhub/module/auth/model/auth_model.dart';
 
 import '../../../core/widgets/appDecorations.dart';
-import '../auth_routes.dart';
 import '../service/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
@@ -33,6 +30,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> login() async {
+    FocusScope.of(context).unfocus();
     if (formKey.currentState!.validate()) {
       setState(() {
         loading = true;
@@ -54,9 +52,10 @@ class _LoginPageState extends State<LoginPage> {
             Navigator.pushReplacementNamed(context, '/user_layout');
           }
         } else {
+          final message = AuthService.lastError ?? 'Invalid email or password';
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text('Invalid email or password')));
+          ).showSnackBar(SnackBar(content: Text(message)));
         }
       }
     }
@@ -88,18 +87,9 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.pets,
-                      size: 60,
-                      color: AppColors.primaryLight,
-                    ),
+                  Image.asset(
+                    'assets/images/registerLogo.png',
+                    height: 130,
                   ),
                   const SizedBox(height: 24),
                   Text(

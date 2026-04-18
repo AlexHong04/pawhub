@@ -45,6 +45,7 @@ class _SetNewPasswordPageState extends State<SetNewPasswordPage> {
   }
 
   void updatePassword()async {
+    FocusScope.of(context).unfocus();
     if (!(formKey.currentState?.validate() ?? false)) {
       return;
     }
@@ -119,20 +120,22 @@ class _SetNewPasswordPageState extends State<SetNewPasswordPage> {
             TextFormField(
               controller: newPasswordController,
               obscureText: obscureNewPassword,
-              onChanged: (_) => setState(() {}),
               decoration: AppDecorations.outlineInputDecoration(
                 hintText: "••••••••",
                 labelText: 'New Password',
                 prefixIcon: Icons.lock_outlined,
               ).copyWith(
-                suffixIcon: PasswordSuffix(
-                  showCheck: _isNewPasswordValid,
-                  isObscure: obscureNewPassword,
-                  onToggleVisibility: () {
-                    setState(() {
-                      obscureNewPassword = !obscureNewPassword;
-                    });
-                  },
+                suffixIcon: AnimatedBuilder(
+                  animation: newPasswordController,
+                  builder: (context, _) => PasswordSuffix(
+                    showCheck: _isNewPasswordValid,
+                    isObscure: obscureNewPassword,
+                    onToggleVisibility: () {
+                      setState(() {
+                        obscureNewPassword = !obscureNewPassword;
+                      });
+                    },
+                  ),
                 ),
               ),
               validator: (value) {
@@ -155,20 +158,25 @@ class _SetNewPasswordPageState extends State<SetNewPasswordPage> {
             TextFormField(
               controller: confirmPasswordController,
               obscureText: obscureConfirmPassword,
-              onChanged: (_) => setState(() {}),
               decoration: AppDecorations.outlineInputDecoration(
                 hintText: '••••••••',
                 labelText: 'Confirm new Password',
                 prefixIcon: Icons.verified_user_outlined,
               ).copyWith(
-                suffixIcon: PasswordSuffix(
-                  showCheck: _isConfirmPasswordValid,
-                  isObscure: obscureConfirmPassword,
-                  onToggleVisibility: () {
-                    setState(() {
-                      obscureConfirmPassword = !obscureConfirmPassword;
-                    });
-                  },
+                suffixIcon: AnimatedBuilder(
+                  animation: Listenable.merge([
+                    newPasswordController,
+                    confirmPasswordController,
+                  ]),
+                  builder: (context, _) => PasswordSuffix(
+                    showCheck: _isConfirmPasswordValid,
+                    isObscure: obscureConfirmPassword,
+                    onToggleVisibility: () {
+                      setState(() {
+                        obscureConfirmPassword = !obscureConfirmPassword;
+                      });
+                    },
+                  ),
                 ),
               ),
               validator: (value) {
@@ -217,18 +225,29 @@ class _SetNewPasswordPageState extends State<SetNewPasswordPage> {
             const SizedBox(height: 40),
 
             // Back button
-            ElevatedButton(
-              onPressed: () {
-                if (Navigator.canPop(context)) {
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text(
-                "Back",
-                style: TextStyle(
-                  color: AppColors.textLight,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: const BorderSide(color: AppColors.border),
+                  // Using your border color
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Text(
+                  "Back",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textDark,
+                  ),
                 ),
               ),
             ),
@@ -354,42 +373,33 @@ class _SetNewPasswordPageState extends State<SetNewPasswordPage> {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // Container(
-        //   width: 200,
-        //   height: 200,
-        //   decoration: BoxDecoration(
-        //     color: const Color(0xFF2E82F4).withOpacity(0.05),
-        //     shape: BoxShape.circle,
-        //   ),
-        // ),
-
-        // Container(
-        //   width: 140,
-        //   height: 140,
-        //   decoration: BoxDecoration(
-        //     color: const Color(0xFF2E82F4).withOpacity(0.1),
-        //     shape: BoxShape.circle,
-        //   ),
-        // ),
-        // Container(
-        //   width: 100,
-        //   height: 100,
-        //   decoration: BoxDecoration(
-        //     color: Colors.white,
-        //     shape: BoxShape.circle,
-        //     boxShadow: [
-        //       BoxShadow(
-        //         color: Colors.black.withOpacity(0.05),
-        //         blurRadius: 20,
-        //         offset: const Offset(0, 10),
-        //       ),
-        //     ],
-        //   ),
-        //   child: const Center(
-        //     child: Icon(Icons.pets, size: 50, color: Color(0xFF2E82F4)),
-        //   ),
-        // ),
-        Image.asset('assets/images/register.png', height: 100, width: 100),
+        Container(
+          width: 140,
+          height: 140,
+          decoration: BoxDecoration(
+            color: const Color(0xFF2E82F4).withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+        ),
+        Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: const Center(
+            child: Icon(Icons.pets, size: 50, color: Color(0xFF2E82F4)),
+          ),
+        ),
+        // Image.asset('assets/images/registerLogo.png', height: 100, width: 100),
         Positioned(
           bottom: 25,
           right: 25,

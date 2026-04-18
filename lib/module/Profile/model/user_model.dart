@@ -7,6 +7,7 @@ class UserModel {
   final String role;
   final String onlineStatus;
   final bool isVolunteer;
+  final bool isBanned;
   final DateTime updatedAt;
   final String avatarUrl;
   final String email;
@@ -20,6 +21,7 @@ class UserModel {
     required this.role,
     required this.onlineStatus,
     required this.isVolunteer,
+    this.isBanned = false,
     required this.updatedAt,
     required this.avatarUrl,
     required this.email,
@@ -34,6 +36,7 @@ class UserModel {
     role: data['role'] ?? 'User',
     onlineStatus: data['online_status'] ?? 'Online',
     isVolunteer: data['is_volunteer'] ?? false,
+    isBanned: _parseBool(data['is_banned']),
     updatedAt: DateTime.tryParse(
           (data['last_seen'] ?? data['updated_at'] ?? '').toString(),
         ) ??
@@ -41,4 +44,14 @@ class UserModel {
     avatarUrl: data['avatar_url'] ?? '',
     email: data['email'] ?? '',
   );
+
+  static bool _parseBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == 'true' || normalized == '1' || normalized == 'yes';
+    }
+    return false;
+  }
 }

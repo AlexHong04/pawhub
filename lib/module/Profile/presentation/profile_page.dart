@@ -174,24 +174,35 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 48),
 
             // 5. Sign Out Button
-            TextButton.icon(
-              onPressed: () async {
-                await AuthService.logout();
-                if (!context.mounted) return;
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: const BorderSide(color: Colors.red),
+                  foregroundColor: Colors.red,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () async {
+                  await AuthService.logout();
+                  if (!context.mounted) return;
 
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/login',
-                      (route) => false,
-                );
-              },
-              icon: const Icon(Icons.logout, color: AppColors.textLight),
-              label: const Text(
-                "Sign Out",
-                style: TextStyle(
-                  color: AppColors.textLight,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/login',
+                        (route) => false,
+                  );
+                },
+                icon: const Icon(Icons.logout, color: Colors.red),
+                label: const Text(
+                  "Sign Out",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.red,
+                  ),
                 ),
               ),
             ),

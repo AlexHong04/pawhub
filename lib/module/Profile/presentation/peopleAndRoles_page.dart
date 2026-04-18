@@ -15,8 +15,10 @@ class PeopleAndRolesPage extends StatefulWidget {
 }
 
 class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
+  static const Color _unbanCyan = Color(0xFF06B6D4);
   int _selectedFilterIndex = 0;
   final List<String> _filters = ['All', 'Volunteers', 'User', 'Admin'];
+  final List<String> _roleChoices = ['Admin', 'Volunteer', 'User'];
 
   List<UserModel> _allUsers = []; // Stores the master list from DB
   List<UserModel> _filteredUsers = []; // Stores what is currently on screen
@@ -243,15 +245,450 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
               ],
             ),
           ),
-          IconButton(
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            icon: const Icon(Icons.more_vert, color: AppColors.textLight),
-            onPressed: () {},
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(22),
+                onTap: () => _showUserActionsSheet(user),
+                child: const Icon(
+                  Icons.more_vert,
+                  color: AppColors.textLight,
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
+  }
+
+  void _showUserActionsSheet(UserModel user) {
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      useSafeArea: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final maxHeight = MediaQuery.of(sheetContext).size.height * 0.88;
+        return Container(
+          constraints: BoxConstraints(maxHeight: maxHeight),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.borderGray,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'User Actions',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textDark,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      ProfileAvatar(
+                        userId: user.id,
+                        name: user.name,
+                        avatarUrl: user.avatarUrl,
+                        radius: 22,
+                        backgroundColor: AppColors.inputFill,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              user.name,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textDark,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              user.email,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildActionTile(
+                  icon: Icons.admin_panel_settings_outlined,
+                  iconColor: AppColors.primary,
+                  title: 'Change Role',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _showChangeRoleSheet(user);
+                  },
+                ),
+                _buildActionTile(
+                  icon: Icons.person_outline,
+                  iconColor: AppColors.primary,
+                  title: 'View Profile',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('View profile for ${user.name}')),
+                    );
+                  },
+                ),
+                _buildActionTile(
+                  icon: Icons.lock_reset,
+                  iconColor: AppColors.primary,
+                  title: 'Reset Password',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.pushNamed(context, '/reset_password');
+                  },
+                ),
+                const Divider(height: 24, color: AppColors.borderGray),
+                _buildActionTile(
+                  icon: user.isBanned ? Icons.check_circle_outline : Icons.block,
+                  iconColor: user.isBanned ? _unbanCyan : Colors.red,
+                  title: user.isBanned ? 'Unban User' : 'Ban User',
+                  titleColor: user.isBanned ? _unbanCyan : Colors.red,
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+
+                    final shouldBan = !user.isBanned;
+                    final success = await ProfileService.updateUserBanStatus(
+                      user.id,
+                      shouldBan,
+                    );
+
+                    if (!mounted) return;
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          success
+                              ? (shouldBan
+                                    ? 'User ${user.name} has been banned'
+                                    : 'User ${user.name} has been unbanned')
+                              : 'Failed to update ban status for ${user.name}',
+                        ),
+                        backgroundColor: success ? null : Colors.red,
+                      ),
+                    );
+
+                    if (success) {
+                      await _fetchUsers();
+                    }
+                  },
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF1F5F9),
+                      side: BorderSide.none,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(sheetContext),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textDark,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActionTile({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    Color iconColor = AppColors.textLight,
+    Color titleColor = AppColors.textDark,
+  }) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: iconColor),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: titleColor,
+        ),
+      ),
+      onTap: onTap,
+    );
+  }
+
+  void _showChangeRoleSheet(UserModel user) {
+    String selectedRole = _normalizeRoleLabel(user.role);
+    bool saving = false;
+
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      useSafeArea: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (roleSheetContext) {
+        return StatefulBuilder(
+          builder: (modalContext, setModalState) {
+            Future<void> saveRole() async {
+              if (saving) return;
+              setModalState(() => saving = true);
+
+              final success = await ProfileService.updateUserRole(
+                user.id,
+                selectedRole,
+              );
+
+              if (!mounted) return;
+              if (roleSheetContext.mounted) {
+                Navigator.pop(roleSheetContext);
+              }
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    success
+                        ? 'Role updated to $selectedRole for ${user.name}'
+                        : 'Failed to update role for ${user.name}',
+                  ),
+                  backgroundColor: success ? null : Colors.red,
+                ),
+              );
+
+              if (success) {
+                await _fetchUsers();
+              }
+            }
+
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.borderGray,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'System Role',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ..._roleChoices.map((role) {
+                      final isSelected = selectedRole == role;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildRoleOptionCard(
+                          role: role,
+                          isSelected: isSelected,
+                          onTap: () => setModalState(() => selectedRole = role),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: saving ? null : saveRole,
+                        child: Text(
+                          saving ? 'Saving...' : 'Save User',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Center(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(roleSheetContext),
+                        child: const Text(
+                          'Discard Changes',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textLight,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildRoleOptionCard({
+    required String role,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    IconData icon;
+    String description;
+
+    switch (role) {
+      case 'Admin':
+        icon = Icons.admin_panel_settings;
+        description = 'Full access to all system features';
+        break;
+      case 'Volunteer':
+        icon = Icons.volunteer_activism;
+        description = 'Limited access to pet & event records';
+        break;
+      default:
+        icon = Icons.person_outline;
+        description = 'Standard access to user features';
+        break;
+    }
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.border,
+            width: isSelected ? 1.5 : 1,
+          ),
+          color: isSelected ? AppColors.primary.withAlpha(12) : AppColors.white,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primary : AppColors.inputFill,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: isSelected ? Colors.white : AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    role,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textLight,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              isSelected
+                  ? Icons.check_circle
+                  : Icons.radio_button_unchecked,
+              color: isSelected ? AppColors.primary : AppColors.border,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _normalizeRoleLabel(String role) {
+    final raw = role.trim().toLowerCase();
+    if (raw == 'admin') return 'Admin';
+    if (raw == 'volunteer' || raw == 'volunteers') return 'Volunteer';
+    return 'User';
   }
 
   Widget _buildAvatar(UserModel user) {
@@ -290,9 +727,10 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
   }
 
   Widget _buildRoleBadge(String role) {
+    final normalizedRole = _normalizeRoleLabel(role);
     Color bgColor;
     Color textColor;
-    switch (role) {
+    switch (normalizedRole) {
       case 'Admin':
         bgColor = AppColors.adminBadgeBg;
         textColor = AppColors.adminBadgeText;
@@ -313,7 +751,7 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        role,
+        normalizedRole,
         style: TextStyle(
           color: textColor,
           fontSize: 12,

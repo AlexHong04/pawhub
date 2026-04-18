@@ -17,6 +17,7 @@ class AuthService {
 		bool syncDatabase = true,
 	}) async {
 		try {
+			lastError = null;
 			// Sign in against auth.users first.
 			final response = await supabase.auth.signInWithPassword(
 				email: email,
@@ -33,6 +34,12 @@ class AuthService {
 							.select()
 							.eq('auth_id', response.user!.id)
 							.single();
+
+					if ((userData['is_banned'] ?? false) == true) {
+						lastError = 'Your account has been banned. Please contact support.';
+						await supabase.auth.signOut();
+						return null;
+					}
 
 					// The User table may not store email, so keep auth email in the model.
 					userData['email'] = response.user!.email ?? email;
@@ -138,6 +145,7 @@ class AuthService {
 						'role': 'User',
 						'online_status': 'Online',
 						'last_seen': DateTime.now().toIso8601String(),
+						'is_banned': false,
 						'is_volunteer': false,
 						'avatar_url': null,
 						'email': email.trim(),
@@ -250,7 +258,10 @@ class AuthService {
 		try {
 			final userId = supabase.auth.currentUser?.id;
 			if (userId != null) {
-				await ProfileService.updateOnlineStatus(userId, 'Offline');
+				final updated = await ProfileService.updateOnlineStatus(userId, 'Offline');
+				if (!updated) {
+					print('logout: failed to set Offline for auth_id=$userId');
+				}
 			}
 			await supabase.auth.signOut();
 		} finally {
@@ -275,15 +286,19 @@ class AuthService {
 
 	static Future<void> _syncLoginToDatabase(String authId, {String? email}) async {
 		try {
-			final updates = <String, dynamic>{
-				'online_status': 'Online',
-				'last_seen': DateTime.now().toIso8601String(),
-			};
+			final updates = <String, dynamic>{};
 			if (email != null && email.trim().isNotEmpty) {
 				updates['email'] = email.trim();
 			}
 
-			await supabase.from('User').update(updates).eq('auth_id', authId);
+			final updated = await ProfileService.updateOnlineStatus(authId, 'Online');
+			if (!updated) {
+				print('sync login status warning: failed to set Online for auth_id=$authId');
+			}
+
+			if (updates.isNotEmpty) {
+				await supabase.from('User').update(updates).eq('auth_id', authId);
+			}
 		} catch (e) {
 			// Keep login successful even if this non-critical sync fails.
 			print('sync login status error: $e');

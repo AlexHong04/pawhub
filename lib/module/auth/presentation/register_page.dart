@@ -200,21 +200,23 @@ class _RegisterPageState extends State<RegisterPage> {
                           TextFormField(
                             controller: passwordController,
                             obscureText: obscurePassword,
-                            onChanged: (_) => setState(() {}),
                             decoration:
                             AppDecorations.outlineInputDecoration(
                               hintText: "••••••••",
                               prefixIcon: Icons.lock_outline,
                               labelText: "Password",
                             ).copyWith(
-                              suffixIcon: PasswordSuffix(
-                                showCheck: _isPasswordValid,
-                                isObscure: obscurePassword,
-                                onToggleVisibility: () {
-                                  setState(() {
-                                    obscurePassword = !obscurePassword;
-                                  });
-                                },
+                              suffixIcon: AnimatedBuilder(
+                                animation: passwordController,
+                                builder: (context, _) => PasswordSuffix(
+                                  showCheck: _isPasswordValid,
+                                  isObscure: obscurePassword,
+                                  onToggleVisibility: () {
+                                    setState(() {
+                                      obscurePassword = !obscurePassword;
+                                    });
+                                  },
+                                ),
                               ),
                             ),
                             validator: (value) {
@@ -237,21 +239,26 @@ class _RegisterPageState extends State<RegisterPage> {
                           TextFormField(
                             controller: confirmPasswordController,
                             obscureText: obscurePassword,
-                            onChanged: (_) => setState(() {}),
                             decoration:
                             AppDecorations.outlineInputDecoration(
                               hintText: "••••••••",
                               prefixIcon: Icons.verified_user_outlined,
                               labelText: "Confirm Password",
                             ).copyWith(
-                              suffixIcon: PasswordSuffix(
-                                showCheck: _isConfirmPasswordValid,
-                                isObscure: obscurePassword,
-                                onToggleVisibility: () {
-                                  setState(() {
-                                    obscurePassword = !obscurePassword;
-                                  });
-                                },
+                              suffixIcon: AnimatedBuilder(
+                                animation: Listenable.merge([
+                                  passwordController,
+                                  confirmPasswordController,
+                                ]),
+                                builder: (context, _) => PasswordSuffix(
+                                  showCheck: _isConfirmPasswordValid,
+                                  isObscure: obscurePassword,
+                                  onToggleVisibility: () {
+                                    setState(() {
+                                      obscurePassword = !obscurePassword;
+                                    });
+                                  },
+                                ),
                               ),
                             ),
                             validator: (value) {
