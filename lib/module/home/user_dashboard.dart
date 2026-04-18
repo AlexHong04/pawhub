@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:pawhub/module/pet/presentation/pet_details.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../core/widgets/search_field.dart';
 import '../../core/widgets/filterButton.dart';
 import '../../core/widgets/sorting.dart';
 import '../pet/service/pet_service.dart';
+import '../../../core/utils/qr_service.dart';
+import '../communityPost/model/post_model.dart';
+import '../communityPost/service/post_service.dart';
+import '../communityPost/presentation/post_details_page.dart';
 
 class PetAdoptionHome extends StatefulWidget {
   const PetAdoptionHome({super.key});
@@ -17,6 +23,7 @@ class PetAdoptionHome extends StatefulWidget {
 class _PetAdoptionHomeState extends State<PetAdoptionHome> {
   final supabase = Supabase.instance.client;
   final PetService _petService = PetService();
+  final PostService _postService = PostService();
 
   final TextEditingController searchController = TextEditingController();
 
@@ -88,6 +95,168 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
     });
   }
 
+  void _processScannedData(String? scannedValue) async {
+    if (scannedValue == null || !scannedValue.startsWith("pawhub://post/")) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Invalid PawHub QR Code"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    final String postId = scannedValue.replaceFirst("pawhub://post/", "");
+
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Loading post...")));
+    }
+
+    try {
+      final CommunityPostModel? targetPost = await _postService.fetchPostById(
+        postId,
+      );
+
+      if (!mounted) return;
+
+      if (targetPost != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PostDetailsPage(post: targetPost),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Post not found or deleted"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Error loading post"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showScanOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.only(bottom: 30, top: 12),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 5,
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.camera_alt_rounded,
+                  color: Colors.blue.shade600,
+                  size: 22,
+                ),
+              ),
+              title: const Text(
+                'Scan with Camera',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        const QRScannerPage(id: 'user_dashboard'),
+                  ),
+                );
+                _processScannedData(result as String?);
+              },
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.photo_library_rounded,
+                  color: Colors.green.shade600,
+                  size: 22,
+                ),
+              ),
+              title: const Text(
+                'Pick from Gallery',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                final ImagePicker picker = ImagePicker();
+                final XFile? image = await picker.pickImage(
+                  source: ImageSource.gallery,
+                );
+
+                if (image != null) {
+                  final MobileScannerController controller =
+                      MobileScannerController();
+                  final BarcodeCapture? capture = await controller.analyzeImage(
+                    image.path,
+                  );
+
+                  if (capture != null && capture.barcodes.isNotEmpty) {
+                    _processScannedData(capture.barcodes.first.rawValue);
+                  } else {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("No QR Code found in the image"),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
+                  }
+                  controller.dispose();
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -104,6 +273,16 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: AppColors.textDark,
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.qr_code_scanner_rounded,
+              color: AppColors.textDark,
+            ),
+            onPressed: _showScanOptions,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: isLoading
           ? const Center(

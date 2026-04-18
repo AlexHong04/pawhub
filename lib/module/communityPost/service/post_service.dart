@@ -196,4 +196,23 @@ class PostService {
     })
         .eq('post_id', postId);
   }
+
+  Future<CommunityPostModel?> fetchPostById(String postId) async {
+    try {
+      final String userId = await getCurrentUserId();
+
+      final response = await _supabase
+          .from('CommunityPost')
+          .select('*, User!user_id(*), PostInteractions(*, User!user_id(name))')
+          .eq('post_id', postId)
+          .eq('is_active', true)
+          .single();
+
+      return CommunityPostModel.fromJson(response, userId);
+
+    } catch (e) {
+      debugPrint("Fetch Post By ID Error: $e");
+      return null;
+    }
+  }
 }

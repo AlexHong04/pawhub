@@ -2,8 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/utils/local_file_service.dart';
+import '../../../core/utils/qr_service.dart';
 import '../model/post_model.dart';
 import '../service/post_service.dart';
+import '../service/community_search_history_service.dart';
 import 'manage_post.dart';
 import 'post_details_page.dart';
 
@@ -334,6 +336,70 @@ class _AdminCommunityPageState extends State<AdminCommunityPage>
     return 'Just now';
   }
 
+  Widget _buildSearchHistory() {
+    return FutureBuilder<List<String>>(
+      future: CommunitySearchHistoryService.getSearchHistory(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(
+            child: Text(
+              "No recent searches",
+              style: TextStyle(color: Colors.grey, fontSize: 14),
+            ),
+          );
+        }
+
+        final history = snapshot.data!;
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Recent Searches",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    await CommunitySearchHistoryService.clearHistory();
+                    setState(() {});
+                  },
+                  child: const Text(
+                    "Clear",
+                    style: TextStyle(color: Colors.redAccent),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: history.map((query) {
+                return ActionChip(
+                  label: Text(query, style: const TextStyle(fontSize: 13)),
+                  backgroundColor: Colors.grey.shade100,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: const BorderSide(color: Colors.transparent),
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _searchController.text = query;
+                      _searchQuery = query;
+                    });
+                    CommunitySearchHistoryService.saveSearchQuery(query);
+                  },
+                );
+              }).toList(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -349,18 +415,55 @@ class _AdminCommunityPageState extends State<AdminCommunityPage>
       appBar: AppBar(
         backgroundColor: const Color(0xFFF4F6F9),
         elevation: 0,
-        centerTitle: true,
+        centerTitle: !_isSearching,
+        leading: _isSearching
+            ? IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.black87,
+                  size: 20,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isSearching = false;
+                    _searchController.clear();
+                    _searchQuery = "";
+                  });
+                },
+              )
+            : null,
+
         title: _isSearching
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
+                style: const TextStyle(color: Colors.black87, fontSize: 16),
                 decoration: InputDecoration(
                   hintText: 'Search posts...',
                   border: InputBorder.none,
                   hintStyle: TextStyle(color: Colors.grey.shade400),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(
+                            Icons.cancel,
+                            color: Colors.grey,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _searchController.clear();
+                              _searchQuery = "";
+                            });
+                          },
+                        )
+                      : null,
                 ),
                 onChanged: (val) {
                   setState(() => _searchQuery = val);
+                },
+                onSubmitted: (val) async {
+                  await CommunitySearchHistoryService.saveSearchQuery(val);
+                  setState(() {});
                 },
               )
             : const Text(
@@ -371,34 +474,36 @@ class _AdminCommunityPageState extends State<AdminCommunityPage>
                   fontSize: 22,
                 ),
               ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _isSearching = !_isSearching;
-                  if (!_isSearching) {
-                    _searchController.clear();
-                    _searchQuery = "";
-                  }
-                });
-              },
-              child: CircleAvatar(
-                radius: 20,
-                backgroundColor: Colors.blue.shade600,
-                child: Icon(
-                  _isSearching ? Icons.close : Icons.search,
-                  color: Colors.white,
-                  size: 22,
+
+        actions: _isSearching
+            ? []
+            : [
+                Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _isSearching = true;
+                      });
+                    },
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.blue.shade600,
+                      child: const Icon(
+                        Icons.search,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ),
-        ],
+              ],
       ),
+
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.blue))
+          : (_isSearching && _searchQuery.isEmpty)
+          ? _buildSearchHistory()
           : RefreshIndicator(
               onRefresh: () => _loadAllPosts(silent: false),
               child: filteredPosts.isEmpty
@@ -876,10 +981,25 @@ class _AdminCommunityPageState extends State<AdminCommunityPage>
                                   ),
 
                                   const SizedBox(width: 24),
-                                  Icon(
-                                    Icons.share_outlined,
-                                    size: 20,
-                                    color: Colors.grey.shade500,
+
+                                  GestureDetector(
+                                    onTap: () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) => QRDialog(
+                                          title: "Share Post",
+                                          data: "pawhub://post/${post.postId}",
+                                          showSaveButton: true,
+                                          shareText:
+                                              "Check out this cute post on PawHub! 🐾\n\nClick here: pawhub://post/${post.postId}", // 激活系统分享
+                                        ),
+                                      );
+                                    },
+                                    child: Icon(
+                                      Icons.share_outlined,
+                                      size: 20,
+                                      color: Colors.grey.shade500,
+                                    ),
                                   ),
                                 ],
                               ),
