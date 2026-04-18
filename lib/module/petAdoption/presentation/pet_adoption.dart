@@ -342,8 +342,8 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
 
   @override
   void initState() {
-    _fetchPet();
     super.initState();
+    _fetchPet();
   }
 
   @override
@@ -357,7 +357,7 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FBFF),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, size: 20),

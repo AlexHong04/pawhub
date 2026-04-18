@@ -31,9 +31,9 @@ class _ViewPetDetailsPageState extends State<ViewPetDetailsPage> {
 
   @override
   void initState() {
+    super.initState();
     _fetchPet();
     _fetchCurrentUser();
-    super.initState();
   }
 
   Future<void> _fetchPet() async {
@@ -98,7 +98,6 @@ class _ViewPetDetailsPageState extends State<ViewPetDetailsPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      // Using CustomScrollView for a "Sliver" effect (image shrinks as you scroll)
       body: Stack(
         children: [
           CustomScrollView(

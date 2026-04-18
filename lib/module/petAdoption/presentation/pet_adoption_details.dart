@@ -39,9 +39,9 @@ class _AdoptionDetailsState extends State<AdoptionDetailsPage> {
 
   @override
   void initState() {
+    super.initState();
     _fetchAdoption();
     _fetchCurrentUser();
-    super.initState();
   }
 
   Future<AuthModel?> _fetchCurrentUser() async {
@@ -213,7 +213,7 @@ class _AdoptionDetailsState extends State<AdoptionDetailsPage> {
         _pickup!.day == today.day;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         leading: const BackButton(),
         title: const Text(

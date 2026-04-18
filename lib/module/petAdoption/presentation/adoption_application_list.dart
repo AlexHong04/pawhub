@@ -282,8 +282,8 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
   @override
   void initState() {
     // TODO: implement initState
-    _fetchApplications();
     super.initState();
+    _fetchApplications();
   }
 
   @override
