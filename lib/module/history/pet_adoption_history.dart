@@ -154,7 +154,7 @@ class _AdoptionHistoryState extends State<AdoptionHistoryPage> {
       ),
 
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(left: 16, right: 16),
         child: Column(
           children: [
             // Search Bar

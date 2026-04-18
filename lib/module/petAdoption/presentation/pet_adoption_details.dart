@@ -233,17 +233,17 @@ class _AdoptionDetailsState extends State<AdoptionDetailsPage> {
             const SizedBox(height: 10),
             _buildStatusTrackingCard(_application!.adoptionStatuses, _pickup),
             const SizedBox(height: 20),
-            // ✅ FIXED: Only show Approve/Reject buttons if status is "Pending"
+            // show Approve/Reject buttons if status is "Pending"
             if (_user?.role == 'Admin' &&
-                lastStatus == 'Pending')  // ✅ Changed from .last to lastStatus
+                lastStatus == 'Pending')
               _buildActionButtons()
 
-            // ✅ Show Schedule button if user and status is "Approved"
+            // dhow Schedule button if user and status is "Approved"
             else if (_user?.role == 'User' &&
-                lastStatus == 'Approved')  // ✅ Changed from .last to lastStatus
+                lastStatus == 'Approved')
               _buildScheduleButton(),
 
-            // ✅ Show QR button if user and status is "Pending Pickup" and today is pickup day
+            // show QR button if user and status is "Pending Pickup" and today is pickup day
             if (_user?.role == 'User' &&
                 lastStatus == "Pending Pickup" &&  // ✅ Changed from lastStatus to check against lastStatus
                 isPickupToday)
@@ -573,6 +573,7 @@ class _AdoptionDetailsState extends State<AdoptionDetailsPage> {
               builder: (_) => SchedulePickupPage(adoptionId: _application!.adoptionId),
             ),
           );
+          _fetchAdoption();
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.orange,

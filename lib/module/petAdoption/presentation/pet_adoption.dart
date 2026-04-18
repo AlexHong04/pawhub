@@ -186,10 +186,12 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
                   );
 
                   Navigator.pop(context);
+                  Navigator.pop(context);
 
                   _sendEmail(email).catchError((e) {
                     log("Email send failed: $e");
                   });
+
                 } catch (e) {
                   log("Adoption application error: $e");
                 }
@@ -285,7 +287,7 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
     try {
       debugPrint("📧 Attempting to send email to: $targetEmail");
 
-      final Uri uri = Uri.parse('http://10.0.2.2:3000/send-general-email');
+      final Uri uri = Uri.parse('https://pawhub.hongjin.site/send-general-email');
       debugPrint("📧 Sending to URL: $uri");
 
       final response = await http.post(
@@ -539,7 +541,9 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
                                 pet.vaccination == true
                                     ? 'Vaccinated'
                                     : 'Not Yet Vaccinated',
-                                color: AppColors.primary,
+                                color: pet.vaccination == true
+                                    ? AppColors.primary
+                                    : Colors.deepOrangeAccent,
                               ),
                             ),
                           ],

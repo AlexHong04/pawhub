@@ -37,7 +37,7 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
   String _searchQuery = '';
 
   List<Application> get _filteredApplications {
-    return _applications.where((a) {
+    List<Application> list = _applications.where((a) {
       bool matchesFilter = true;
 
       final status = (a.adoptionStatuses.isNotEmpty)
@@ -58,11 +58,43 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
 
       final matchesSearch =
           a.petName.toLowerCase().contains(query) ||
-          a.petGender.toLowerCase().contains(query) ||
-          a.adoptionId.toLowerCase().contains(query);
+              a.petGender.toLowerCase().contains(query) ||
+              a.adoptionId.toLowerCase().contains(query);
 
       return matchesFilter && matchesSearch;
     }).toList();
+
+    // ✅ Custom status priority order
+    int getPriority(String status) {
+      switch (status) {
+        case "pending":
+          return 0;
+        case "approved":
+          return 1;
+        case "pending pickup":
+          return 2;
+        case "completed":
+          return 3;
+        case "rejected":
+          return 4;
+        default:
+          return 5;
+      }
+    }
+
+    // ✅ Sort list
+    list.sort((a, b) {
+      final statusA = a.adoptionStatuses.isNotEmpty
+          ? a.adoptionStatuses.first.toLowerCase()
+          : "";
+      final statusB = b.adoptionStatuses.isNotEmpty
+          ? b.adoptionStatuses.first.toLowerCase()
+          : "";
+
+      return getPriority(statusA).compareTo(getPriority(statusB));
+    });
+
+    return list;
   }
 
   void _toggleSelection(String adoptionId) {
@@ -156,14 +188,14 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
         return Colors.red;
 
       case "completed":
-        return Colors.blue;
+        return Colors.grey;
 
       case "pending pickup":
         return Colors.orange;
 
       case "pending":
       default:
-        return Colors.grey;
+        return Colors.blue;
     }
   }
 
@@ -226,6 +258,7 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
           "Are you sure you want to approve ${_selectedApplicationIds.length} application(s)?",
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        backgroundColor: Colors.white,
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -258,6 +291,7 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
           "Are you sure you want to reject ${_selectedApplicationIds.length} application(s)? This action cannot be undone.",
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        backgroundColor: Colors.white,
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
