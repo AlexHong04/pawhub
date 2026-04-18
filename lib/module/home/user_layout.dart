@@ -5,6 +5,7 @@ import 'package:pawhub/module/petAdoption/presentation/pet_adoption.dart';
 import '../../core/constants/colors.dart';
 import '../Profile/presentation/profile_page.dart';
 import '../history/history_page.dart';
+import '../volunteer/presentation/volunteerList.dart';
 
 class UserLayout extends StatefulWidget {
   const UserLayout({super.key});
@@ -20,7 +21,7 @@ class UserLayoutState extends State<UserLayout> {
   // List of all the screens for each tab
   // Make sure the order matches your BottomNavigationBarItems!
   final List<Widget> _pages = [
-    const Center(child: Text("Event Page")),
+    const VolunteerEventsPage(),
     const Center(child: Text("Community Page")),
     const PetAdoptionHome(),
     const UserCollectionsPage(),

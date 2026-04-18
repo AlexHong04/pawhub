@@ -5,6 +5,7 @@ import '../Profile/presentation/peopleAndRoles_page.dart';
 import '../Profile/presentation/profile_page.dart';
 import '../pet/presentation/pet_list_page.dart';
 import '../petAdoption/presentation/adoption_application_list.dart';
+import '../volunteer/presentation/admin_event_management.dart';
 import 'admin_dashboard_page.dart';
 
 class StaffLayout extends StatefulWidget {
@@ -21,7 +22,7 @@ class StaffLayoutState extends State<StaffLayout> {
   // List of all the screens for each tab
   // Make sure the order matches your BottomNavigationBarItems!
   final List<Widget> _pages = [
-    const Center(child: Text("Event Page")),
+    const AdminEventsPage(),
     // const Center(child: Text("Community Page")),
     const AdminDashboardPage(),
     const PetListPage(),
