@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/widgets/appDecorations.dart';
+import 'package:pawhub/core/widgets/password_suffix.dart';
 
 import '../../../core/constants/colors.dart';
 import '../../auth/service/auth_service.dart';
@@ -21,6 +22,19 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   bool obscureNewPassword = true;
   bool obscureConfirmPassword = true;
   bool loading = false;
+
+  bool get _isNewPasswordValid {
+    final value = newPasswordController.text;
+    return value.isNotEmpty &&
+        value.length >= 8 &&
+        RegExp(r'\d').hasMatch(value) &&
+        RegExp(r'[^A-Za-z0-9]').hasMatch(value);
+  }
+
+  bool get _isConfirmPasswordValid {
+    final value = confirmPasswordController.text;
+    return value.isNotEmpty && value == newPasswordController.text;
+  }
 
   @override
   void dispose() {
@@ -129,6 +143,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               constraints: const BoxConstraints(maxWidth: 400),
               child: Form(
                 key: formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -166,20 +181,17 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                     TextFormField(
                       controller: currentPasswordController,
                       obscureText: obscureCurrentPassword,
+                      onChanged: (_) => setState(() {}),
                       decoration:
                           AppDecorations.outlineInputDecoration(
                             hintText: "••••••••",
                             labelText: 'Current Password',
                             prefixIcon: Icons.vpn_key_off_outlined,
                           ).copyWith(
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                obscureCurrentPassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                                color: AppColors.iconColor,
-                              ),
-                              onPressed: () {
+                            suffixIcon: PasswordSuffix(
+                              showCheck: false,
+                              isObscure: obscureCurrentPassword,
+                              onToggleVisibility: () {
                                 setState(() {
                                   obscureCurrentPassword =
                                       !obscureCurrentPassword;
@@ -188,10 +200,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                             ),
                           ),
                       validator: (value) {
-                        if (value == null ||
-                            value.isEmpty ||
-                            value.length < 8) {
-                          return "Password must be at least 8 characters";
+                        if (value == null || value.isEmpty) {
+                          return "Please enter current password";
                         }
                         return null;
                       },
@@ -200,20 +210,17 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                     TextFormField(
                       controller: newPasswordController,
                       obscureText: obscureNewPassword,
+                      onChanged: (_) => setState(() {}),
                       decoration:
                           AppDecorations.outlineInputDecoration(
                             hintText: "••••••••",
                             labelText: 'New Password',
                             prefixIcon: Icons.lock_outlined,
                           ).copyWith(
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                obscureNewPassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                                color: AppColors.iconColor,
-                              ),
-                              onPressed: () {
+                            suffixIcon: PasswordSuffix(
+                              showCheck: _isNewPasswordValid,
+                              isObscure: obscureNewPassword,
+                              onToggleVisibility: () {
                                 setState(() {
                                   obscureNewPassword = !obscureNewPassword;
                                 });
@@ -221,43 +228,36 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                             ),
                           ),
                       validator: (value) {
-                        if (value == null ||
-                            value.isEmpty ||
-                            value.length < 8) {
+                        if (value == null || value.isEmpty) {
+                          return "Please enter a new password";
+                        }
+                        if (value.length < 8) {
                           return "Password must be at least 8 characters";
+                        }
+                        if (!RegExp(r'\d').hasMatch(value)) {
+                          return "Password must include at least 1 number";
+                        }
+                        if (!RegExp(r'[^A-Za-z0-9]').hasMatch(value)) {
+                          return "Password must include at least 1 symbol";
                         }
                         return null;
                       },
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        buildRequirementChip("Min 8 chars"),
-                        const SizedBox(width: 8),
-                        buildRequirementChip("1 Number"),
-                        const SizedBox(width: 8),
-                        buildRequirementChip("1 Symbol"),
-                        const SizedBox(width: 8),
-                      ],
                     ),
                     const SizedBox(height: 24),
                     TextFormField(
                       controller: confirmPasswordController,
                       obscureText: obscureConfirmPassword,
+                      onChanged: (_) => setState(() {}),
                       decoration:
                           AppDecorations.outlineInputDecoration(
                             hintText: '••••••••',
                             labelText: 'Confirm new Password',
                             prefixIcon: Icons.verified_user_outlined,
                           ).copyWith(
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                obscureConfirmPassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                                color: AppColors.iconColor,
-                              ),
-                              onPressed: () {
+                            suffixIcon: PasswordSuffix(
+                              showCheck: _isConfirmPasswordValid,
+                              isObscure: obscureConfirmPassword,
+                              onToggleVisibility: () {
                                 setState(() {
                                   obscureConfirmPassword = !obscureConfirmPassword;
                                 });
@@ -325,21 +325,4 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     );
   }
 
-  Widget buildRequirementChip(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(20), // Pill shape
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textLight,
-        ),
-      ),
-    );
-  }
 }

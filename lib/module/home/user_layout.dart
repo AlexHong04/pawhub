@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:pawhub/module/home/user_dashboard.dart';
+import 'package:pawhub/module/petAdoption/presentation/pet_adoption.dart';
 
 import '../../core/constants/colors.dart';
 import '../Profile/presentation/profile_page.dart';
+import '../history/history_page.dart';
 
 class UserLayout extends StatefulWidget {
   const UserLayout({super.key});
@@ -19,8 +22,8 @@ class UserLayoutState extends State<UserLayout> {
   final List<Widget> _pages = [
     const Center(child: Text("Event Page")),
     const Center(child: Text("Community Page")),
-    const Center(child: Text("Home Page")),
-    const Center(child: Text("History Page")),
+    const PetAdoptionHome(),
+    const UserCollectionsPage(),
     const ProfilePage(),
   ];
 
@@ -30,50 +33,80 @@ class UserLayoutState extends State<UserLayout> {
     final safeIndex = hasPages ? _selectedIndex.clamp(0, _pages.length - 1) : 0;
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       // IndexedStack keeps page state alive when switching tabs.
       body: hasPages
           ? IndexedStack(index: safeIndex, children: _pages)
           : const SizedBox.shrink(),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: safeIndex,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.iconColor,
-        selectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 12,
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: AppColors.border),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x140F172A),
+                blurRadius: 24,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: NavigationBar(
+              backgroundColor: AppColors.white,
+              surfaceTintColor: Colors.transparent,
+              indicatorColor: Colors.transparent,
+              selectedIndex: safeIndex,
+              height: 70,
+              labelTextStyle:
+                  WidgetStateProperty.resolveWith<TextStyle>((states) {
+                final isSelected = states.contains(WidgetState.selected);
+                return TextStyle(
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: 12,
+                  color: isSelected ? AppColors.primary : AppColors.iconColor,
+                );
+              }),
+              labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+              onDestinationSelected: (index) {
+                if (index < 0 || index >= _pages.length) return;
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.calendar_today, color: AppColors.iconColor, size: 24),
+                  selectedIcon: Icon(Icons.calendar_today, color: AppColors.primary, size: 24),
+                  label: "Event",
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.people_outline, color: AppColors.iconColor, size: 24),
+                  selectedIcon: Icon(Icons.people_outline, color: AppColors.primary, size: 24),
+                  label: "Community",
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.home_outlined, color: AppColors.iconColor, size: 24),
+                  selectedIcon: Icon(Icons.home, color: AppColors.primary, size: 24),
+                  label: "Home",
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.history, color: AppColors.iconColor, size: 24),
+                  selectedIcon: Icon(Icons.history, color: AppColors.primary, size: 24),
+                  label: "History",
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.person_outline, color: AppColors.iconColor, size: 24),
+                  selectedIcon: Icon(Icons.person, color: AppColors.primary, size: 24),
+                  label: "Account",
+                ),
+              ],
+            ),
+          ),
         ),
-        unselectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.w500,
-          fontSize: 12,
-        ),
-        onTap: (index) {
-          if (index < 0 || index >= _pages.length) return;
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: "Event",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.people_outline),
-            label: "Community",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: "Home",
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: "History"),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: "Account",
-          ),
-        ],
       ),
     );
   }

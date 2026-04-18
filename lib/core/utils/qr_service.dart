@@ -71,7 +71,7 @@ class _QRScannerPageState extends State<QRScannerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Scan QR Code")),
+      appBar: AppBar(title: const Text("Scan QR Code"), backgroundColor: Colors.white,),
       body: MobileScanner(
         onDetect: (capture) {
           if (isScanned) return;

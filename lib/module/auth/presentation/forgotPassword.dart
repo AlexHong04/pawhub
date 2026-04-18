@@ -85,22 +85,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "EMAIL ADDRESS",
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.0,
-                        color: AppColors.textBody,
-                      ),
-                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: emailController,
                       keyboardType: TextInputType.emailAddress,
                       decoration: AppDecorations.outlineInputDecoration(
                         hintText: "Enter your email",
-                        labelText: "you@example.com",
+                        labelText: "Email Address",
                         prefixIcon: Icons.email_outlined,
                       ),
                       validator: (value) {
@@ -148,21 +139,32 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 40),
-                ElevatedButton(
-                  onPressed: () {
-                    if (Navigator.canPop(context)) {
-                      Navigator.pop(context);
-                    }else{
-                      Navigator.pushReplacementNamed(context, '/login');
-                    }
-                  },
-                  child: const Text(
-                    "Back",
-                    style: TextStyle(
-                      color: AppColors.textLight,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: const BorderSide(color: AppColors.border),
+                      // Using your border color
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () {
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }else{
+                        Navigator.pushReplacementNamed(context, '/login');
+                      }
+                    },
+                    child: const Text(
+                      "Back",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textDark,
+                      ),
                     ),
                   ),
                 ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import 'package:pawhub/core/widgets/password_suffix.dart';
 import 'package:pawhub/module/auth/service/auth_service.dart';
 
 import '../../../core/widgets/appDecorations.dart';
@@ -13,6 +13,7 @@ class SetNewPasswordPage extends StatefulWidget {
 }
 
 class _SetNewPasswordPageState extends State<SetNewPasswordPage> {
+  final formKey = GlobalKey<FormState>();
   final newPasswordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
 
@@ -23,6 +24,19 @@ class _SetNewPasswordPageState extends State<SetNewPasswordPage> {
   // THE MAGIC VARIABLE: Controls which UI to show
   bool isSuccess = false;
 
+  bool get _isNewPasswordValid {
+    final value = newPasswordController.text;
+    return value.isNotEmpty &&
+        value.length >= 8 &&
+        RegExp(r'\d').hasMatch(value) &&
+        RegExp(r'[^A-Za-z0-9]').hasMatch(value);
+  }
+
+  bool get _isConfirmPasswordValid {
+    final value = confirmPasswordController.text;
+    return value.isNotEmpty && value == newPasswordController.text;
+  }
+
   @override
   void dispose() {
     newPasswordController.dispose();
@@ -31,16 +45,8 @@ class _SetNewPasswordPageState extends State<SetNewPasswordPage> {
   }
 
   void updatePassword()async {
-    if (newPasswordController.text != confirmPasswordController.text) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Password do not match')));
-      return;
-    }
-    if (newPasswordController.text.length < 8) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Password must be 8 characters')));
+    FocusScope.of(context).unfocus();
+    if (!(formKey.currentState?.validate() ?? false)) {
       return;
     }
 
@@ -85,143 +91,168 @@ class _SetNewPasswordPageState extends State<SetNewPasswordPage> {
       key: const ValueKey('form_view'),
       // Keys are needed for AnimatedSwitcher to work
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      child: Column(
-        children: [
-          _buildSmallIconBadge(),
-          const SizedBox(height: 32),
-          const Text(
-            "Set New Password",
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+      child: Form(
+        key: formKey,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        child: Column(
+          children: [
+            _buildSmallIconBadge(),
+            const SizedBox(height: 32),
+            const Text(
+              "Set New Password",
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            "Create a new, strong password that you\nhaven't used before to secure your pet\nadoption account.",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 15,
-              color: AppColors.textSecondary,
-              height: 1.5,
+            const SizedBox(height: 12),
+            const Text(
+              "Create a new, strong password that you\nhaven't used before to secure your pet\nadoption account.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
             ),
-          ),
-          const SizedBox(height: 40),
-          TextFormField(
-            controller: newPasswordController,
-            obscureText: obscureNewPassword,
-            decoration:
-                AppDecorations.outlineInputDecoration(
-                  hintText: "••••••••",
-                  labelText: 'New Password',
-                  prefixIcon: Icons.lock_outlined,
-                ).copyWith(
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      obscureNewPassword
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                      color: AppColors.iconColor,
-                    ),
-                    onPressed: () {
+            const SizedBox(height: 40),
+            TextFormField(
+              controller: newPasswordController,
+              obscureText: obscureNewPassword,
+              decoration: AppDecorations.outlineInputDecoration(
+                hintText: "••••••••",
+                labelText: 'New Password',
+                prefixIcon: Icons.lock_outlined,
+              ).copyWith(
+                suffixIcon: AnimatedBuilder(
+                  animation: newPasswordController,
+                  builder: (context, _) => PasswordSuffix(
+                    showCheck: _isNewPasswordValid,
+                    isObscure: obscureNewPassword,
+                    onToggleVisibility: () {
                       setState(() {
                         obscureNewPassword = !obscureNewPassword;
                       });
                     },
                   ),
                 ),
-            validator: (value) {
-              if (value == null || value.isEmpty || value.length < 8) {
-                return "Password must be at least 8 characters";
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 24),
-          // Confirm Password Input
-          TextFormField(
-            controller: confirmPasswordController,
-            obscureText: obscureConfirmPassword,
-            decoration:
-                AppDecorations.outlineInputDecoration(
-                  hintText: '••••••••',
-                  labelText: 'Confirm new Password',
-                  prefixIcon: Icons.verified_user_outlined,
-                ).copyWith(
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      obscureConfirmPassword
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                      color: AppColors.iconColor,
-                    ),
-                    onPressed: () {
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return "Please enter a new password";
+                }
+                if (value.length < 8) {
+                  return "Password must be at least 8 characters";
+                }
+                if (!RegExp(r'\d').hasMatch(value)) {
+                  return "Password must include at least 1 number";
+                }
+                if (!RegExp(r'[^A-Za-z0-9]').hasMatch(value)) {
+                  return "Password must include at least 1 symbol";
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 24),
+            TextFormField(
+              controller: confirmPasswordController,
+              obscureText: obscureConfirmPassword,
+              decoration: AppDecorations.outlineInputDecoration(
+                hintText: '••••••••',
+                labelText: 'Confirm new Password',
+                prefixIcon: Icons.verified_user_outlined,
+              ).copyWith(
+                suffixIcon: AnimatedBuilder(
+                  animation: Listenable.merge([
+                    newPasswordController,
+                    confirmPasswordController,
+                  ]),
+                  builder: (context, _) => PasswordSuffix(
+                    showCheck: _isConfirmPasswordValid,
+                    isObscure: obscureConfirmPassword,
+                    onToggleVisibility: () {
                       setState(() {
                         obscureConfirmPassword = !obscureConfirmPassword;
                       });
                     },
                   ),
                 ),
-            validator: (value) {
-              if (value != newPasswordController.text) {
-                return "Password do not match";
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 32),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return "Please confirm your password";
+                }
+                if (value != newPasswordController.text) {
+                  return "Password do not match";
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 32),
 
-          // Update Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            // Update Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: loading ? null : updatePassword,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      loading ? "Updating..." : "Update Password",
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    if (!loading) ...[
+                      const SizedBox(width: 8),
+                      const Icon(Icons.check, color: Colors.white, size: 20),
+                    ],
+                  ],
                 ),
               ),
-              onPressed: loading ? null : updatePassword,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    loading ? "Updating..." : "Update Password",
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  if (!loading) ...[
-                    const SizedBox(width: 8),
-                    const Icon(Icons.check, color: Colors.white, size: 20),
-                  ],
-                ],
-              ),
             ),
-          ),
-          const SizedBox(height: 40),
+            const SizedBox(height: 40),
 
-          // Back button
-          ElevatedButton(
-            onPressed: () {
-              if (Navigator.canPop(context)) {
-                Navigator.pop(context);
-              }
-            },
-            child: const Text(
-              "Back",
-              style: TextStyle(
-                color: AppColors.textLight,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+            // Back button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: const BorderSide(color: AppColors.border),
+                  // Using your border color
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Text(
+                  "Back",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textDark,
+                  ),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -342,42 +373,33 @@ class _SetNewPasswordPageState extends State<SetNewPasswordPage> {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // Container(
-        //   width: 200,
-        //   height: 200,
-        //   decoration: BoxDecoration(
-        //     color: const Color(0xFF2E82F4).withOpacity(0.05),
-        //     shape: BoxShape.circle,
-        //   ),
-        // ),
-
-        // Container(
-        //   width: 140,
-        //   height: 140,
-        //   decoration: BoxDecoration(
-        //     color: const Color(0xFF2E82F4).withOpacity(0.1),
-        //     shape: BoxShape.circle,
-        //   ),
-        // ),
-        // Container(
-        //   width: 100,
-        //   height: 100,
-        //   decoration: BoxDecoration(
-        //     color: Colors.white,
-        //     shape: BoxShape.circle,
-        //     boxShadow: [
-        //       BoxShadow(
-        //         color: Colors.black.withOpacity(0.05),
-        //         blurRadius: 20,
-        //         offset: const Offset(0, 10),
-        //       ),
-        //     ],
-        //   ),
-        //   child: const Center(
-        //     child: Icon(Icons.pets, size: 50, color: Color(0xFF2E82F4)),
-        //   ),
-        // ),
-        Image.asset('assets/images/register.png', height: 100, width: 100),
+        Container(
+          width: 140,
+          height: 140,
+          decoration: BoxDecoration(
+            color: const Color(0xFF2E82F4).withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+        ),
+        Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: const Center(
+            child: Icon(Icons.pets, size: 50, color: Color(0xFF2E82F4)),
+          ),
+        ),
+        // Image.asset('assets/images/registerLogo.png', height: 100, width: 100),
         Positioned(
           bottom: 25,
           right: 25,

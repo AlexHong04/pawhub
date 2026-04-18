@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/utils/current_user_store.dart';
 import '../../../core/utils/generatorId.dart';
+import 'package:pawhub/module/Profile/service/profile_service.dart';
 import '../model/auth_model.dart';
 
 class AuthService {
@@ -16,6 +17,7 @@ class AuthService {
 		bool syncDatabase = true,
 	}) async {
 		try {
+			lastError = null;
 			// Sign in against auth.users first.
 			final response = await supabase.auth.signInWithPassword(
 				email: email,
@@ -33,6 +35,12 @@ class AuthService {
 							.eq('auth_id', response.user!.id)
 							.single();
 
+					if ((userData['is_banned'] ?? false) == true) {
+						lastError = 'Your account has been banned. Please contact support.';
+						await supabase.auth.signOut();
+						return null;
+					}
+
 					// The User table may not store email, so keep auth email in the model.
 					userData['email'] = response.user!.email ?? email;
 					authModel = AuthModel.fromJson(userData);
@@ -49,7 +57,7 @@ class AuthService {
 
 				if (authModel != null) {
 					if (syncDatabase) {
-						await _syncLoginToDatabase(response.user!.id);
+						await _syncLoginToDatabase(response.user!.id, email: response.user!.email);
 					}
 					if (persistLocal) {
 						await CurrentUserStore.save(authModel);
@@ -100,6 +108,14 @@ class AuthService {
 			}
 
 		if (existingUser != null) {
+			await supabase
+					.from('User')
+					.update({
+						'email': email.trim(),
+						'updated_at': DateTime.now().toIso8601String(),
+					})
+					.eq('auth_id', authUserId);
+
 			existingUser['email'] = email;
 			final authModel = AuthModel.fromJson(existingUser);
 			return authModel;
@@ -128,8 +144,11 @@ class AuthService {
 						'address': '',
 						'role': 'User',
 						'online_status': 'Online',
+						'last_seen': DateTime.now().toIso8601String(),
+						'is_banned': false,
 						'is_volunteer': false,
 						'avatar_url': null,
+						'email': email.trim(),
 						'auth_id': authUserId,
 					})
 							.select()
@@ -237,6 +256,13 @@ class AuthService {
 	static Future<void> logout() async {
 		// End the current Supabase session and clear local cached user.
 		try {
+			final userId = supabase.auth.currentUser?.id;
+			if (userId != null) {
+				final updated = await ProfileService.updateOnlineStatus(userId, 'Offline');
+				if (!updated) {
+					print('logout: failed to set Offline for auth_id=$userId');
+				}
+			}
 			await supabase.auth.signOut();
 		} finally {
 			await CurrentUserStore.clear();
@@ -258,12 +284,21 @@ class AuthService {
 		});
 	}
 
-	static Future<void> _syncLoginToDatabase(String authId) async {
+	static Future<void> _syncLoginToDatabase(String authId, {String? email}) async {
 		try {
-			await supabase.from('User').update({
-				'online_status': 'Online',
-				'updated_at': DateTime.now().toIso8601String(),
-			}).eq('auth_id', authId);
+			final updates = <String, dynamic>{};
+			if (email != null && email.trim().isNotEmpty) {
+				updates['email'] = email.trim();
+			}
+
+			final updated = await ProfileService.updateOnlineStatus(authId, 'Online');
+			if (!updated) {
+				print('sync login status warning: failed to set Online for auth_id=$authId');
+			}
+
+			if (updates.isNotEmpty) {
+				await supabase.from('User').update(updates).eq('auth_id', authId);
+			}
 		} catch (e) {
 			// Keep login successful even if this non-critical sync fails.
 			print('sync login status error: $e');

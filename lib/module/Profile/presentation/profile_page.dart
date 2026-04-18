@@ -1,13 +1,11 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:pawhub/module/Profile/model/user_model.dart';
 
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/current_user_store.dart';
-import '../../../core/utils/local_file_service.dart';
 import '../../auth/service/auth_service.dart';
 import '../service/profile_service.dart';
+import '../../../core/widgets/profile_avatar.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -17,15 +15,8 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  static const String _avatarPathKeyPrefix = 'profile_edit_avatar_path';
-
   UserModel? _userProfile;
-  File? _localAvatarBackup;
   bool _isLoading = true;
-
-  String _avatarStorageKeyForUser(String userId) {
-    return '${_avatarPathKeyPrefix}_$userId';
-  }
 
   @override
   void initState() {
@@ -44,7 +35,7 @@ class _ProfilePageState extends State<ProfilePage> {
       profileData = await ProfileService.getCurrentUserProfile();
     } catch (e) {
       print('Supabase sync error, falling back to local cache: $e');
-      
+
       // Step 2: If Supabase fails, fallback to local SharedPreferences cache
       try {
         final cachedAuth = await CurrentUserStore.read();
@@ -68,23 +59,12 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     }
 
-    File? localAvatarBackup;
-    if (profileData != null) {
-      localAvatarBackup = await _loadSavedLocalAvatar(profileData.id);
-    }
-
     if (mounted) {
       setState(() {
         _userProfile = profileData;
-        _localAvatarBackup = localAvatarBackup;
         _isLoading = false;
       });
     }
-  }
-
-  Future<File?> _loadSavedLocalAvatar(String userId) async {
-    final storageKey = _avatarStorageKeyForUser(userId);
-    return LocalFileService.loadSavedImage(storageKey);
   }
 
   @override
@@ -164,7 +144,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   _buildSettingTile(
                     icon: Icons.person,
-                    iconBgColor: AppColors.primary.withOpacity(0.1), // Made background lighter so icon pops!
+                    iconBgColor: AppColors.primary.withAlpha(26), // Made background lighter so icon pops!
                     iconColor: AppColors.primary,
                     title: "Edit Profile",
                     onTap: () {
@@ -178,7 +158,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   const Divider(height: 1, color: AppColors.borderGray),
                   _buildSettingTile(
                     icon: Icons.lock,
-                    iconBgColor: Colors.orange.withOpacity(0.1),
+                    iconBgColor: Colors.orange.withAlpha(26),
                     iconColor: Colors.orange,
                     title: "Reset Password",
                     onTap: () {
@@ -194,24 +174,35 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 48),
 
             // 5. Sign Out Button
-            TextButton.icon(
-              onPressed: () async {
-                await AuthService.logout();
-                if (!context.mounted) return;
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: const BorderSide(color: Colors.red),
+                  foregroundColor: Colors.red,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () async {
+                  await AuthService.logout();
+                  if (!context.mounted) return;
 
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/login',
-                      (route) => false,
-                );
-              },
-              icon: const Icon(Icons.logout, color: AppColors.textLight),
-              label: const Text(
-                "Sign Out",
-                style: TextStyle(
-                  color: AppColors.textLight,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/login',
+                        (route) => false,
+                  );
+                },
+                icon: const Icon(Icons.logout, color: Colors.red),
+                label: const Text(
+                  "Sign Out",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.red,
+                  ),
                 ),
               ),
             ),
@@ -226,16 +217,7 @@ class _ProfilePageState extends State<ProfilePage> {
     // Safely grab the data from our model with fallbacks
     final name = _userProfile?.name ?? "Loading...";
     final email = _userProfile?.email ?? "Loading...";
-    final avatarUrl = _userProfile?.avatarUrl;
-
-    ImageProvider? avatarImage;
-    if (avatarUrl != null && avatarUrl.isNotEmpty) {
-      // Primary source: Supabase URL
-      avatarImage = NetworkImage(avatarUrl);
-    } else if (_localAvatarBackup != null) {
-      // Fallback source: local backup path
-      avatarImage = FileImage(_localAvatarBackup!);
-    }
+    final profile = _userProfile;
 
     return Column(
       children: [
@@ -246,17 +228,16 @@ class _ProfilePageState extends State<ProfilePage> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: AppColors.primary.withOpacity(0.5),
+                  color: AppColors.primary.withAlpha(128),
                   width: 3,
                 ),
               ),
-              child: CircleAvatar(
+              child: ProfileAvatar(
+                userId: _userProfile?.id ?? '',
+                name: name,
+                avatarUrl: _userProfile?.avatarUrl,
                 radius: 45,
                 backgroundColor: AppColors.inputFill,
-                backgroundImage: avatarImage,
-                child: avatarImage == null
-                    ? const Icon(Icons.person, size: 45, color: Colors.grey)
-                    : null,
               ),
             ),
             Positioned(
@@ -294,9 +275,50 @@ class _ProfilePageState extends State<ProfilePage> {
           email, // DYNAMIC EMAIL
           style: const TextStyle(fontSize: 15, color: AppColors.textLight),
         ),
+        const SizedBox(height: 10),
+        if (profile != null) _buildStatusChip(profile),
       ],
     );
   }
+
+  Widget _buildStatusChip(UserModel user) {
+    final isOnline = ProfileService.isOnlineFromHeartbeat(
+      status: user.onlineStatus,
+      updatedAt: user.updatedAt,
+    );
+    final statusLabel = isOnline ? 'Online' : 'Offline';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isOnline ? AppColors.primary.withAlpha(20) : AppColors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: isOnline ? AppColors.primary.withAlpha(70) : AppColors.border,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isOnline ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+            size: 12,
+            color: isOnline ? AppColors.primary : AppColors.textLight,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            statusLabel,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isOnline ? AppColors.primary : AppColors.textLight,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   // Helper for the Adopted/Favorites Cards
   Widget _buildStatCard({

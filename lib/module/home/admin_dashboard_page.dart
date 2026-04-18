@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:pawhub/core/widgets/profile_avatar.dart';
+import 'package:pawhub/module/Profile/service/profile_service.dart';
+import 'package:pawhub/module/donation/presentation/admin_donation_page.dart';
+import 'package:pawhub/module/donation/service/donation_service.dart';
+
+import '../../core/constants/colors.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
@@ -9,18 +15,105 @@ class AdminDashboardPage extends StatefulWidget {
 
 class AdminDashboardPageState extends State<AdminDashboardPage> {
   int _selectedFilterIndex = 1; // 0: Today, 1: Per Month, 2: Per Year
-  int _bottomNavIndex = 0; // Dash is active
+  final DonationService _donationService = DonationService();
+
+  bool _isLoading = true;
+  List<dynamic> _allDonations = [];
+  List<dynamic> _filteredDonations = [];
+  int _totalUsers = 0;
+  int _pendingCount = 0;
+  double _totalFund = 0;
+  String _currentUserId = '';
+  String _currentUserName = 'Admin';
+  String _currentUserAvatarUrl = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final donations = await _donationService.fetchAllDonations();
+      final users = await ProfileService.getAllUsers();
+      final currentProfile = await ProfileService.getCurrentUserProfile();
+
+      _allDonations = donations;
+      _totalUsers = users.length;
+      _currentUserId = currentProfile?.id ?? '';
+      _currentUserName = (currentProfile?.name ?? '').trim().isNotEmpty == true
+          ? currentProfile!.name
+          : 'Admin';
+      _currentUserAvatarUrl = currentProfile?.avatarUrl ?? '';
+      _recomputeMetrics();
+    } catch (_) {
+      _allDonations = [];
+      _filteredDonations = [];
+      _totalUsers = 0;
+      _pendingCount = 0;
+      _totalFund = 0;
+      _currentUserId = '';
+      _currentUserName = 'Admin';
+      _currentUserAvatarUrl = '';
+    }
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _recomputeMetrics() {
+    final now = DateTime.now();
+
+    bool matchRange(DateTime date) {
+      if (_selectedFilterIndex == 0) {
+        return date.year == now.year && date.month == now.month && date.day == now.day;
+      }
+      if (_selectedFilterIndex == 1) {
+        return date.year == now.year && date.month == now.month;
+      }
+      return date.year == now.year;
+    }
+
+    final filtered = _allDonations.where((row) {
+      final created = DateTime.tryParse((row['created_at'] ?? '').toString());
+      if (created == null) return false;
+      return matchRange(created.toLocal());
+    }).toList();
+
+    double sum = 0;
+    int pending = 0;
+    for (final row in filtered) {
+      final status = _parseDonationStatus(row);
+      if (status == 'pending') pending++;
+      if (status == 'successful') {
+        sum += _parseDonationAmount(row);
+      }
+    }
+
+    _filteredDonations = filtered;
+    _pendingCount = pending;
+    _totalFund = sum;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: _buildAppBar(),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _loadDashboardData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
             // Data View Toggle
             _buildDataViewToggle(),
             const SizedBox(height: 24),
@@ -37,12 +130,12 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             _buildLineChartCard(),
             const SizedBox(height: 32),
 
-            // Recent Applications Header
+            // Recent Donations Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  "Recent Adoption Applications",
+                  "Recent Donations",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -50,7 +143,12 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AdminDonationPage()),
+                    );
+                  },
                   child: const Text(
                     "VIEW ALL",
                     style: TextStyle(
@@ -65,33 +163,14 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             ),
             const SizedBox(height: 8),
 
-            // Applications List
-            _buildApplicationCard(
-              "Cooper",
-              "Applied by Sarah Jenkins",
-              "PENDING",
-              "2 hours ago",
-              Colors.orange,
-            ),
-            _buildApplicationCard(
-              "Luna",
-              "Applied by Mark Wilson",
-              "APPROVED",
-              "5 hours ago",
-              Colors.green,
-            ),
-            _buildApplicationCard(
-              "Oliver",
-              "Applied by Emily Chen",
-              "REVIEWING",
-              "Yesterday",
-              Colors.blue,
-            ),
+            // Donation List
+            ..._buildRecentDonationCards(),
 
             const SizedBox(height: 24),
-          ],
-        ),
-      ),
+                  ],
+                ),
+              ),
+            ),
     );
   }
 
@@ -106,16 +185,22 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
       leadingWidth: 70,
       leading: Padding(
         padding: const EdgeInsets.only(left: 20, top: 8, bottom: 8),
-        child: const CircleAvatar(
-          backgroundColor: Color(0xFFE0E5EC),
-          backgroundImage: AssetImage(
-            'assets/images/profile_placeholder.png',
-          ), // Replace with your avatar
+        child: ProfileAvatar(
+          userId: _currentUserId,
+          name: _currentUserName,
+          avatarUrl: _currentUserAvatarUrl,
+          radius: 22,
+          backgroundColor: const Color(0xFFE0E5EC),
+          fallbackTextStyle: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
         ),
       ),
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
+        children: [
           Text(
             "Admin Dashboard",
             style: TextStyle(
@@ -125,25 +210,29 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             ),
           ),
           Text(
-            "Welcome back, Alex",
+            "Welcome back, $_currentUserName",
             style: TextStyle(fontSize: 13, color: Color(0xFF667085)),
           ),
         ],
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.search, color: Color(0xFF667085)),
-          onPressed: () {},
+          icon: const Icon(Icons.qr_code, color: Color(0xFF667085)),
+          onPressed: () {
+            // Placeholder for QR code scanner action
+          },
         ),
         Stack(
           alignment: Alignment.center,
           children: [
             IconButton(
               icon: const Icon(
-                Icons.notifications_none,
+                Icons.people_outline,
                 color: Color(0xFF667085),
               ),
-              onPressed: () {},
+              onPressed: () {
+                Navigator.pushNamed(context, '/people_and_roles');
+              },
             ),
             Positioned(
               top: 15,
@@ -198,7 +287,12 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
   Widget _buildTogglePill(String text, int index) {
     bool isSelected = _selectedFilterIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _selectedFilterIndex = index),
+      onTap: () {
+        setState(() {
+          _selectedFilterIndex = index;
+          _recomputeMetrics();
+        });
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
@@ -207,7 +301,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -236,18 +330,18 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             children: [
               _buildStatCard(
                 "TOTAL FUND",
-                "\$12,450",
-                "+12%",
-                "VS LAST MONTH",
+                "RM ${_totalFund.toStringAsFixed(0)}",
+                "${_filteredDonations.length}",
+                "REAL DONATIONS",
                 Icons.payments_outlined,
                 true,
               ),
               const SizedBox(height: 16),
               _buildStatCard(
-                "PENDING PICKUPS",
-                "14",
-                "-2%",
-                "EFFICIENCY",
+                "PENDING DONATIONS",
+                "$_pendingCount",
+                "LIVE",
+                "NEEDS ACTION",
                 Icons.local_shipping_outlined,
                 false,
               ),
@@ -259,19 +353,19 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
           child: Column(
             children: [
               _buildStatCard(
-                "TOTAL PETS",
-                "128",
-                "+5%",
-                "NEW ARRIVALS",
+                "TOTAL USERS",
+                "$_totalUsers",
+                "ACTIVE",
+                "REGISTERED USERS",
                 Icons.pets,
                 true,
               ),
               const SizedBox(height: 16),
               _buildStatCard(
-                "UPCOMING EVENTS",
-                "6",
-                "+10%",
-                "ENGAGEMENT",
+                "TOTAL RECORDS",
+                "${_filteredDonations.length}",
+                "THIS VIEW",
+                "FILTERED DONATIONS",
                 Icons.calendar_today_outlined,
                 true,
               ),
@@ -279,6 +373,190 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
           ),
         ),
       ],
+    );
+  }
+
+  String _monthLabel(int month) {
+    const labels = [
+      'JAN',
+      'FEB',
+      'MAR',
+      'APR',
+      'MAY',
+      'JUN',
+      'JUL',
+      'AUG',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DEC',
+    ];
+    return labels[(month - 1).clamp(0, 11)];
+  }
+
+  DateTime? _parseDonationDate(dynamic row) {
+    final createdAt = row is Map ? row['created_at'] : null;
+    return DateTime.tryParse((createdAt ?? '').toString())?.toLocal();
+  }
+
+  double _parseDonationAmount(dynamic row) {
+    final amount = row is Map ? row['amount'] : null;
+    if (amount is num) return amount.toDouble();
+    return double.tryParse((amount ?? '0').toString()) ?? 0;
+  }
+
+  String _parseDonationStatus(dynamic row) {
+    if (row is! Map) return 'pending';
+    final raw = row['status'] ?? row['donation_status'];
+    final normalized = (raw ?? '').toString().trim().toLowerCase();
+    return normalized.isEmpty ? 'pending' : normalized;
+  }
+
+  String _parseDonorName(dynamic row) {
+    if (row is! Map) return 'Anonymous';
+
+    final user = row['User'];
+    if (user is Map && (user['name'] ?? '').toString().trim().isNotEmpty) {
+      return user['name'].toString();
+    }
+
+    final fallbackName = row['name'];
+    if ((fallbackName ?? '').toString().trim().isNotEmpty) {
+      return fallbackName.toString();
+    }
+
+    return 'Anonymous';
+  }
+
+  String? _parseDonorAvatar(dynamic row) {
+    if (row is! Map) return null;
+
+    final user = row['User'];
+    if (user is Map && (user['avatar_url'] ?? '').toString().trim().isNotEmpty) {
+      return user['avatar_url'].toString();
+    }
+
+    final avatar = row['avatar_url'];
+    if ((avatar ?? '').toString().trim().isNotEmpty) {
+      return avatar.toString();
+    }
+
+    return null;
+  }
+
+  List<_DonationChartBucket> _buildChartBuckets() {
+    final source = _filteredDonations;
+
+    if (_selectedFilterIndex == 0) {
+      const labels = ['00-03', '04-07', '08-11', '12-15', '16-19', '20-23'];
+      final totals = List<double>.filled(labels.length, 0);
+
+      for (final row in source) {
+        if (_parseDonationStatus(row) != 'successful') continue;
+        final createdAt = _parseDonationDate(row);
+        if (createdAt == null) continue;
+
+        final bucketIndex = (createdAt.hour / 4).floor().clamp(0, labels.length - 1);
+        totals[bucketIndex] += _parseDonationAmount(row);
+      }
+
+      return List.generate(
+        labels.length,
+        (index) => _DonationChartBucket(labels[index], totals[index]),
+      );
+    }
+
+    if (_selectedFilterIndex == 1) {
+      const labels = ['01-05', '06-10', '11-15', '16-20', '21-25', '26-31'];
+      final totals = List<double>.filled(labels.length, 0);
+      final now = DateTime.now();
+
+      for (final row in source) {
+        if (_parseDonationStatus(row) != 'successful') continue;
+        final createdAt = _parseDonationDate(row);
+        if (createdAt == null || createdAt.year != now.year || createdAt.month != now.month) continue;
+
+        final day = createdAt.day;
+        final bucketIndex = day <= 5
+            ? 0
+            : day <= 10
+                ? 1
+                : day <= 15
+                    ? 2
+                    : day <= 20
+                        ? 3
+                        : day <= 25
+                            ? 4
+                            : 5;
+        totals[bucketIndex] += _parseDonationAmount(row);
+      }
+
+      return List.generate(
+        labels.length,
+        (index) => _DonationChartBucket(labels[index], totals[index]),
+      );
+    }
+
+    final now = DateTime.now();
+    final labels = <String>[];
+    final monthDates = <DateTime>[];
+    final totals = <double>[];
+
+    for (int offset = 5; offset >= 0; offset--) {
+      final monthDate = DateTime(now.year, now.month - offset, 1);
+      monthDates.add(monthDate);
+      labels.add(_monthLabel(monthDate.month));
+      totals.add(0);
+    }
+
+    for (final row in source) {
+      if (_parseDonationStatus(row) != 'successful') continue;
+      final createdAt = _parseDonationDate(row);
+      if (createdAt == null) continue;
+
+      final index = monthDates.indexWhere(
+        (monthDate) => monthDate.year == createdAt.year && monthDate.month == createdAt.month,
+      );
+
+      if (index == -1) continue;
+
+      totals[index] += _parseDonationAmount(row);
+    }
+
+    return List.generate(
+      labels.length,
+      (index) => _DonationChartBucket(labels[index], totals[index]),
+    );
+  }
+
+  Widget _buildChartBars(List<_DonationChartBucket> buckets) {
+    final maxValue = buckets.fold<double>(0, (max, bucket) => bucket.value > max ? bucket.value : max);
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: buckets.map((bucket) {
+        final percentage = maxValue <= 0 ? 0.0 : (bucket.value / maxValue).toDouble();
+        return _buildBar(percentage, bucket.label, bucket.value);
+      }).toList(),
+    );
+  }
+
+  Widget _buildTrendLabels(List<_DonationChartBucket> buckets) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: buckets
+          .map(
+            (bucket) => Text(
+              bucket.label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF667085),
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 
@@ -301,17 +579,22 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
-                  color: Color(0xFF667085),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                    color: Color(0xFF667085),
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Icon(icon, size: 18, color: const Color(0xFF98A2B3)),
             ],
           ),
@@ -366,6 +649,9 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildBarChartCard() {
+    final buckets = _buildChartBuckets();
+    final successful = _filteredDonations.where((row) => _parseDonationStatus(row) == 'successful').length;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -380,7 +666,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                "MONTHLY DONATIONS",
+                "DONATION BREAKDOWN",
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
@@ -395,7 +681,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
-                  "+15%",
+                  "LIVE",
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -406,35 +692,33 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             ],
           ),
           const SizedBox(height: 4),
-          const Text(
-            "\$4,200",
-            style: TextStyle(
+          Text(
+            "RM ${_totalFund.toStringAsFixed(0)}",
+            style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
               color: Color(0xFF101828),
             ),
           ),
+          const SizedBox(height: 4),
+          Text(
+            "$successful successful donations",
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF667085),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 24),
 
-          // Custom Bar Chart
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              _buildBar(0.7, "JAN"),
-              _buildBar(0.3, "FEB"),
-              _buildBar(0.6, "MAR"),
-              _buildBar(0.4, "APR"),
-              _buildBar(0.8, "MAY"),
-              _buildBar(0.5, "JUN"),
-            ],
-          ),
+          // Real data bar chart
+          _buildChartBars(buckets),
         ],
       ),
     );
   }
 
-  Widget _buildBar(double percentage, String label) {
+  Widget _buildBar(double percentage, String label, double amount) {
     return Column(
       children: [
         Stack(
@@ -464,6 +748,15 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
           style: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
+            color: AppColors.dashboardHint,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          amount <= 0 ? 'RM 0' : 'RM ${amount.toStringAsFixed(0)}',
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
             color: Color(0xFF98A2B3),
           ),
         ),
@@ -472,12 +765,15 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildLineChartCard() {
+    final buckets = _buildChartBuckets();
+    final successful = _filteredDonations.where((row) => _parseDonationStatus(row) == 'successful').length;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0E5EC)),
+        border: Border.all(color: AppColors.dashboardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -486,38 +782,47 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                "ADOPTION TRENDS",
+                "DONATION TRENDS",
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.0,
-                  color: Color(0xFF667085),
+                  color: AppColors.dashboardSubtitle,
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFCE8E8),
+                  color: AppColors.errorBg,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
-                  "-3%",
+                  "FILTERED",
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFFF04438),
+                    color: AppColors.errorText,
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 4),
-          const Text(
-            "45 Pets",
-            style: TextStyle(
+          Text(
+            "$successful Successful",
+            style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF101828),
+              color: AppColors.dashboardHeading,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Based on the selected data view',
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.dashboardSubtitle,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 24),
@@ -547,7 +852,11 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                       top: 10,
                       bottom: 10,
                     ),
-                    child: CustomPaint(painter: _CurvePainter()),
+                    child: CustomPaint(
+                      painter: _DonationTrendPainter(
+                        values: buckets.map((bucket) => bucket.value).toList(),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -555,43 +864,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
           ),
           const SizedBox(height: 16),
           // X-Axis Labels
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: const [
-              Text(
-                "2021",
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF667085),
-                ),
-              ),
-              Text(
-                "2022",
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF667085),
-                ),
-              ),
-              Text(
-                "2023",
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF667085),
-                ),
-              ),
-              Text(
-                "2024",
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF667085),
-                ),
-              ),
-            ],
-          ),
+          _buildTrendLabels(buckets),
         ],
       ),
     );
@@ -604,24 +877,27 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
           width: 20,
           child: Text(
             value,
-            style: const TextStyle(fontSize: 10, color: Color(0xFF98A2B3)),
+            style: const TextStyle(fontSize: 10, color: AppColors.dashboardHint),
           ),
         ),
         const SizedBox(width: 8),
-        Expanded(child: Container(height: 1, color: const Color(0xFFF2F4F7))),
+        Expanded(child: Container(height: 1, color: AppColors.chartBackground)),
       ],
     );
   }
 
-  Widget _buildApplicationCard(
-    String petName,
-    String applicant,
+  Widget _buildDonationCard(
+    String amountText,
+    String donorName,
     String status,
     String time,
     MaterialColor colorBadge,
+    String? avatarUrl,
   ) {
     Color bgBadge = colorBadge.shade50;
     Color textBadge = colorBadge.shade700;
+    final imageUrl = avatarUrl?.trim() ?? '';
+    final hasAvatar = imageUrl.isNotEmpty;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -633,18 +909,17 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
       ),
       child: Row(
         children: [
-          // Pet Image (Using a grey container as placeholder)
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE0E5EC),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.pets,
-              color: Colors.white,
-            ), // Swap with Image.network or AssetImage
+          // Donor Avatar
+          CircleAvatar(
+            radius: 25,
+            backgroundColor: const Color(0xFFE0E5EC),
+            backgroundImage: hasAvatar ? NetworkImage(imageUrl) : null,
+            child: hasAvatar
+                ? null
+                : const Icon(
+                    Icons.person,
+                    color: Colors.white,
+                  ),
           ),
           const SizedBox(width: 16),
           // Names
@@ -653,7 +928,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  petName,
+                  amountText,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -662,7 +937,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  applicant,
+                  donorName,
                   style: const TextStyle(
                     fontSize: 13,
                     color: Color(0xFF667085),
@@ -706,56 +981,113 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
       ),
     );
   }
+
+  List<Widget> _buildRecentDonationCards() {
+    if (_filteredDonations.isEmpty) {
+      return const [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 12),
+          child: Text(
+            'No recent donations for this filter yet.',
+            style: TextStyle(
+              fontSize: 13,
+              color: Color(0xFF98A2B3),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ];
+    }
+
+    return _filteredDonations.take(3).map((row) {
+      final amount = _parseDonationAmount(row);
+      final donor = _parseDonorName(row);
+      final avatarUrl = _parseDonorAvatar(row);
+      final status = (_parseDonationStatus(row).isEmpty ? 'pending' : _parseDonationStatus(row)).toUpperCase();
+      final created = _parseDonationDate(row);
+      final time = created == null ? 'Unknown' : _timeAgo(created);
+
+      final MaterialColor badgeColor;
+      if (status == 'SUCCESSFUL') {
+        badgeColor = Colors.green;
+      } else if (status == 'FAILED') {
+        badgeColor = Colors.red;
+      } else {
+        badgeColor = Colors.orange;
+      }
+
+      return _buildDonationCard(
+        'RM ${amount.toStringAsFixed(2)}',
+        'By $donor',
+        status,
+        time,
+        badgeColor,
+        avatarUrl,
+      );
+    }).toList();
+  }
+
+  String _timeAgo(DateTime dateTime) {
+    final diff = DateTime.now().difference(dateTime);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inHours < 1) return '${diff.inMinutes} min ago';
+    if (diff.inDays < 1) return '${diff.inHours} hr ago';
+    return '${diff.inDays} day ago';
+  }
+}
+
+class _DonationChartBucket {
+  final String label;
+  final double value;
+
+  const _DonationChartBucket(this.label, this.value);
 }
 
 // --- CUSTOM PAINTER FOR THE SMOOTH LINE CHART ---
-class _CurvePainter extends CustomPainter {
+class _DonationTrendPainter extends CustomPainter {
+  final List<double> values;
+
+  _DonationTrendPainter({required this.values});
+
   @override
   void paint(Canvas canvas, Size size) {
-    var paint = Paint()
+    if (values.isEmpty) return;
+
+    final maxValue = values.fold<double>(0, (max, value) => value > max ? value : max);
+    final normalized = values.map((value) {
+      if (maxValue <= 0) return 0.0;
+      return value / maxValue;
+    }).toList();
+
+    final paint = Paint()
       ..color = const Color(0xFF2E82F4)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4.0
       ..strokeCap = StrokeCap.round;
 
-    var path = Path();
-    // Start at bottom left
-    path.moveTo(0, size.height * 0.8);
-    // Curve up to peak (2022)
-    path.cubicTo(
-      size.width * 0.2,
-      size.height * 0.8,
-      size.width * 0.2,
-      size.height * 0.1,
-      size.width * 0.35,
-      size.height * 0.1,
-    );
-    // Curve down to dip (2023)
-    path.cubicTo(
-      size.width * 0.5,
-      size.height * 0.1,
-      size.width * 0.55,
-      size.height * 0.7,
-      size.width * 0.7,
-      size.height * 0.7,
-    );
-    // Little bump to end (2024)
-    path.cubicTo(
-      size.width * 0.85,
-      size.height * 0.7,
-      size.width * 0.85,
-      size.height * 0.5,
-      size.width,
-      size.height * 0.95,
-    );
+    final path = Path();
+    final stepX = values.length == 1 ? 0 : size.width / (values.length - 1);
+
+    for (int i = 0; i < normalized.length; i++) {
+      final x = stepX * i.toDouble();
+      final y = size.height - (normalized[i].toDouble() * size.height * 0.9) - (size.height * 0.05);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        final previousX = stepX * (i - 1).toDouble();
+        final previousY = size.height - (normalized[i - 1].toDouble() * size.height * 0.9) - (size.height * 0.05);
+        final controlX = (previousX + x) / 2;
+        path.quadraticBezierTo(controlX, previousY, x, y);
+      }
+    }
 
     canvas.drawPath(path, paint);
 
     // Draw the dots on the nodes
-    var dotPaintWhite = Paint()
+    final dotPaintWhite = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.fill;
-    var dotPaintBlue = Paint()
+    final dotPaintBlue = Paint()
       ..color = const Color(0xFF2E82F4)
       ..style = PaintingStyle.fill;
 
@@ -764,12 +1096,19 @@ class _CurvePainter extends CustomPainter {
       canvas.drawCircle(offset, 4, dotPaintBlue); // Blue core
     }
 
-    drawDot(Offset(0, size.height * 0.8));
-    drawDot(Offset(size.width * 0.35, size.height * 0.1));
-    drawDot(Offset(size.width * 0.7, size.height * 0.7));
-    drawDot(Offset(size.width, size.height * 0.95));
+    for (int i = 0; i < normalized.length; i++) {
+      final x = stepX * i.toDouble();
+      final y = size.height - (normalized[i].toDouble() * size.height * 0.9) - (size.height * 0.05);
+      drawDot(Offset(x, y));
+    }
   }
 
   @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _DonationTrendPainter oldDelegate) {
+    if (oldDelegate.values.length != values.length) return true;
+    for (int i = 0; i < values.length; i++) {
+      if (oldDelegate.values[i] != values[i]) return true;
+    }
+    return false;
+  }
 }
