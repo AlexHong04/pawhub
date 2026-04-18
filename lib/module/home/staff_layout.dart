@@ -23,7 +23,6 @@ class StaffLayoutState extends State<StaffLayout> {
   final List<Widget> _pages = [
     const Center(child: Text("Event Page")),
     // const Center(child: Text("Community Page")),
-    const PeopleAndRolesPage(),
     const AdminDashboardPage(),
     const PetListPage(),
     const AdoptionApplicationListPage(),
