@@ -311,152 +311,31 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
           "Adoption Application List",
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
+        backgroundColor: Colors.white,
         centerTitle: true,
       ),
 
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(left: 16, right: 16),
         child: Column(
           children: [
             _buildSearchBar(),
             _buildFilterSection(),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             _buildSelectionBar(hasPendingSelected),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             _buildApplicationList(),
           ],
         ),
       ),
     );
   }
-
-  //       child: Column(
-  //         children: [
-  //           // Search Bar
-  //           CustomSearchField(
-  //             controller: _searchController,
-  //             hintText: "Search pet name, gender, adoption id...",
-  //             onChanged: (value) {
-  //               setState(() {
-  //                 _searchQuery = value.toLowerCase();
-  //               });
-  //             },
-  //           ),
-  //
-  //           // Filter Buttons
-  //           SingleChildScrollView(
-  //             scrollDirection: Axis.horizontal,
-  //             child: Row(
-  //               children: filters.map((filter) {
-  //                 return Padding(
-  //                   padding: const EdgeInsets.symmetric(
-  //                     horizontal: 5,
-  //                     vertical: 6,
-  //                   ),
-  //                   child: SizedBox(
-  //                     child: FilterButton(
-  //                       text: filter,
-  //                       isSelected: _activeFilter == filter,
-  //                       onPressed: () {
-  //                         setState(() => _activeFilter = filter);
-  //                       },
-  //                     ),
-  //                   ),
-  //                 );
-  //               }).toList(),
-  //             ),
-  //           ),
-  //
-  //           SizedBox(height: 10),
-  //
-  //           Row(
-  //             children: [
-  //               Checkbox(value: selectAll, onChanged: _toggleSelectAll),
-  //               const Text("Select All"),
-  //               const Spacer(),
-  //
-  //               if (hasPendingSelected) ...[
-  //                 // Approve Button
-  //                 ElevatedButton.icon(
-  //                   onPressed: _showApproveDialog,
-  //                   icon: const Icon(
-  //                     Icons.check_box_outlined,
-  //                     color: Colors.green,
-  //                   ),
-  //                   label: const Text(
-  //                     'Approve',
-  //                     style: TextStyle(
-  //                       color: Colors.green,
-  //                       fontWeight: FontWeight.w600,
-  //                     ),
-  //                   ),
-  //                   style: ElevatedButton.styleFrom(
-  //                     backgroundColor: Colors.white, // white background
-  //                     padding: const EdgeInsets.symmetric(
-  //                       horizontal: 8,
-  //                       vertical: 8,
-  //                     ),
-  //                     shape: RoundedRectangleBorder(
-  //                       borderRadius: BorderRadius.circular(
-  //                         12,
-  //                       ), // rounded corners
-  //                     ),
-  //                   ),
-  //                 ),
-  //
-  //                 const SizedBox(width: 12),
-  //
-  //                 // Reject Button
-  //                 ElevatedButton.icon(
-  //                   onPressed: _showRejectDialog,
-  //                   icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-  //                   label: const Text(
-  //                     'Reject',
-  //                     style: TextStyle(
-  //                       color: Colors.red,
-  //                       fontWeight: FontWeight.w600,
-  //                     ),
-  //                   ),
-  //                   style: ElevatedButton.styleFrom(
-  //                     backgroundColor: Colors.white,
-  //                     padding: const EdgeInsets.symmetric(
-  //                       horizontal: 8,
-  //                       vertical: 8,
-  //                     ),
-  //                     shape: RoundedRectangleBorder(
-  //                       borderRadius: BorderRadius.circular(12),
-  //                     ),
-  //                   ),
-  //                 ),
-  //               ],
-  //             ],
-  //           ),
-  //
-  //           SizedBox(height: 10),
-  //
-  //           // Adoption List
-  //           Expanded(
-  //             child: ListView.builder(
-  //               itemCount: _filteredApplications.length,
-  //               itemBuilder: (context, index) {
-  //                 final application = _filteredApplications[index];
-  //
-  //                 return applicationCard(application);
-  //               },
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
 
   Widget _buildApplicationCard(Application application) {
     final imageUrl = application.petImage.isNotEmpty
@@ -733,21 +612,24 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
   }
 
   Widget _buildFilterSection() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: filters.map((filter) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
-            child: FilterButton(
-              text: filter,
-              isSelected: _activeFilter == filter,
-              onPressed: () {
-                setState(() => _activeFilter = filter);
-              },
-            ),
-          );
-        }).toList(),
+    return SizedBox(
+      width: double.infinity,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: filters.map((filter) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
+              child: FilterButton(
+                text: filter,
+                isSelected: _activeFilter == filter,
+                onPressed: () {
+                  setState(() => _activeFilter = filter);
+                },
+              ),
+            );
+          }).toList(),
+        ),
       ),
     );
   }

@@ -32,4 +32,29 @@ class AppDecorations {
       ),
     );
   }
+
+  static InputDecoration roundedSearchDecoration({
+    required String hintText,
+    required String labelText,
+    required IconData prefixIcon,
+  }) {
+    return outlineInputDecoration(
+      hintText: hintText,
+      labelText: labelText,
+      prefixIcon: prefixIcon,
+    ).copyWith(
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(24),
+        borderSide: const BorderSide(color: AppColors.borderGray),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(24),
+        borderSide: const BorderSide(color: AppColors.borderGray),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(24),
+        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+      ),
+    );
+  }
 }

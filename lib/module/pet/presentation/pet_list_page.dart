@@ -49,7 +49,8 @@ class _PetListPageState extends State<PetListPage> {
 
       final query = _searchQuery.trim().toLowerCase();
 
-      bool matchesSearch = query.isEmpty ||
+      bool matchesSearch =
+          query.isEmpty ||
           pet.name.toLowerCase().contains(query) ||
           pet.species.toLowerCase().contains(query) ||
           pet.gender.toLowerCase().contains(query);
@@ -209,18 +210,24 @@ class _PetListPageState extends State<PetListPage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-
-      appBar: AppBar(title: Text("Pet List", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87),), centerTitle: true),
-
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(
+          "Pet List",
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+            color: Colors.black87,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        centerTitle: true,
+      ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(left: 16, right: 16),
         child: Column(
           children: [
             // Search Bar
@@ -235,18 +242,7 @@ class _PetListPageState extends State<PetListPage> {
             ),
 
             // Filter Buttons
-            Wrap(
-              spacing: 20,
-              children: filters.map((filter) {
-                return FilterButton(
-                  text: filter,
-                  isSelected: _activeFilter == filter,
-                  onPressed: () {
-                    setState(() => _activeFilter = filter);
-                  },
-                );
-              }).toList(),
-            ),
+            _buildFilterSection(),
 
             SizedBox(height: 10),
 
@@ -257,17 +253,20 @@ class _PetListPageState extends State<PetListPage> {
                 const Spacer(),
 
                 if (_selectedPetIds.isEmpty)
-                  IconButton(onPressed: () async {
-                    // await Navigator.pushNamed(context, '/create_edit_pet');
+                  IconButton(
+                    onPressed: () async {
+                      // await Navigator.pushNamed(context, '/create_edit_pet');
 
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CreateEditPetPage(),
-                      ),
-                    );
-                    await _fetchPets();
-                  }, icon: const Icon(Icons.add)),
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CreateEditPetPage(),
+                        ),
+                      );
+                      await _fetchPets();
+                    },
+                    icon: const Icon(Icons.add),
+                  ),
 
                 if (_selectedPetIds.length == 1)
                   IconButton(
@@ -278,7 +277,8 @@ class _PetListPageState extends State<PetListPage> {
                       await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => CreateEditPetPage(petId: selectedPet.id),
+                          builder: (context) =>
+                              CreateEditPetPage(petId: selectedPet.id),
                         ),
                       );
                       // await Navigator.pushNamed(
@@ -317,9 +317,10 @@ class _PetListPageState extends State<PetListPage> {
                       await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => ViewPetDetailsPage(petId: pet.id),
+                          builder: (context) =>
+                              ViewPetDetailsPage(petId: pet.id),
                         ),
-                          // Navigator.pushNamed(context, '/pet_details');
+                        // Navigator.pushNamed(context, '/pet_details');
                       );
 
                       _fetchPets();
@@ -341,18 +342,13 @@ class _PetListPageState extends State<PetListPage> {
                       ),
                       child: Text(
                         pet.gender,
-                        style: TextStyle(
-                          color: Colors.black,
-                        ),
+                        style: TextStyle(color: Colors.black),
                       ),
                     ),
                     tableRows: [
                       TableRow(
                         children: [
-                          InfoCell(
-                            icon: Icons.cake,
-                            text: "${pet.age} years",
-                          ),
+                          InfoCell(icon: Icons.cake, text: "${pet.age} years"),
                           InfoCell(
                             icon: Icons.local_hospital,
                             text: pet.health,
@@ -381,6 +377,29 @@ class _PetListPageState extends State<PetListPage> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterSection() {
+    return SizedBox(
+      width: double.infinity,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: filters.map((filter) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
+              child: FilterButton(
+                text: filter,
+                isSelected: _activeFilter == filter,
+                onPressed: () {
+                  setState(() => _activeFilter = filter);
+                },
+              ),
+            );
+          }).toList(),
         ),
       ),
     );

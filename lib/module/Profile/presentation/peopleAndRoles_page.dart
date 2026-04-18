@@ -125,7 +125,10 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
             child: _buildSearchBar(),
           ),
-          _buildFilterChips(),
+          Padding(
+            padding: const EdgeInsets.only(left: 24, right: 24),
+            child: _buildFilterChips(),
+          ),
           const SizedBox(height: 16),
           Expanded(
             child: _isLoading
@@ -176,27 +179,52 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
   }
 
   Widget _buildFilterChips() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Row(
-        children: List.generate(_filters.length, (index) {
-          final isSelected = _selectedFilterIndex == index;
-          return Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: FilterButton(
-              text: _filters[index],
-              isSelected: isSelected,
-              onPressed: () {
-                setState(() => _selectedFilterIndex = index);
-                _applyFilters();
-              },
-            ),
-          );
-        }),
+    return SizedBox(
+      width: double.infinity,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: List.generate(_filters.length, (index) {
+            final isSelected = _selectedFilterIndex == index;
+            return Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: FilterButton(
+                text: _filters[index],
+                isSelected: isSelected,
+                onPressed: () {
+                  setState(() => _selectedFilterIndex = index);
+                  _applyFilters();
+                },
+              ),
+            );
+          }),
+        ),
       ),
     );
   }
+
+  // Widget _buildFilterChips() {
+  //   return SingleChildScrollView(
+  //     scrollDirection: Axis.horizontal,
+  //     padding: const EdgeInsets.symmetric(horizontal: 24),
+  //     child: Row(
+  //       children: List.generate(_filters.length, (index) {
+  //         final isSelected = _selectedFilterIndex == index;
+  //         return Padding(
+  //           padding: const EdgeInsets.only(right: 12),
+  //           child: FilterButton(
+  //             text: _filters[index],
+  //             isSelected: isSelected,
+  //             onPressed: () {
+  //               setState(() => _selectedFilterIndex = index);
+  //               _applyFilters();
+  //             },
+  //           ),
+  //         );
+  //       }),
+  //     ),
+  //   );
+  // }
 
   Widget _buildUserCard(UserModel user) {
     return Container(

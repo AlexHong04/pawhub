@@ -144,12 +144,12 @@ class _AdoptionHistoryState extends State<AdoptionHistoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-
       appBar: AppBar(
         title: Text(
           "Adoption Application History",
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
+        backgroundColor: Colors.white,
         centerTitle: true,
       ),
 

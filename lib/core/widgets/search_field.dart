@@ -19,31 +19,19 @@ class CustomSearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.only(left: 8, right: 8, top: 16, bottom: 8),
       child: ValueListenableBuilder(
         valueListenable: controller,
         builder: (context, TextEditingValue value, _) {
           return TextFormField(
             controller: controller,
             onChanged: onChanged,
-            decoration: AppDecorations.outlineInputDecoration(
-              hintText: hintText,
-              labelText: labelText,
-              prefixIcon: Icons.search,
-            ).copyWith(
-              fillColor: AppColors.inputFill,
-              filled: true,
-
-              suffixIcon: value.text.isNotEmpty
-                  ? IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () {
-                  controller.clear();
-                  onChanged('');
-                },
-              )
-                  : null,
-            ),
+            decoration:
+                AppDecorations.roundedSearchDecoration(
+                  hintText: hintText,
+                  labelText: labelText,
+                  prefixIcon: Icons.search,
+                )
           );
         },
       ),

@@ -365,7 +365,7 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
         title: const Text("Application",
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
         centerTitle: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black,
       ),

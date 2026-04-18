@@ -130,6 +130,7 @@ class _PickupState extends State<SchedulePickupPage> {
           "Schedule Pickup",
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
+        backgroundColor: Colors.white,
         centerTitle: true,
       ),
       body: SingleChildScrollView(
