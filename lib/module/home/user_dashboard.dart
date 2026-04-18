@@ -406,6 +406,7 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
             builder: (_) => ViewPetDetailsPage(petId: pet['pet_id']),
           ),
         );
+        fetchPets();
       },
       child: Container(
         decoration: BoxDecoration(
