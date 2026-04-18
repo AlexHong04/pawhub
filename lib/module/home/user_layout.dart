@@ -107,39 +107,41 @@ class UserLayoutState extends State<UserLayout> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: isLandscape
-          ? Row(
+      body: Row(
         children: [
-          SafeArea(
-            child: Container(
-              margin: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.border),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x140F172A),
-                    blurRadius: 24,
-                    offset: Offset(0, 10),
+          if (isLandscape)
+            SafeArea(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppColors.border),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x140F172A),
+                      blurRadius: 24,
+                      offset: Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: NavigationRail(
+                    backgroundColor: AppColors.white,
+                    selectedIndex: safeIndex,
+                    onDestinationSelected: _onDestinationSelected,
+                    labelType: NavigationRailLabelType.none,
+                    minWidth: 72,
+                    useIndicator: true,
+                    indicatorColor: AppColors.primary.withOpacity(0.12),
+                    groupAlignment: 0.0, // Centers icons vertically
+                    destinations: _railDestinations(),
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: NavigationRail(
-                  backgroundColor: AppColors.white,
-                  selectedIndex: safeIndex,
-                  onDestinationSelected: _onDestinationSelected,
-                  labelType: NavigationRailLabelType.none, // icon-only in landscape
-                  minWidth: 72,
-                  useIndicator: true,
-                  indicatorColor: AppColors.primary.withOpacity(0.12),
-                  destinations: _railDestinations(),
                 ),
               ),
             ),
-          ),
+
           Expanded(
             child: IndexedStack(
               index: safeIndex,
@@ -147,10 +149,6 @@ class UserLayoutState extends State<UserLayout> {
             ),
           ),
         ],
-      )
-          : IndexedStack(
-        index: safeIndex,
-        children: _pages,
       ),
       bottomNavigationBar: isLandscape
           ? null
