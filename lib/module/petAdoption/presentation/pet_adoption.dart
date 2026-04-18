@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:http/http.dart' as http;
-import 'package:google_mlkit_text_recognition/google_mlkit_tex t_recognition.dart';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
