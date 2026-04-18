@@ -348,8 +348,18 @@ class EventService {
         numberLength: 5,
       );
 
-      final flyerFileName = await copyFlyerLocally(
-          event.flyerFile, event.title);
+      String? flyerUrl;
+
+      if (event.flyerFile != null) {
+        print("FILE PATH: ${event.flyerFile?.path}");
+        flyerUrl = await SupabaseFileService.uploadImage(
+          imageFile: event.flyerFile!,
+          bucketName: 'documents',
+          folderPath: 'event_flyers',
+          fileNamePrefix: event.title.replaceAll(' ', '_'),
+        );
+        print("UPLOAD RESULT: $flyerUrl");
+      }
 
       await supabase.from('Event').insert({
         'event_id': eventId,
@@ -365,7 +375,7 @@ class EventService {
         'volunteer_capacity': event.volunteerCapacity,
         'spot_left': event.volunteerCapacity,
         'event_qr': null,
-        'flyer_url': flyerFileName,
+        'flyer_url': flyerUrl, // ✅ FIXED
         'event_status': 'Available',
         'created_at': DateTime.now().toIso8601String(),
       });
@@ -451,7 +461,6 @@ class EventService {
     }
   }
 
-// ✅ Validate check-in eligibility
   static Future<Map<String, dynamic>> validateCheckIn(String eventId,
       String userId,) async {
     try {
@@ -540,9 +549,26 @@ class EventService {
     }
   }
 
-  static Future<bool> updateEvent(String eventId,
-      Map<String, dynamic> updates) async {
+  static Future<bool> updateEvent(String eventId, Map<String, dynamic> updates) async {
     try {
+      if (updates.containsKey('flyerFile') && updates['flyerFile'] != null) {
+        final File flyerFile = updates['flyerFile'] as File;
+
+        final String? flyerUrl = await SupabaseFileService.uploadImage(
+          imageFile: flyerFile,
+          bucketName: 'documents',
+          folderPath: 'event_flyers',
+          fileNamePrefix: (updates['title'] ?? 'event').toString().replaceAll(' ', '_'),
+        );
+
+        if (flyerUrl != null) {
+          updates['flyer_url'] = flyerUrl;
+        }
+      }
+
+      // Remove non-table field before database update
+      updates.remove('flyerFile');
+
       final response = await supabase
           .from('Event')
           .update(updates)

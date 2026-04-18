@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 
 import 'package:pawhub/core/constants/colors.dart';
 import 'package:pawhub/core/widgets/appDecorations.dart';
@@ -101,8 +99,8 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
       appBar: AppBar(
         centerTitle: true,
         title: const Text(
-            'Event Management',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)
+          'Event Management',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -122,7 +120,6 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                     hintText: 'Search event or location',
                   ),
                 ),
-
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -152,23 +149,23 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
               itemCount: _filteredEvents.length,
               itemBuilder: (context, index) => _buildEventCard(_filteredEvents[index]),
             ),
-
           ),
         ],
       ),
-    floatingActionButton: FloatingActionButton.extended(
-    onPressed: () => Navigator.push(
-    context,
-    MaterialPageRoute(builder: (_) => const AddEventScreen()),
-    ).then((_) => _loadEvents()),
-    icon: const Icon(Icons.add, color: Colors.blue),
-    label: const Text(
-    "New Event",
-    style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-    ),
-    backgroundColor: AppColors.primaryLight,
-    elevation: 0
-    ));
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AddEventScreen()),
+        ).then((_) => _loadEvents()),
+        icon: const Icon(Icons.add, color: Colors.blue),
+        label: const Text(
+          "New Event",
+          style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: AppColors.primaryLight,
+        elevation: 0,
+      ),
+    );
   }
 
   Widget _buildFilterRow() {
@@ -221,8 +218,16 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                   padding: const EdgeInsets.fromLTRB(24, 24, 16, 8),
                   child: Row(
                     children: [
-                      Expanded(child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
-                      IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(context)),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        onPressed: () => Navigator.pop(context),
+                      ),
                     ],
                   ),
                 ),
@@ -246,7 +251,10 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: () {
-                            showDialog(context: context, builder: (_) => QRDialog(data: eventId, title: 'Event QR'));
+                            showDialog(
+                              context: context,
+                              builder: (_) => QRDialog(data: eventId, title: 'Event QR'),
+                            );
                           },
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -255,7 +263,10 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                           icon: const Icon(Icons.qr_code_scanner, size: 18),
-                          label: const Text("Generate Event QR", style: TextStyle(fontWeight: FontWeight.bold)),
+                          label: const Text(
+                            "Generate Event QR",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -265,7 +276,10 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                           _buildSmallAction(Icons.group, "Volunteers", Colors.blue, () {}),
                           _buildSmallAction(Icons.edit, "Edit", Colors.orange, () {
                             Navigator.pop(context);
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => AddEventScreen(eventId: eventId))).then((_) => _loadEvents());
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => AddEventScreen(eventId: eventId)),
+                            ).then((_) => _loadEvents());
                           }),
                           _buildSmallAction(Icons.delete, "Delete", Colors.red, () {
                             Navigator.pop(context);
@@ -295,7 +309,14 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
           const SizedBox(width: 12),
           Text("$label:", style: TextStyle(color: Colors.grey[600], fontSize: 13)),
           const SizedBox(width: 8),
-          Expanded(child: Text(value ?? "-", style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13), textAlign: TextAlign.end, overflow: TextOverflow.ellipsis)),
+          Expanded(
+            child: Text(
+              value ?? "-",
+              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
@@ -311,7 +332,10 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
           children: [
             Icon(icon, color: color, size: 22),
             const SizedBox(height: 4),
-            Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+            Text(
+              label,
+              style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
       ),
@@ -325,15 +349,22 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
-        children: options.map((o) => ListTile(
-          leading: Icon(Icons.check, color: _sortOption == o ? AppColors.primary : Colors.transparent),
-          title: Text(o),
-          onTap: () {
-            setState(() => _sortOption = o);
-            _applyFilters();
-            Navigator.pop(context);
-          },
-        )).toList(),
+        children: options
+            .map(
+              (o) => ListTile(
+            leading: Icon(
+              Icons.check,
+              color: _sortOption == o ? AppColors.primary : Colors.transparent,
+            ),
+            title: Text(o),
+            onTap: () {
+              setState(() => _sortOption = o);
+              _applyFilters();
+              Navigator.pop(context);
+            },
+          ),
+        )
+            .toList(),
       ),
     );
   }
@@ -362,7 +393,6 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             // ================= IMAGE =================
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -375,7 +405,6 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
                   // TITLE + STATUS
                   Row(
                     children: [
@@ -404,14 +433,13 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                     runSpacing: 6,
                     children: [
                       _infoChip(Icons.category, event['event_category'] ?? 'Event'),
-                      _infoChip(Icons.calendar_today,
-                          _formatDate(event['event_date'])),
+                      _infoChip(Icons.calendar_today, _formatDate(event['event_date'])),
                     ],
                   ),
 
                   const SizedBox(height: 10),
 
-                  // ADDRESS (SAFE - NO OVERFLOW)
+                  // ADDRESS
                   Row(
                     children: [
                       const Icon(Icons.location_on, size: 14, color: Colors.grey),
@@ -509,18 +537,12 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         children: [
           Text(
             value,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
           ),
         ],
       ),
@@ -544,39 +566,67 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
     }
   }
 
-  Widget _buildFlyerPreview(String? filename) {
-    return FutureBuilder<File?>(
-      future: _getLocalImagePath(filename),
-      builder: (context, snapshot) {
-        if (snapshot.hasData && snapshot.data != null) {
-          return ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            child: Image.file(snapshot.data!, height: 120, width: double.infinity, fit: BoxFit.cover),
-          );
-        }
+  Widget _buildFlyerPreview(String? flyerUrl) {
+    if (flyerUrl == null || flyerUrl.trim().isEmpty) {
+      return Container(
+        height: 120,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+        ),
+        child: const Icon(Icons.image_not_supported_outlined, color: Colors.grey),
+      );
+    }
+
+    return Image.network(
+      flyerUrl,
+      height: 120,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(
+        height: 120,
+        width: double.infinity,
+        color: Colors.grey[100],
+        child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+      ),
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
         return Container(
-          height: 120, width: double.infinity,
-          decoration: BoxDecoration(color: Colors.grey[100], borderRadius: const BorderRadius.vertical(top: Radius.circular(12))),
-          child: const Icon(Icons.image_not_supported_outlined, color: Colors.grey),
+          height: 120,
+          width: double.infinity,
+          color: Colors.grey[100],
+          child: const Center(
+            child: SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
         );
       },
     );
   }
 
-  Future<File?> _getLocalImagePath(String? filename) async {
-    if (filename == null) return null;
-    final appDir = await getApplicationDocumentsDirectory();
-    final file = File('${appDir.path}/flyers/$filename');
-    return await file.exists() ? file : null;
-  }
-
   Widget _buildEmptyState() {
-    return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const Icon(Icons.event_note, size: 64, color: Colors.grey),
-      const SizedBox(height: 16),
-      Text("No events match your criteria", style: TextStyle(color: Colors.grey[600])),
-      TextButton(onPressed: () { _searchController.clear(); setState(() => _selectedStatus = 'All'); _applyFilters(); }, child: const Text("Clear Filters")),
-    ]));
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.event_note, size: 64, color: Colors.grey),
+          const SizedBox(height: 16),
+          Text("No events match your criteria", style: TextStyle(color: Colors.grey[600])),
+          TextButton(
+            onPressed: () {
+              _searchController.clear();
+              setState(() => _selectedStatus = 'All');
+              _applyFilters();
+            },
+            child: const Text("Clear Filters"),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showDeleteConfirmation(String eventId, String title) {
@@ -601,7 +651,9 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   }
 
   void _showSnackBar(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: isError ? Colors.red : Colors.green));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: isError ? Colors.red : Colors.green),
+    );
   }
 
   @override

@@ -78,28 +78,6 @@ class _VolunteerEventsPageState extends State<VolunteerEventsPage> {
     _searchController.clear();
   }
 
-  // --- Image Handlers ---
-
-  Future<bool> _assetImageExists(String filename) async {
-    try {
-      await DefaultAssetBundle.of(context).load('assets/images/$filename');
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<String?> _getLocalImagePath(String filename, String folderName) async {
-    try {
-      final appDir = await getApplicationDocumentsDirectory();
-      final filePath = '${appDir.path}/$folderName/$filename';
-      final file = File(filePath);
-      return await file.exists() ? filePath : null;
-    } catch (e) {
-      return null;
-    }
-  }
-
   // --- UI Components ---
 
   @override
@@ -311,29 +289,19 @@ class _VolunteerEventsPageState extends State<VolunteerEventsPage> {
     );
   }
 
-  Widget _buildImageHandler(String? filename) {
-    if (filename == null || filename.isEmpty) return _buildPlaceholder();
+  Widget _buildImageHandler(String? url) {
+    if (url == null || url.isEmpty) return _buildPlaceholder();
 
-    if (filename.startsWith('http')) {
-      return Image.network(filename, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildPlaceholder());
-    }
-
-    return FutureBuilder<bool>(
-      future: _assetImageExists(filename),
-      builder: (context, assetSnapshot) {
-        if (assetSnapshot.data == true) {
-          return Image.asset('assets/images/$filename', fit: BoxFit.cover);
-        }
-        return FutureBuilder<String?>(
-          future: _getLocalImagePath(filename, 'flyers'),
-          builder: (context, localSnapshot) {
-            if (localSnapshot.hasData && localSnapshot.data != null) {
-              return Image.file(File(localSnapshot.data!), fit: BoxFit.cover);
-            }
-            return _buildPlaceholder();
-          },
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return const Center(
+          child: CircularProgressIndicator(strokeWidth: 2),
         );
       },
+      errorBuilder: (_, __, ___) => _buildPlaceholder(),
     );
   }
 
