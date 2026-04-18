@@ -6,7 +6,7 @@ import 'appDecorations.dart';
 class CustomDropdownField extends StatelessWidget {
   final String label;
   final IconData icon;
-  final String value;
+  final String? value;
   final List<String> items;
   final ValueChanged<String?> onChanged;
 
@@ -24,7 +24,7 @@ class CustomDropdownField extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: DropdownButtonFormField<String>(
-        value: value,
+        value: items.contains(value) ? value : null,
         decoration: AppDecorations.outlineInputDecoration(
           hintText: 'Select $label',
           labelText: label,

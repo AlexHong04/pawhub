@@ -11,6 +11,7 @@ import 'package:pawhub/core/widgets/appDecorations.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/utils/local_file_service.dart';
+import '../../../core/widgets/custom_dropdown_field.dart';
 import '../../pet/model/pet_model.dart';
 import '../../pet/service/pet_service.dart';
 import '../service/pet_adoption_service.dart';
@@ -39,6 +40,9 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
   final _emailController = TextEditingController();
   final _contactNoController = TextEditingController();
   final _addressController = TextEditingController();
+  String? selectedState;
+  String? selectedCity;
+  String? selectedPostcode;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -52,6 +56,87 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
     4: null,
     5: null,
     6: null,
+  };
+
+  static const Map<String, Map<String, List<String>>> malaysiaAddress = {
+    "Kuala Lumpur": {
+      "Kuala Lumpur": [
+        "50000",
+        "50100",
+        "50200",
+        "50300",
+        "50400",
+        "50500",
+        "50600",
+        "50700",
+        "50900",
+        "51000",
+        "51100",
+        "51200",
+        "52000",
+        "52100",
+        "52200",
+        "53000",
+        "53100",
+        "53200",
+        "54000",
+        "54100",
+        "54200",
+        "55000",
+        "55100",
+        "55200",
+        "56000",
+        "56100",
+        "57000",
+        "58000",
+        "58100",
+        "58200",
+        "59000",
+        "59100",
+        "59200",
+        "60000",
+      ],
+    },
+
+    "Selangor": {
+      "Shah Alam": [
+        "40000",
+        "40100",
+        "40200",
+        "40300",
+        "40400",
+        "40500",
+        "40600",
+        "40700",
+      ],
+      "Petaling Jaya": [
+        "46000",
+        "46100",
+        "46200",
+        "46300",
+        "46400",
+        "46500",
+        "46600",
+        "46700",
+        "46800",
+        "46900",
+        "47000",
+        "47100",
+        "47200",
+        "47300",
+        "47400",
+        "47500",
+        "47600",
+        "47700",
+        "47800",
+      ],
+      "Subang Jaya": ["47500", "47600"],
+      "Puchong": ["47100", "47110", "47120", "47130"],
+      "Klang": ["41000", "41100", "41200", "41300", "41400", "41500"],
+      "Kajang": ["43000", "43100"],
+      "Sepang": ["43900"],
+      "Ampang": ["68000"],
+    },
   };
 
   Future<void> _captureIC() async {
@@ -119,6 +204,7 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
           ),
+          backgroundColor: Colors.white,
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -153,6 +239,7 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
           ),
+          backgroundColor: Colors.white,
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -167,7 +254,7 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
                   final success = await _adoptionService.submitApplication(
                     petId: widget.petId,
                     userId: widget.userId,
-                    address: _addressController.text,
+                    address: getFullAddress(),
                   );
 
                   if (!success) return;
@@ -175,6 +262,8 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
                   final email = _emailController.text.trim();
 
                   Navigator.pop(context);
+
+                  if (!mounted) return;
 
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -191,7 +280,6 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
                   _sendEmail(email).catchError((e) {
                     log("Email send failed: $e");
                   });
-
                 } catch (e) {
                   log("Adoption application error: $e");
                 }
@@ -285,10 +373,12 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
   ''';
 
     try {
-      debugPrint("📧 Attempting to send email to: $targetEmail");
+      debugPrint("Attempting to send email to: $targetEmail");
 
-      final Uri uri = Uri.parse('https://pawhub.hongjin.site/send-general-email');
-      debugPrint("📧 Sending to URL: $uri");
+      final Uri uri = Uri.parse(
+        'https://pawhub.hongjin.site/send-general-email',
+      );
+      debugPrint("Sending to URL: $uri");
 
       final response = await http.post(
         uri,
@@ -300,11 +390,11 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
         }),
       );
 
-      debugPrint("📧 Response status: ${response.statusCode}");
-      debugPrint("📧 Response body: ${response.body}");
+      debugPrint("Response status: ${response.statusCode}");
+      debugPrint("Response body: ${response.body}");
 
       if (response.statusCode == 200) {
-        debugPrint("✅ Email sent successfully to $targetEmail");
+        debugPrint("Email sent successfully to $targetEmail");
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -316,7 +406,7 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
         }
       } else {
         debugPrint(
-          "❌ Email Failed with status ${response.statusCode}: ${response.body}",
+          "Email Failed with status ${response.statusCode}: ${response.body}",
         );
 
         if (mounted) {
@@ -329,7 +419,7 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
         }
       }
     } catch (e) {
-      debugPrint("❌ Email Error: $e");
+      debugPrint("Email Error: $e");
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -340,6 +430,34 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
         );
       }
     }
+  }
+
+  String getFullAddress() {
+    final buffer = StringBuffer();
+
+    if (_addressController.text.isNotEmpty) {
+      buffer.write(_addressController.text);
+    }
+
+    if (selectedPostcode != null) {
+      buffer.write(", $selectedPostcode");
+    }
+
+    if (selectedCity != null) {
+      buffer.write(", $selectedCity");
+    }
+
+    if (selectedState != null) {
+      buffer.write(", $selectedState");
+    }
+
+    return buffer.toString();
+  }
+
+  bool get isAddressValid {
+    return selectedState != null &&
+        selectedCity != null &&
+        selectedPostcode != null;
   }
 
   @override
@@ -440,36 +558,38 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
                   borderRadius: BorderRadius.circular(10),
                   child: (firstImageUrl != null)
                       ? Image.network(
-                    firstImageUrl,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, progress) {
-                      if (progress == null) return child;
-                      return Container(
-                        color: Colors.grey[200],
-                        child: const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      if (firstLocalFile != null &&
-                          firstLocalFile.existsSync()) {
-                        return Image.file(
-                          firstLocalFile,
+                          firstImageUrl,
                           fit: BoxFit.cover,
-                        );
-                      }
+                          loadingBuilder: (context, child, progress) {
+                            if (progress == null) return child;
+                            return Container(
+                              color: Colors.grey[200],
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            if (firstLocalFile != null &&
+                                firstLocalFile.existsSync()) {
+                              return Image.file(
+                                firstLocalFile,
+                                fit: BoxFit.cover,
+                              );
+                            }
 
-                      return Container(
-                        color: Colors.grey[300],
-                        child: const Icon(Icons.pets, size: 40),
-                      );
-                    },
-                  )
+                            return Container(
+                              color: Colors.grey[300],
+                              child: const Icon(Icons.pets, size: 40),
+                            );
+                          },
+                        )
                       : Container(
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.pets, size: 40),
-                  ),
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.pets, size: 40),
+                        ),
                 ),
               ),
               const SizedBox(width: 16),
@@ -657,6 +777,65 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
             validator: (value) =>
                 (value == null || value.isEmpty) ? 'Address is required' : null,
           ),
+
+          const SizedBox(height: 6),
+
+          CustomDropdownField(
+            label: "State",
+            icon: Icons.map_outlined,
+            value: selectedState,
+            items: malaysiaAddress.keys.toList(),
+            onChanged: (value) {
+              setState(() {
+                selectedState = value;
+                selectedCity = null;
+                selectedPostcode = null;
+              });
+            },
+          ),
+
+          CustomDropdownField(
+            label: "City",
+            icon: Icons.location_city_outlined,
+            value: selectedCity,
+            items: selectedState == null
+                ? []
+                : malaysiaAddress[selectedState]!.keys.toList(),
+            onChanged: (value) {
+              setState(() {
+                selectedCity = value;
+                selectedPostcode = null;
+              });
+            },
+          ),
+
+          CustomDropdownField(
+            label: "Postcode",
+            icon: Icons.local_post_office_outlined,
+            value: selectedPostcode,
+            items: (selectedState != null && selectedCity != null)
+                ? malaysiaAddress[selectedState]![selectedCity]!
+                : [],
+            onChanged: (value) {
+              setState(() {
+                selectedPostcode = value;
+              });
+            },
+          ),
+
+          if (!isAddressValid)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(left: 4),
+                  child: Text(
+                    "Please complete State → City → Postcode",
+                    style: TextStyle(color: Colors.red, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -835,11 +1014,13 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
         const SizedBox(width: 16),
         Expanded(
           child: ElevatedButton(
-            onPressed: () {
-              if (_formKey.currentState!.validate()) {
-                _showApplyDialog();
-              }
-            },
+            onPressed: isAddressValid
+                ? () {
+                    if (_formKey.currentState!.validate()) {
+                      _showApplyDialog();
+                    }
+                  }
+                : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
