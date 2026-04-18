@@ -307,7 +307,7 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
     });
 
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(backgroundColor: AppColors.background, body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -681,6 +681,22 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
   }
 
   Widget _buildApplicationList() {
+    if (_isLoading) {
+      return const Expanded(
+        child: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_filteredApplications.isEmpty) {
+      return const Expanded(
+        child: Center(
+          child: Text("No applications found"),
+        ),
+      );
+    }
+
     return Expanded(
       child: ListView.builder(
         itemCount: _filteredApplications.length,
