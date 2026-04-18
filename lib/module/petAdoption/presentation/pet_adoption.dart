@@ -74,8 +74,9 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
     final inputImage = InputImage.fromFile(image);
     final textRecognizer = TextRecognizer();
 
-    final RecognizedText recognizedText =
-    await textRecognizer.processImage(inputImage);
+    final RecognizedText recognizedText = await textRecognizer.processImage(
+      inputImage,
+    );
 
     String fullText = recognizedText.text;
     debugPrint("IC TEXT:\n$fullText");
@@ -101,7 +102,6 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
         ic = icRegex.firstMatch(line)?.group(0);
         continue;
       }
-
     }
 
     setState(() {
@@ -174,8 +174,6 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
 
                   final email = _emailController.text.trim();
 
-                  await _sendEmail(email);
-
                   Navigator.pop(context);
 
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -188,6 +186,10 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
                   );
 
                   Navigator.pop(context);
+
+                  _sendEmail(email).catchError((e) {
+                    log("Email send failed: $e");
+                  });
                 } catch (e) {
                   log("Adoption application error: $e");
                 }
@@ -237,7 +239,6 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
         _localImages = localMap;
         _isLoading = false;
       });
-
     } catch (e) {
       log('Error fetching pets: $e');
     } finally {
@@ -284,14 +285,12 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
     try {
       debugPrint("📧 Attempting to send email to: $targetEmail");
 
-      final Uri uri = Uri.parse('http://192.168.100.169:3000/send-general-email');
+      final Uri uri = Uri.parse('http://10.0.2.2:3000/send-general-email');
       debugPrint("📧 Sending to URL: $uri");
 
       final response = await http.post(
         uri,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': targetEmail,
           'subject': 'Your PawHub Adoption Application 🐾',
@@ -314,7 +313,9 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
           );
         }
       } else {
-        debugPrint("❌ Email Failed with status ${response.statusCode}: ${response.body}");
+        debugPrint(
+          "❌ Email Failed with status ${response.statusCode}: ${response.body}",
+        );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -362,8 +363,10 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
           icon: const Icon(Icons.arrow_back_ios, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text("Application",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+        title: const Text(
+          "Application",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        ),
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
@@ -393,7 +396,7 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
               const SizedBox(height: 24),
               _buildSectionHeader("Home Assessment", Icons.home_work_outlined),
               _buildAssessmentSection(),
-              const SizedBox(height:10),
+              const SizedBox(height: 10),
               _buildActionButtons(),
             ],
           ),
@@ -403,10 +406,10 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
   }
 
   Widget _buildPetInfoCard(Pet pet) {
-    final firstImageUrl =
-    _imageUrls.isNotEmpty ? _imageUrls.first : null;
-    final firstLocalFile =
-    _localImages.isNotEmpty ? _localImages.values.first : null;
+    final firstImageUrl = _imageUrls.isNotEmpty ? _imageUrls.first : null;
+    final firstLocalFile = _localImages.isNotEmpty
+        ? _localImages.values.first
+        : null;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -428,41 +431,43 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: (firstImageUrl != null)
-                    ? Image.network(
-                  firstImageUrl,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, progress) {
-                    if (progress == null) return child;
-                    return Container(
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    if (firstLocalFile != null &&
-                        firstLocalFile.existsSync()) {
-                      return Image.file(
-                        firstLocalFile,
-                        fit: BoxFit.cover,
+              SizedBox(
+                width: 85,
+                height: 85,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: (firstImageUrl != null)
+                      ? Image.network(
+                    firstImageUrl,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return Container(
+                        color: Colors.grey[200],
+                        child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       );
-                    }
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      if (firstLocalFile != null &&
+                          firstLocalFile.existsSync()) {
+                        return Image.file(
+                          firstLocalFile,
+                          fit: BoxFit.cover,
+                        );
+                      }
 
-                    return Container(
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.pets, size: 40),
-                    );
-                  },
-                )
-                    : Container(
-                  width: 85,
-                  height: 85,
-                  color: Colors.grey[300],
-                  child: const Icon(Icons.pets, size: 40),
+                      return Container(
+                        color: Colors.grey[300],
+                        child: const Icon(Icons.pets, size: 40),
+                      );
+                    },
+                  )
+                      : Container(
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.pets, size: 40),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
@@ -558,17 +563,20 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
         children: [
           Icon(icon, size: 20, color: AppColors.primary),
           const SizedBox(width: 8),
-          Text(title, style: const TextStyle(
-              fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildPetDetail(IconData icon,
-      String text, {
-        Color color = Colors.black,
-      }) {
+  Widget _buildPetDetail(
+    IconData icon,
+    String text, {
+    Color color = Colors.black,
+  }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -593,8 +601,7 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
             validator: (value) {
               if (value == null || value.isEmpty)
                 return 'IC number is required';
-              if (value.length != 12)
-                return 'IC must be exactly 12 digits';
+              if (value.length != 12) return 'IC must be exactly 12 digits';
               if (!RegExp(r'^[0-9]+$').hasMatch(value))
                 return 'Enter digits only';
               return null;
@@ -613,11 +620,8 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
             icon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
             validator: (value) {
-              if (value == null || value.isEmpty)
-                return 'Email is required';
-              final emailRegex = RegExp(
-                r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-              );
+              if (value == null || value.isEmpty) return 'Email is required';
+              final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
               if (!emailRegex.hasMatch(value))
                 return 'Enter a valid email address';
               return null;
@@ -646,9 +650,8 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
             label: "ADDRESS",
             hint: "Enter your full address",
             icon: Icons.home_outlined,
-            validator: (value) => (value == null || value.isEmpty)
-                ? 'Address is required'
-                : null,
+            validator: (value) =>
+                (value == null || value.isEmpty) ? 'Address is required' : null,
           ),
         ],
       ),
@@ -675,9 +678,7 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
           hintText: hint,
           labelText: label,
           prefixIcon: icon,
-        ).copyWith(
-          suffixIcon: suffixIcon,
-        ),
+        ).copyWith(suffixIcon: suffixIcon),
       ),
     );
   }
@@ -686,7 +687,9 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(20)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Column(
         children: [
           _buildQuestionRow(1, "1. Is your residence pet-friendly?"),
@@ -696,13 +699,19 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
           _buildQuestionRow(3, "3. Have you owned a pet before?"),
           const Divider(),
           _buildQuestionRow(
-              4, "4. Are you familiar with basic pet training and care?"),
-          const Divider(),
-          _buildQuestionRow(5,
-              "5. Are all family members in agreement about adopting a pet?"),
+            4,
+            "4. Are you familiar with basic pet training and care?",
+          ),
           const Divider(),
           _buildQuestionRow(
-              6, "6. Are you willing to vaccinate and sterilize the pet?"),
+            5,
+            "5. Are all family members in agreement about adopting a pet?",
+          ),
+          const Divider(),
+          _buildQuestionRow(
+            6,
+            "6. Are you willing to vaccinate and sterilize the pet?",
+          ),
         ],
       ),
     );
@@ -714,8 +723,10 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(question, style: const TextStyle(
-              fontSize: 14, fontWeight: FontWeight.w500)),
+          Text(
+            question,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -741,8 +752,9 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
       backgroundColor: Colors.white,
       selectedColor: AppColors.primary.withValues(alpha: 0.2),
       labelStyle: TextStyle(
-          color: isSelected ? AppColors.primary : Colors.black,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+        color: isSelected ? AppColors.primary : Colors.black,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
     );
   }
 
@@ -752,18 +764,27 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Expanded(child: Text(
+          const Expanded(
+            child: Text(
               "2. How many hours per day will the pet be left alone",
-              style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w500))),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+          ),
           Row(
             children: [
-              _hourBtn(Icons.remove, () =>
-                  setState(() => _hoursAlone > 0 ? _hoursAlone-- : null)),
+              _hourBtn(
+                Icons.remove,
+                () => setState(() => _hoursAlone > 0 ? _hoursAlone-- : null),
+              ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text("$_hoursAlone", style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold)),
+                child: Text(
+                  "$_hoursAlone",
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               _hourBtn(Icons.add, () => setState(() => _hoursAlone++)),
             ],
@@ -779,7 +800,9 @@ class _MyAdoptionPageState extends State<PetAdoptionPage> {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-            shape: BoxShape.circle, color: AppColors.primary.withValues(alpha: 0.1)),
+          shape: BoxShape.circle,
+          color: AppColors.primary.withValues(alpha: 0.1),
+        ),
         child: Icon(icon, size: 20, color: AppColors.primary),
       ),
     );
