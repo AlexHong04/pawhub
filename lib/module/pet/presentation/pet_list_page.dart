@@ -10,7 +10,6 @@ import '../../../core/widgets/pet_card.dart';
 import '../../../core/widgets/pet_info_cell.dart';
 import '../../../core/widgets/search_field.dart';
 import '../model/pet_model.dart';
-import '../pet_routes.dart';
 import '../service/pet_service.dart';
 import 'create_edit_pet.dart';
 
