@@ -2,6 +2,7 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import 'package:pawhub/module/pet/presentation/pet_details.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/local_file_service.dart';
@@ -22,6 +23,7 @@ class PetListPage extends StatefulWidget {
 
 class _PetListPageState extends State<PetListPage> {
   final PetService _petService = PetService();
+  late Box box;
 
   List<Pet> _pets = [];
   Map<String, File?> _petImages = {};
@@ -80,55 +82,128 @@ class _PetListPageState extends State<PetListPage> {
     });
   }
 
-  Future<void> _fetchPets() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+  Future<bool> hasInternet() async {
     try {
-      final data = await _petService.fetchAllPets();
+      final result = await InternetAddress.lookup('google.com');
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
 
-      final pets = (data as List)
-          .map((item) => Pet.fromJson(item as Map<String, dynamic>))
+  void _loadCachedPets() {
+    final box = Hive.box('pets');
+
+    final cachedData = box.get('pet_list');
+
+    if (cachedData != null) {
+      final pets = (cachedData as List)
+          .map((e) => Pet.fromJson(Map<String, dynamic>.from(e)))
           .toList();
-
-      Map<String, File?> imageMap = {};
-
-      for (var p in pets) {
-        String? firstImageName = (p.image.isNotEmpty)
-            ? p.image.split(',').first.trim()
-            : null;
-
-        if (firstImageName != null && firstImageName.isNotEmpty) {
-          final file = await LocalFileService.loadSavedImage(firstImageName);
-          imageMap[p.id] = file;
-        } else {
-          imageMap[p.id] = null;
-        }
-      }
 
       setState(() {
         _pets = pets;
-        _petImages = imageMap;
-        _selectedPetIds.clear();
-      });
-    } catch (e) {
-      log('Error fetching pets: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to fetch pets: $e')));
-    } finally {
-      setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  String extractBaseName(String url) {
+    final fileName = Uri.parse(url).pathSegments.last;
+    return fileName.split('_').first;
+  }
+
+  Future<void> _fetchPets() async {
+    setState(() => _isLoading = true);
+
+    final box = Hive.box('pets');
+
+    try {
+      final online = await hasInternet();
+
+      if (online) {
+        // fetch from Supabase
+        final data = await _petService.fetchAllPets();
+
+        final pets = (data as List)
+            .map((item) => Pet.fromJson(item as Map<String, dynamic>))
+            .toList();
+
+        // save to Hive (CACHE)
+        await box.put('pet_list', data);
+
+        Map<String, File?> imageMap = {};
+        for (var p in pets) {
+          String? firstImageUrl = (p.image.isNotEmpty)
+              ? p.image.split(',').first.trim()
+              : null;
+
+          if (firstImageUrl != null && firstImageUrl.isNotEmpty) {
+            String fileName = extractBaseName(firstImageUrl);
+
+            final file = await LocalFileService.loadImage(fileName);
+            imageMap[p.id] = file;
+          } else {
+            imageMap[p.id] = null;
+          }
+        }
+        setState(() {
+          _pets = pets;
+          _petImages = imageMap;
+        });
+      } else {
+        // load from Hive (offline)
+        final cachedData = box.get('pet_list');
+
+        if (cachedData != null) {
+          final pets = (cachedData as List)
+              .map((item) => Pet.fromJson(Map<String, dynamic>.from(item)))
+              .toList();
+
+          Map<String, File?> imageMap = {};
+
+          for (var p in pets) {
+            String? firstImageUrl = (p.image.isNotEmpty)
+                ? p.image.split(',').first.trim()
+                : null;
+
+            if (firstImageUrl != null && firstImageUrl.isNotEmpty) {
+              String fileName = firstImageUrl.split('/').last;
+
+              final file = await LocalFileService.loadImage(fileName);
+              imageMap[p.id] = file;
+            } else {
+              imageMap[p.id] = null;
+            }
+          }
+
+          setState(() {
+            _pets = pets;
+            _petImages = imageMap;
+          });
+        } else {
+          // No cache available
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("No internet & no cached data available"),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      log('Error: $e');
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
   @override
   void initState() {
     // TODO: implement initState
-    _fetchPets();
     super.initState();
+    box = Hive.box('pets');
+    _loadCachedPets();
+    _fetchPets();
   }
 
   @override
@@ -218,10 +293,7 @@ class _PetListPageState extends State<PetListPage> {
       appBar: AppBar(
         title: Text(
           "Pet List",
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            color: Colors.black87,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black87),
         ),
         backgroundColor: Colors.white,
         centerTitle: true,
@@ -281,11 +353,6 @@ class _PetListPageState extends State<PetListPage> {
                               CreateEditPetPage(petId: selectedPet.id),
                         ),
                       );
-                      // await Navigator.pushNamed(
-                      //   context,
-                      //   '/create_edit_pet',
-                      //   arguments: selectedPet.id,
-                      // );
                       await _fetchPets();
                       log("Editing: ${selectedPet.name}");
                     },
@@ -304,76 +371,82 @@ class _PetListPageState extends State<PetListPage> {
 
             // Pet List
             Expanded(
-              child: ListView.builder(
-                itemCount: _filteredPets.length,
-                itemBuilder: (context, index) {
-                  final pet = _filteredPets[index];
-                  final imageFile = _petImages[pet.id];
+              child: RefreshIndicator(
+                onRefresh: _fetchPets,
+                child: ListView.builder(
+                  itemCount: _filteredPets.length,
+                  itemBuilder: (context, index) {
+                    final pet = _filteredPets[index];
+                    final imageFile = _petImages[pet.id];
 
-                  return PetCard(
-                    pet: pet,
-                    file: imageFile,
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              ViewPetDetailsPage(petId: pet.id),
+                    return PetCard(
+                      pet: pet,
+                      file: imageFile,
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                ViewPetDetailsPage(petId: pet.id),
+                          ),
+                          // Navigator.pushNamed(context, '/pet_details');
+                        );
+
+                        _fetchPets();
+                      },
+
+                      showCheckbox: true,
+                      isSelected: _selectedPetIds.contains(pet.id),
+                      onSelect: () => _toggleSelection(pet.id),
+                      trailingStatus: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
                         ),
-                        // Navigator.pushNamed(context, '/pet_details');
-                      );
-
-                      _fetchPets();
-                    },
-
-                    showCheckbox: true,
-                    isSelected: _selectedPetIds.contains(pet.id),
-                    onSelect: () => _toggleSelection(pet.id),
-                    trailingStatus: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                        decoration: BoxDecoration(
+                          color: pet.gender == "Male"
+                              ? Color(0xFFE8F0FF)
+                              : Color(0xFFFFE8E8),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          pet.gender,
+                          style: TextStyle(color: Colors.black),
+                        ),
                       ),
-                      decoration: BoxDecoration(
-                        color: pet.gender == "Male"
-                            ? Color(0xFFE8F0FF)
-                            : Color(0xFFFFE8E8),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        pet.gender,
-                        style: TextStyle(color: Colors.black),
-                      ),
-                    ),
-                    tableRows: [
-                      TableRow(
-                        children: [
-                          InfoCell(icon: Icons.cake, text: "${pet.age} years"),
-                          InfoCell(
-                            icon: Icons.local_hospital,
-                            text: pet.health,
-                            textColor: getHealthColor(pet.health),
-                          ),
-                        ],
-                      ),
-                      const TableRow(
-                        children: [SizedBox(height: 8), SizedBox(height: 8)],
-                      ),
-                      TableRow(
-                        children: [
-                          InfoCell(
-                            icon: Icons.volunteer_activism,
-                            text: pet.adopted ? "Adopted" : "Not yet",
-                          ),
-                          InfoCell(
-                            icon: Icons.vaccines,
-                            text: pet.vaccination ? "Vaccinated" : "Not yet",
-                          ),
-                        ],
-                      ),
-                    ],
-                  );
-                },
+                      tableRows: [
+                        TableRow(
+                          children: [
+                            InfoCell(
+                              icon: Icons.cake,
+                              text: "${pet.age} years",
+                            ),
+                            InfoCell(
+                              icon: Icons.local_hospital,
+                              text: pet.health,
+                              textColor: getHealthColor(pet.health),
+                            ),
+                          ],
+                        ),
+                        const TableRow(
+                          children: [SizedBox(height: 8), SizedBox(height: 8)],
+                        ),
+                        TableRow(
+                          children: [
+                            InfoCell(
+                              icon: Icons.volunteer_activism,
+                              text: pet.adopted ? "Adopted" : "Not yet",
+                            ),
+                            InfoCell(
+                              icon: Icons.vaccines,
+                              text: pet.vaccination ? "Vaccinated" : "Not yet",
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ],

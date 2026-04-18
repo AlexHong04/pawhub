@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:http/http.dart' as http;
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -305,5 +306,19 @@ class LocalFileService {
 
     items.sort(_sortByIndex);
     await prefs.setString(storageKey, _encodeMetadataList(items));
+  }
+
+  static Future<File?> loadImage(String fileName) async {
+    final directory = await getApplicationDocumentsDirectory();
+
+    final filePath = '${directory.path}/pet_images/$fileName';
+
+    final file = File(filePath);
+
+    if (await file.exists()) {
+      return file;
+    }
+
+    return null;
   }
 }
