@@ -50,11 +50,68 @@ class _MyEventsPageState extends State<MyEventsPage>
 
   Future<void> _fetchMyEvents() async {
     final data = await EventService.getMyJoinedEvents(widget.userId);
-    if (mounted) {
-      setState(() {
-        _allJoinedEvents = data;
-        _isLoading = false;
-      });
+
+    List<String> eventsToMarkIncomplete = [];
+    DateTime now = DateTime.now();
+
+    for (var item in data) {
+      if (item['joinned_status'] == 'Upcoming' && item['check_in_time'] == null) {
+        final event = item['Event'];
+
+        if (event != null && event['event_date'] != null) {
+          try {
+            DateTime eventDate = DateTime.parse(event['event_date']);
+
+            String endTimeStr = event['end_time'] ?? "23:59:59";
+
+            List<String> timeParts = endTimeStr.split(':');
+            int hour = int.parse(timeParts[0]);
+            int minute = int.parse(timeParts[1]);
+            // Optional: handle seconds if they exist
+            int second = timeParts.length > 2 ? int.parse(timeParts[2].split('.')[0]) : 0;
+
+            DateTime eventEndTime = DateTime(
+              eventDate.year,
+              eventDate.month,
+              eventDate.day,
+              hour,
+              minute,
+              second,
+            );
+
+            // 5. If 'now' is past the end time, it's officially incomplete
+            if (now.isAfter(eventEndTime)) {
+              eventsToMarkIncomplete.add(item['event_id'].toString());
+            }
+          } catch (e) {
+            debugPrint("Error processing event ${item['event_id']}: $e");
+          }
+        }
+      }
+    }
+
+    if (eventsToMarkIncomplete.isNotEmpty) {
+      await EventService.bulkUpdateStatus(
+        userId: widget.userId,
+        eventIds: eventsToMarkIncomplete,
+        newStatus: 'Incomplete',
+      );
+
+      final updatedData = await EventService.getMyJoinedEvents(widget.userId);
+      if (mounted) {
+        setState(() {
+          _allJoinedEvents = updatedData;
+          _isLoading = false;
+        });
+      }
+    } else {
+      // No updates needed, just show the data we already fetched
+      if (mounted) {
+        setState(() {
+          _allJoinedEvents = data;
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -438,6 +495,8 @@ class _MyEventsPageState extends State<MyEventsPage>
                             decoration: BoxDecoration(
                               color: data['joinned_status'] == 'Upcoming'
                                   ? Colors.orange.withOpacity(0.2)
+                                  : data['joinned_status'] == 'Incomplete'
+                                  ? Colors.red.withOpacity(0.2)
                                   : Colors.grey.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -446,6 +505,8 @@ class _MyEventsPageState extends State<MyEventsPage>
                               style: TextStyle(
                                 color: data['joinned_status'] == 'Upcoming'
                                     ? Colors.orange
+                                    : data['joinned_status'] == 'Incomplete'
+                                    ? Colors.red
                                     : Colors.grey,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
@@ -454,48 +515,52 @@ class _MyEventsPageState extends State<MyEventsPage>
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: data['check_in_time'] != null
-                              ? null
-                              : () {
-                            _openCheckInScanner(eventId);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: data['check_in_time'] != null
-                                ? Colors.grey
-                                : Colors.blue,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+
+                      if (tabType == 'Upcoming') ...[
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: data['check_in_time'] != null
+                                ? null
+                                : () {
+                              _openCheckInScanner(eventId);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: data['check_in_time'] != null
+                                  ? Colors.grey
+                                  : Colors.blue,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                data['check_in_time'] != null
-                                    ? Icons.check_circle
-                                    : Icons.qr_code_scanner,
-                                color: Colors.white,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                data['check_in_time'] != null
-                                    ? "Checked In: ${_formatCheckInTime(data['check_in_time'])}"
-                                    : "Scan to Check In",
-                                style: const TextStyle(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  data['check_in_time'] != null
+                                      ? Icons.check_circle
+                                      : Icons.qr_code_scanner,
                                   color: Colors.white,
-                                  fontWeight: FontWeight.bold,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 8),
+                                Text(
+                                  data['check_in_time'] != null
+                                      ? "Checked In: ${_formatCheckInTime(data['check_in_time'])}"
+                                      : "Scan to Check In",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ] else ...[
+                      // Completed section
                       const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -515,7 +580,6 @@ class _MyEventsPageState extends State<MyEventsPage>
                         ],
                       ),
                       const SizedBox(height: 16),
-                      // Inside _buildEventList itemBuilder, under the 'else' (Completed) section:
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton(
@@ -526,13 +590,10 @@ class _MyEventsPageState extends State<MyEventsPage>
                             File? localFile = await LocalFileService.loadSavedImage(storageKey);
 
                             if (localFile != null) {
-                              // Show the local file directly
                               _showCertificatePreview(file: localFile);
                             } else if (data['certificate_url'] != null && data['certificate_url'].toString().isNotEmpty) {
-                              // 2. Fallback to Supabase URL if local is missing
                               _showCertificatePreview(url: data['certificate_url']);
                             } else {
-                              // 3. Generate if neither exists
                               _showLoadingDialog();
                               try {
                                 String? newUrl = await EventService.generateAndUploadCertificate(
@@ -576,25 +637,17 @@ class _MyEventsPageState extends State<MyEventsPage>
 
   Widget _buildImageHandler(String? filename) {
     if (filename == null || filename.isEmpty) {
-      return Container(
-        color: const Color(0xFFF5F5F5),
-        child: const Icon(Icons.pets, color: Colors.grey, size: 50),
-      );
+      return const Icon(Icons.pets, color: Colors.grey, size: 30);
     }
-    if (filename.startsWith('http')) {
-      return Image.network(
-        filename,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        errorBuilder: (_, __, ___) => _buildPlaceholder(),
-      );
-    }
-    final String assetPath = 'assets/images/$filename';
-    return Image.asset(
-      assetPath,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
+
+    return Image.network(
+      filename.startsWith('http') ? filename : 'assets/images/$filename',
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.grey),
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      },
     );
   }
 
@@ -634,16 +687,6 @@ class _MyEventsPageState extends State<MyEventsPage>
     }
   }
 
-  String _formatCheckInTime(String? timeString) {
-    if (timeString == null) return 'N/A';
-    try {
-      final time = DateTime.parse(timeString);
-      return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return timeString;
-    }
-  }
-
   String _getMonthAbbreviation(int month) {
     const months = [
       'Jan',
@@ -662,11 +705,46 @@ class _MyEventsPageState extends State<MyEventsPage>
     return months[month - 1];
   }
 
+  String _formatCheckInTime(String? timeString) {
+    if (timeString == null) return 'N/A';
+    try {
+      final time = DateTime.parse(timeString);
+      int hour = time.hour;
+      int minute = time.minute;
+      String ampm = hour >= 12 ? 'PM' : 'AM';
+
+      hour = hour % 12;
+      if (hour == 0) hour = 12; // Handle midnight and noon
+
+      return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $ampm';
+    } catch (_) {
+      return timeString;
+    }
+  }
+
   String _formatTime(String? start, String? end) {
+    String formatSingleTime(String t) {
+      try {
+        final parts = t.split(':');
+        if (parts.length >= 2) {
+          int h = int.parse(parts[0]);
+          int m = int.parse(parts[1]);
+          String ampm = h >= 12 ? 'PM' : 'AM';
+
+          h = h % 12;
+          if (h == 0) h = 12;
+
+          return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')} $ampm';
+        }
+      } catch (_) {}
+      return t.length >= 5 ? t.substring(0, 5) : t;
+    }
+
     if (start == null) return 'Time TBD';
-    String s = start.length >= 5 ? start.substring(0, 5) : start;
+    String s = formatSingleTime(start);
     if (end == null) return s;
-    String e = end.length >= 5 ? end.substring(0, 5) : end;
+    String e = formatSingleTime(end);
+
     return '$s - $e';
   }
 

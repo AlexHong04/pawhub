@@ -5,10 +5,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:pawhub/module/volunteer/service/volunteerService.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import '../../../core/utils/event_draft_store.dart';
+import '../../../core/utils/local_file_service.dart';
 import '../../../core/widgets/appDecorations.dart';
 import '../model/OSMPlace.dart';
 import '../model/event.dart';
 import '../service/OSMService.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AddEventScreen extends StatefulWidget {
   final String? eventId;
@@ -47,16 +50,139 @@ class _AddEventScreenState extends State<AddEventScreen> {
   List<OSMPlace> _suggestions = [];
   OSMPlace? _selectedPlace;
   Timer? _debounce;
+  static const String _draftImageKey = 'event_draft_flyer';
+  bool _isRestoringDraft = false;
+  bool _draftListenersAttached = false;
 
   @override
   void initState() {
     super.initState();
     _isEditMode = widget.eventId != null;
+
     if (_isEditMode) {
       _loadEventData();
     } else {
       _isLoadingEvent = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await _tryRestoreDraft();
+        _attachDraftListeners();
+      });
     }
+  }
+
+  void _attachDraftListeners() {
+    if (_draftListenersAttached) return;
+    _draftListenersAttached = true;
+
+    _titleController.addListener(_saveDraftSafely);
+    _descController.addListener(_saveDraftSafely);
+    _addressController.addListener(_saveDraftSafely);
+    _capacityController.addListener(_saveDraftSafely);
+  }
+
+  Future<void> _tryRestoreDraft() async {
+    if (_isEditMode) return;
+
+    final draft = await EventDraftStore.read();
+    if (draft == null) return;
+
+    if (!mounted) return;
+    final restore = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Restore draft?'),
+        content: const Text('We found an unsaved event draft. Do you want to continue editing it?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Discard'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Restore'),
+          ),
+        ],
+      ),
+    );
+
+    if (restore == true) {
+      _isRestoringDraft = true;
+      try {
+        _titleController.text = draft['title'] ?? '';
+        _descController.text = draft['description'] ?? '';
+        _addressController.text = draft['address'] ?? '';
+        _capacityController.text = draft['capacity']?.toString() ?? '';
+        _category = draft['category'] ?? 'Rescue Activities';
+
+        final dateStr = draft['event_date'] as String?;
+        if (dateStr != null && dateStr.isNotEmpty) {
+          _selectedDate = DateTime.tryParse(dateStr);
+        }
+
+        final start = draft['start_time'] as String?;
+        if (start != null && start.isNotEmpty) {
+          _startTime = parseSupabaseTime(start);
+          _startTimeController.text = _formatTime(_startTime);
+        }
+
+        final end = draft['end_time'] as String?;
+        if (end != null && end.isNotEmpty) {
+          _endTime = parseSupabaseTime(end);
+          _endTimeController.text = _formatTime(_endTime);
+        }
+
+        final lat = (draft['lat'] as num?)?.toDouble();
+        final lon = (draft['lon'] as num?)?.toDouble();
+        final displayName = draft['selected_place_name'] as String?;
+        if (lat != null && lon != null && displayName != null && displayName.isNotEmpty) {
+          _selectedPlace = OSMPlace(displayName: displayName, lat: lat, lon: lon);
+        }
+
+        // Restore flyer file from local metadata
+        final localFlyer = await LocalFileService.loadSavedImage(_draftImageKey);
+        if (localFlyer != null) _flyerFile = localFlyer;
+
+        if (mounted) setState(() {});
+      } finally {
+        _isRestoringDraft = false;
+      }
+    } else {
+      // user chose discard
+      await _clearDraftAll();
+    }
+  }
+
+  Future<void> _clearDraftAll() async {
+    await EventDraftStore.clear();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_draftImageKey);
+
+    // Optional: remove local draft image file too
+    final localFile = await LocalFileService.loadSavedImage(_draftImageKey);
+    if (localFile != null && await localFile.exists()) {
+      await localFile.delete();
+    }
+  }
+
+  Future<void> _saveDraftSafely() async {
+    if (_isEditMode || _isRestoringDraft) return;
+
+    final data = <String, dynamic>{
+      'title': _titleController.text.trim(),
+      'description': _descController.text.trim(),
+      'address': _addressController.text.trim(),
+      'capacity': _capacityController.text.trim(),
+      'category': _category,
+      'event_date': _selectedDate?.toIso8601String(),
+      'start_time': _startTime != null ? _to24h(_startTime!) : null,
+      'end_time': _endTime != null ? _to24h(_endTime!) : null,
+      'selected_place_name': _selectedPlace?.displayName,
+      'lat': _selectedPlace?.lat,
+      'lon': _selectedPlace?.lon,
+    };
+
+    await EventDraftStore.save(data);
   }
 
   Future<void> _loadEventData() async {
@@ -478,7 +604,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  onPressed: _submitForm,
+                  onPressed: _isLoading ? null : _submitForm,
                   child: Text(
                     _isEditMode ? "UPDATE EVENT" : "CREATE EVENT",
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -494,6 +620,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
   }
 
   void _submitForm() async {
+    if (_isLoading) return;
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedPlace == null) {
@@ -583,6 +710,9 @@ class _AddEventScreenState extends State<AddEventScreen> {
         );
 
         ok = await EventService.addEvent(newEvent);
+        if (!_isEditMode) {
+          await _clearDraftAll();
+        }
       }
 
       if (!ok) {
@@ -638,9 +768,22 @@ class _AddEventScreenState extends State<AddEventScreen> {
   Future<void> _pickFlyer() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked != null) {
+      final file = File(picked.path);
+
+      // Persist image into app documents folder for draft
+      await LocalFileService.storeImageLocally(
+        'event_draft',
+        file.path,
+        _draftImageKey,
+        'event_drafts',
+        index: 0,
+      );
+
       setState(() {
-        _flyerFile = File(picked.path);
+        _flyerFile = file;
       });
+
+      await _saveDraftSafely();
     }
   }
 
@@ -679,6 +822,12 @@ class _AddEventScreenState extends State<AddEventScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
+
+    _titleController.removeListener(_saveDraftSafely);
+    _descController.removeListener(_saveDraftSafely);
+    _addressController.removeListener(_saveDraftSafely);
+    _capacityController.removeListener(_saveDraftSafely);
+
     _titleController.dispose();
     _descController.dispose();
     _addressController.dispose();

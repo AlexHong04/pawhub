@@ -40,15 +40,62 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   Future<void> _loadEvents() async {
     setState(() => _isLoading = true);
     try {
-      final events = await EventService.getAllEvents();
-      setState(() {
-        _allEvents = events;
-        _applyFilters();
-        _isLoading = false;
-      });
+      List<Map<String, dynamic>> events = await EventService.getAllEvents();
+
+      bool requiresRefresh = false;
+      final DateTime now = DateTime.now();
+
+      // Check for expired events
+      for (var event in events) {
+        if (event['event_status'] == 'Available' &&
+            event['event_date'] != null &&
+            event['start_time'] != null) {
+
+          try {
+            // Parse Date
+            DateTime eventDate = DateTime.parse(event['event_date']);
+
+            // Parse Time
+            List<String> timeParts = event['start_time'].toString().split(':');
+            int hour = int.parse(timeParts[0]);
+            int minute = int.parse(timeParts[1]);
+
+            DateTime eventStartDateTime = DateTime(
+              eventDate.year,
+              eventDate.month,
+              eventDate.day,
+              hour,
+              minute,
+            );
+
+            if (now.isAfter(eventStartDateTime)) {
+              await EventService.updateEvent(event['event_id'].toString(), {
+                'event_status': 'Expired'
+              });
+              requiresRefresh = true;
+            }
+          } catch (e) {
+            debugPrint("Error checking event expiration for ID ${event['event_id']}: $e");
+          }
+        }
+      }
+
+      if (requiresRefresh) {
+        events = await EventService.getAllEvents();
+      }
+
+      if (mounted) {
+        setState(() {
+          _allEvents = events;
+          _applyFilters();
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
-      _showSnackBar('Error loading events: $e', isError: true);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showSnackBar('Error loading events: $e', isError: true);
+      }
     }
   }
 
@@ -199,9 +246,12 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
 
   // ================= MINIMALIST POPUP =================
 
+  // ================= MINIMALIST POPUP =================
+
   void _showEventPopup(Map<String, dynamic> event) {
     final String eventId = event['event_id'] ?? '';
     final String title = event['title'] ?? '';
+    final bool isExpired = event['event_status'] == 'Expired'; // ✅ Check if expired
 
     showDialog(
       context: context,
@@ -247,40 +297,50 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                   padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                   child: Column(
                     children: [
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (_) => QRDialog(data: eventId, title: 'Event QR'),
-                            );
-                          },
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            side: const BorderSide(color: AppColors.primary),
-                            foregroundColor: AppColors.primary,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          icon: const Icon(Icons.qr_code_scanner, size: 18),
-                          label: const Text(
-                            "Generate Event QR",
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                      // ✅ Hide QR Generation if Expired
+                      if (!isExpired) ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => QRDialog(data: eventId, title: 'Event QR'),
+                              );
+                            },
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              side: const BorderSide(color: AppColors.primary),
+                              foregroundColor: AppColors.primary,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            icon: const Icon(Icons.qr_code_scanner, size: 18),
+                            label: const Text(
+                              "Generate Event QR",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
+                        const SizedBox(height: 20),
+                      ],
+
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
+                          // Volunteers still visible
                           _buildSmallAction(Icons.group, "Volunteers", Colors.blue, () {}),
-                          _buildSmallAction(Icons.edit, "Edit", Colors.orange, () {
-                            Navigator.pop(context);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => AddEventScreen(eventId: eventId)),
-                            ).then((_) => _loadEvents());
-                          }),
+
+                          // ✅ Hide Edit Button if Expired
+                          if (!isExpired)
+                            _buildSmallAction(Icons.edit, "Edit", Colors.orange, () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => AddEventScreen(eventId: eventId)),
+                              ).then((_) => _loadEvents());
+                            }),
+
+                          // Delete still visible
                           _buildSmallAction(Icons.delete, "Delete", Colors.red, () {
                             Navigator.pop(context);
                             _showDeleteConfirmation(eventId, title);
@@ -569,42 +629,45 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   Widget _buildFlyerPreview(String? flyerUrl) {
     if (flyerUrl == null || flyerUrl.trim().isEmpty) {
       return Container(
-        height: 120,
+        height: 160,
         width: double.infinity,
         decoration: BoxDecoration(
           color: Colors.grey[100],
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
         ),
         child: const Icon(Icons.image_not_supported_outlined, color: Colors.grey),
       );
     }
 
-    return Image.network(
-      flyerUrl,
-      height: 120,
+    return Container(
+      height: 200,
       width: double.infinity,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => Container(
-        height: 120,
-        width: double.infinity,
-        color: Colors.grey[100],
-        child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
-      ),
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return Container(
-          height: 120,
+      color: Colors.black.withOpacity(0.03),
+      child: Image.network(
+        flyerUrl,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => Container(
+          height: 160,
           width: double.infinity,
           color: Colors.grey[100],
-          child: const Center(
-            child: SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
+          child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+        ),
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            height: 160,
+            width: double.infinity,
+            color: Colors.grey[100],
+            child: const Center(
+              child: SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 

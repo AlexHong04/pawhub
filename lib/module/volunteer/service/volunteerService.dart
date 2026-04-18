@@ -582,32 +582,19 @@ class EventService {
     }
   }
 
-  Map<String, dynamic>? _getWeatherForDate(Map<String, dynamic> data,
-      String eventDate) {
+  static Future<void> bulkUpdateStatus({
+    required String userId,
+    required List<String> eventIds,
+    required String newStatus,
+  }) async {
     try {
-      final list = data['list'] as List?;
-      if (list == null || list.isEmpty) return null;
-
-      DateTime eventDateTime;
-      try {
-        eventDateTime = DateTime.parse(eventDate);
-      } catch (e) {
-        return list[0]; // Fallback to current if date is unparseable
-      }
-
-      // Attempt to find the day
-      for (var forecast in list) {
-        final dt = DateTime.fromMillisecondsSinceEpoch(
-            (forecast['dt'] as int) * 1000);
-        if (dt.year == eventDateTime.year && dt.month == eventDateTime.month &&
-            dt.day == eventDateTime.day) {
-          return forecast;
-        }
-      }
-
-      return list[0]; // Return "Right Now" weather if the event is too far in the future
+      await Supabase.instance.client
+          .from('JoinedEvent')
+          .update({'joinned_status': newStatus})
+          .eq('user_id', userId)
+          .inFilter('event_id', eventIds);
     } catch (e) {
-      return null;
+      debugPrint("Failed to update status: $e");
     }
   }
 }
