@@ -55,7 +55,7 @@ class _PetListPageState extends State<PetListPage> {
           query.isEmpty ||
           pet.name.toLowerCase().contains(query) ||
           pet.species.toLowerCase().contains(query) ||
-          pet.gender.toLowerCase().contains(query);
+              pet.gender.toLowerCase() == query;
 
       return matchesFilter && matchesSearch;
     }).toList();
@@ -227,6 +227,7 @@ class _PetListPageState extends State<PetListPage> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
           ),
+          backgroundColor: Colors.white,
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -440,6 +441,7 @@ class _PetListPageState extends State<PetListPage> {
                             InfoCell(
                               icon: Icons.vaccines,
                               text: pet.vaccination ? "Vaccinated" : "Not yet",
+                              textColor: pet.vaccination ? AppColors.primary : Colors.red,
                             ),
                           ],
                         ),
