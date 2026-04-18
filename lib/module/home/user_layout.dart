@@ -58,7 +58,7 @@ class UserLayoutState extends State<UserLayout> {
             child: NavigationBar(
               backgroundColor: AppColors.white,
               surfaceTintColor: Colors.transparent,
-              indicatorColor: AppColors.primaryLight,
+              indicatorColor: Colors.transparent,
               selectedIndex: safeIndex,
               height: 70,
               labelTextStyle:

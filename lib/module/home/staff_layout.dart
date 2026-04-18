@@ -61,7 +61,7 @@ class StaffLayoutState extends State<StaffLayout> {
             child: NavigationBar(
               backgroundColor: AppColors.white,
               surfaceTintColor: Colors.transparent,
-              indicatorColor: AppColors.primaryLight,
+              indicatorColor: Colors.transparent,
               selectedIndex: safeIndex,
               height: 70,
               labelTextStyle:

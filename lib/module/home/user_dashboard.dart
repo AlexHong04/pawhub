@@ -101,7 +101,7 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
           ),
         ),
         centerTitle: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: AppColors.textDark,
       ),
@@ -224,126 +224,138 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
         await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-                ViewPetDetailsPage(petId: pet['pet_id']),
+            builder: (_) => ViewPetDetailsPage(petId: pet['pet_id']),
           ),
         );
       },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Stack(
-              children: [
-                // 1. The Pet Image
-                Positioned.fill(
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
-                    ),
-                    child: Image.network(
-                      pet['image_url'] ?? '',
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: AppColors.inputFill,
-                        child: const Icon(
-                          Icons.pets,
-                          color: AppColors.textPlaceholder,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white, // 👈 THIS is what you want
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Stack(
+                children: [
+                  // 1. The Pet Image
+                  Positioned.fill(
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16),
+                      ),
+                      child: Image.network(
+                        pet['image_url'] ?? '',
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: AppColors.inputFill,
+                          child: const Icon(
+                            Icons.pets,
+                            color: AppColors.textPlaceholder,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
 
-                // 2. Urgent Banner Overlay
-                if (isUrgent)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: const BoxDecoration(
-                        color: Colors.redAccent,
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          bottomRight: Radius.circular(12),
+                  // 2. Urgent Banner Overlay
+                  if (isUrgent)
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: const BoxDecoration(
+                          color: Colors.redAccent,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            bottomRight: Radius.circular(12),
+                          ),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.priority_high,
+                              color: Colors.white,
+                              size: 12,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              "URGENT",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: const Row(
-                        children: [
-                          Icon(
-                            Icons.priority_high,
-                            color: Colors.white,
-                            size: 12,
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            "URGENT",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
-                            ),
-                          ),
+                    ),
+
+                  // 3. Gender Icon Overlay
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        shape: BoxShape.circle,
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black12, blurRadius: 4),
                         ],
                       ),
+                      child: Icon(
+                        isMale ? Icons.male : Icons.female,
+                        size: 16,
+                        color: genderColor,
+                      ),
                     ),
                   ),
-
-                // 3. Gender Icon Overlay
-                Positioned(
-                  bottom: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      shape: BoxShape.circle,
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black12, blurRadius: 4),
-                      ],
-                    ),
-                    child: Icon(
-                      isMale ? Icons.male : Icons.female,
-                      size: 16,
-                      color: genderColor,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  pet['name'] ?? 'Unknown',
-                  style: const TextStyle(
-                    color: AppColors.textDark,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    pet['name'] ?? 'Unknown',
+                    style: const TextStyle(
+                      color: AppColors.textDark,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  "${pet['gender']} • ${pet['age']} yrs",
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
+                  Text(
+                    "${pet['gender']} • ${pet['age']} yrs",
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(spacing: 4, runSpacing: 4, children: _buildPetTags(pet)),
-              ],
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 4, runSpacing: 4, children: _buildPetTags(pet)),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
