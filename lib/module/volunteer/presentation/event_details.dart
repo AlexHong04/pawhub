@@ -4,8 +4,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:pawhub/core/constants/colors.dart';
 import 'package:pawhub/module/volunteer/service/volunteerService.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -42,8 +40,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
       final double lat = (widget.event['latitude'] as num?)?.toDouble() ?? 0.0;
       final double lng = (widget.event['longitude'] as num?)?.toDouble() ?? 0.0;
 
-      print("✅ Event coordinates - Lat: $lat, Lng: $lng");
-
       if (lat != 0.0 && lng != 0.0) {
         _eventLocation = LatLng(lat, lng);
         _mapInitialized = true;
@@ -55,7 +51,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         });
       }
     } catch (e) {
-      print("❌ Error initializing location: $e");
       setState(() {
         _distanceText = "Error loading location";
         _mapInitialized = false;
@@ -76,7 +71,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         return;
       }
 
-      // Using your active key
       const String apiKey = 'dbfdb87ff70cb0175ee9cf4ee0e29018';
       final String url =
           'https://api.openweathermap.org/data/2.5/forecast?lat=$lat&lon=$lng&appid=$apiKey&units=metric';
@@ -85,11 +79,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-
-        // Get the date string: 2026-04-12
         final String eventDateStr = widget.event['event_date'] ?? '';
-
-        // Attempt to find the specific day in the list
         final weatherForDay = _getWeatherForDate(data, eventDateStr);
 
         if (mounted) {
@@ -100,14 +90,12 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           });
         }
       } else {
-        print("❌ Weather API error: ${response.statusCode} - ${response.body}");
         setState(() {
           _isLoadingWeather = false;
           _weatherError = "API Error: ${response.statusCode}";
         });
       }
     } catch (e) {
-      print("❌ Weather Catch Error: $e");
       if (mounted) {
         setState(() {
           _isLoadingWeather = false;
@@ -122,15 +110,10 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
       final list = data['list'] as List?;
       if (list == null || list.isEmpty) return null;
 
-      // Parse '2026-04-12' into a DateTime object
       DateTime eventDateTime = DateTime.parse(eventDate);
 
-      // Filter to find the forecast for that specific day
       for (var forecast in list) {
-        // API provides 'dt' in seconds
         final dt = DateTime.fromMillisecondsSinceEpoch((forecast['dt'] as int) * 1000);
-
-        // Compare ONLY year, month, and day (ignore hours/minutes)
         if (dt.year == eventDateTime.year &&
             dt.month == eventDateTime.month &&
             dt.day == eventDateTime.day) {
@@ -143,6 +126,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
       return null;
     }
   }
+
   IconData _getWeatherIcon(String? condition) {
     switch (condition?.toLowerCase()) {
       case 'clear':
@@ -166,7 +150,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     }
   }
 
-  // ✅ NEW: Get weather color
   Color _getWeatherColor(String? condition) {
     switch (condition?.toLowerCase()) {
       case 'clear':
@@ -196,31 +179,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     });
 
     await _checkJoinStatus();
-  }
-
-  Future<bool> _assetImageExists(String filename) async {
-    try {
-      await DefaultAssetBundle.of(context).load('assets/images/$filename');
-      return true;
-    } catch (e) {
-      print("❌ Asset not found: $e");
-      return false;
-    }
-  }
-
-  Future<String?> _getLocalImagePath(String filename, String folderName) async {
-    try {
-      final appDir = await getApplicationDocumentsDirectory();
-      final filePath = '${appDir.path}/$folderName/$filename';
-      final file = File(filePath);
-
-      if (await file.exists()) {
-        return filePath;
-      }
-      return null;
-    } catch (e) {
-      return null;
-    }
   }
 
   Future<void> _calculateUserDistance() async {
@@ -254,19 +212,13 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
             }
           }
         } catch (e) {
-          if (mounted) {
-            setState(() => _distanceText = "Distance unavailable");
-          }
+          if (mounted) setState(() => _distanceText = "Distance unavailable");
         }
       } else {
-        if (mounted) {
-          setState(() => _distanceText = "Location permission denied");
-        }
+        if (mounted) setState(() => _distanceText = "Location permission denied");
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _distanceText = "Distance unavailable");
-      }
+      if (mounted) setState(() => _distanceText = "Distance unavailable");
     }
   }
 
@@ -283,8 +235,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
       final double lng = _eventLocation!.longitude;
 
       final Uri geoUri = Uri.parse("geo:$lat,$lng?q=$lat,$lng");
-      final Uri webUri =
-      Uri.parse("https://www.google.com/maps?q=$lat,$lng");
+      final Uri webUri = Uri.parse("https://www.google.com/maps?q=$lat,$lng");
 
       if (await canLaunchUrl(geoUri)) {
         await launchUrl(geoUri, mode: LaunchMode.externalApplication);
@@ -330,9 +281,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoadingStatus = false);
-      }
+      if (mounted) setState(() => _isLoadingStatus = false);
     }
   }
 
@@ -341,12 +290,10 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Center(
             child: Text("Volunteers Joined",
-                style:
-                TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ),
           content: SizedBox(
             width: double.maxFinite,
@@ -358,8 +305,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                   return const SizedBox(
                     height: 100,
                     child: Center(
-                        child: CircularProgressIndicator(
-                            color: AppColors.primary)),
+                        child: CircularProgressIndicator(color: AppColors.primary)),
                   );
                 }
 
@@ -378,8 +324,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
                 return ConstrainedBox(
                   constraints: BoxConstraints(
-                      maxHeight:
-                      MediaQuery.of(context).size.height * 0.4),
+                      maxHeight: MediaQuery.of(context).size.height * 0.4),
                   child: ListView.builder(
                     shrinkWrap: true,
                     itemCount: participants.length,
@@ -390,23 +335,18 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: CircleAvatar(
-                          backgroundColor:
-                          AppColors.primary.withOpacity(0.1),
-                          backgroundImage: (userData['avatar_url'] !=
-                              null &&
+                          backgroundColor: AppColors.primary.withOpacity(0.1),
+                          backgroundImage: (userData['avatar_url'] != null &&
                               userData['avatar_url'].isNotEmpty)
                               ? NetworkImage(userData['avatar_url'])
                               : null,
                           child: userData['avatar_url'] == null
-                              ? const Icon(Icons.person,
-                              color: AppColors.primary)
+                              ? const Icon(Icons.person, color: AppColors.primary)
                               : null,
                         ),
-                        title: Text(
-                            userData['name'] ?? 'Volunteer',
+                        title: Text(userData['name'] ?? 'Volunteer',
                             style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14)),
+                                fontWeight: FontWeight.bold, fontSize: 14)),
                       );
                     },
                   ),
@@ -417,15 +357,33 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Close",
-                  style: TextStyle(color: AppColors.primary)),
+              child: const Text("Close", style: TextStyle(color: AppColors.primary)),
             )
           ],
         ),
       );
-    } catch (e) {
-    }
+    } catch (e) {}
   }
+
+  // --- Formatting Helpers for Date & Time ---
+  String _formatDate(String? dateString) {
+    if (dateString == null) return 'Date TBD';
+    try {
+      final date = DateTime.parse(dateString);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return '${date.day} ${months[date.month - 1]} ${date.year}';
+    } catch (_) { return dateString; }
+  }
+
+  String _formatTime(String? start, String? end) {
+    if (start == null) return 'Time TBD';
+    String s = start.length >= 5 ? start.substring(0, 5) : start;
+    if (end == null) return s;
+    String e = end.length >= 5 ? end.substring(0, 5) : end;
+    return '$s - $e';
+  }
+
+  // --- Widget Builders ---
 
   Widget _buildWeatherWidget() {
     if (_isLoadingWeather) {
@@ -473,7 +431,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
       );
     }
 
-    // Extract weather data
     final main = _weatherData?['main'] ?? {};
     final weather = (_weatherData?['weather'] as List?)?[0] ?? {};
     final temp = main['temp']?.toStringAsFixed(1) ?? 'N/A';
@@ -541,10 +498,8 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildWeatherDetail(
-                  "💧", "Humidity", "$humidity%"),
-              _buildWeatherDetail(
-                  "💨", "Wind", "$windSpeed m/s"),
+              _buildWeatherDetail("💧", "Humidity", "$humidity%"),
+              _buildWeatherDetail("💨", "Wind", "$windSpeed m/s"),
             ],
           ),
           const SizedBox(height: 10),
@@ -569,7 +524,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     );
   }
 
-  // ✅ NEW: Build weather detail item
   Widget _buildWeatherDetail(String icon, String label, String value) {
     return Column(
       children: [
@@ -584,6 +538,65 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
         ),
       ],
+    );
+  }
+
+  Widget _buildDetailImage(String? url) {
+    if (url == null || url.isEmpty || !url.startsWith('http')) {
+      return _buildPlaceholder();
+    }
+
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.only(top: 20, bottom: 10),
+        width: MediaQuery.of(context).size.width * 0.5,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 5,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                height: 200,
+                color: Colors.grey[100],
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.primary,
+                    strokeWidth: 2,
+                  ),
+                ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return _buildPlaceholder();
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      margin: const EdgeInsets.all(20),
+      height: 200,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: const Icon(Icons.broken_image, size: 40, color: Colors.grey),
     );
   }
 
@@ -611,9 +624,45 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                   Text(widget.event['title'] ?? 'Event Title',
                       style: const TextStyle(
                           fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.calendar_month, color: AppColors.primary, size: 20),
+                            const SizedBox(width: 10),
+                            Text(
+                              _formatDate(widget.event['event_date']),
+                              style: const TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textDark),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            const Icon(Icons.access_time_filled, color: AppColors.primary, size: 20),
+                            const SizedBox(width: 10),
+                            Text(
+                              _formatTime(widget.event['start_time'], widget.event['end_time']),
+                              style: const TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textDark),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 20),
 
-                  // ✅ NEW: Weather widget
                   _buildWeatherWidget(),
                   const SizedBox(height: 20),
 
@@ -649,7 +698,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                   else
                     _buildLocationUnavailable(),
 
-                  const SizedBox(height: 100),
+                  const SizedBox(height: 100), // padding for bottom sheet
                 ],
               ),
             ),
@@ -703,7 +752,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                       position: _eventLocation!),
                 },
                 onMapCreated: (controller) {
-                  print("✅ Google Map created successfully");
                 },
               ),
             ),
@@ -734,8 +782,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
           Expanded(
             child: Text(
               _distanceText,
-              style:
-              const TextStyle(color: Colors.grey, fontSize: 14),
+              style: const TextStyle(color: Colors.grey, fontSize: 14),
             ),
           ),
         ],
@@ -805,154 +852,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     );
   }
 
-  Widget _buildDetailImage(String? filename) {
-    if (filename == null || filename.isEmpty) {
-      return Container(
-        margin: const EdgeInsets.all(20),
-        height: 200,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: const Icon(Icons.image, size: 40, color: Colors.grey),
-      );
-    }
-
-    if (filename.startsWith('http')) {
-      return Center(
-        child: Container(
-          margin: const EdgeInsets.only(top: 20, bottom: 10),
-          width: MediaQuery.of(context).size.width * 0.5,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: [
-              BoxShadow(
-                blurRadius: 5,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(15),
-            child: Image.network(
-              filename,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                print("❌ Network image error: $error");
-                return _buildPlaceholder();
-              },
-            ),
-          ),
-        ),
-      );
-    }
-
-    return FutureBuilder<bool>(
-      future: _assetImageExists(filename),
-      builder: (context, snapshot) {
-        if (snapshot.hasData && snapshot.data == true) {
-          print("📦 Loading flyer from assets: assets/images/$filename");
-          return Center(
-            child: Container(
-              margin: const EdgeInsets.only(top: 20, bottom: 10),
-              width: MediaQuery.of(context).size.width * 0.5,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: [
-                  BoxShadow(
-                    blurRadius: 5,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(15),
-                child: Image.asset(
-                  'assets/images/$filename',
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    print("❌ Asset image error: $error");
-                    return _buildPlaceholder();
-                  },
-                ),
-              ),
-            ),
-          );
-        }
-
-        return FutureBuilder<String?>(
-          future: _getLocalImagePath(filename, 'flyers'),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Container(
-                margin: const EdgeInsets.all(20),
-                height: 200,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: const Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.primary,
-                    strokeWidth: 2,
-                  ),
-                ),
-              );
-            }
-
-            if (snapshot.hasData && snapshot.data != null) {
-              print("💾 Loading flyer from local storage: ${snapshot.data}");
-              return Center(
-                child: Container(
-                  margin: const EdgeInsets.only(top: 20, bottom: 10),
-                  width: MediaQuery.of(context).size.width * 0.5,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(15),
-                    boxShadow: [
-                      BoxShadow(
-                        blurRadius: 5,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(15),
-                    child: Image.file(
-                      File(snapshot.data!),
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        print("❌ File image error: $error");
-                        return _buildPlaceholder();
-                      },
-                    ),
-                  ),
-                ),
-              );
-            }
-
-            print("❌ Flyer image not found: $filename");
-            return _buildPlaceholder();
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildPlaceholder() {
-    return Container(
-      margin: const EdgeInsets.all(20),
-      height: 200,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: const Icon(Icons.broken_image, size: 40, color: Colors.grey),
-    );
-  }
-
   Widget _buildBottomAction() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1011,7 +910,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
               );
             }
           } catch (e) {
-            print("❌ Error in button action: $e");
             if (mounted) {
               setState(() => _isLoadingStatus = false);
               ScaffoldMessenger.of(context).showSnackBar(
