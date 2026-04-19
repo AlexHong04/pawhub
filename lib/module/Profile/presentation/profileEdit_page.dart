@@ -33,7 +33,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   // final genderController = TextEditingController();
   final contactController = TextEditingController();
   final locationController = TextEditingController();
-  final TextEditingController _searchController = TextEditingController();
   File? _selectedImage;
   String? _selectedGender;
   String? _currentAvatarUrl;
@@ -41,6 +40,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   bool loading = false;
   List<OSMPlace> _suggestions = [];
   OSMPlace? _selectedPlace;
+  String _initialLocation = '';
+  bool _locationEdited = false;
   Timer? _debounce;
 
   Future<void> _exitEditPage() async {
@@ -121,6 +122,9 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         _selectedGender = profileData.gender.isEmpty ? null : profileData.gender;
         contactController.text = profileData.contact;
         locationController.text = profileData.address;
+        _initialLocation = profileData.address.trim();
+        _locationEdited = false;
+        _selectedPlace = null;
 
         _currentAvatarUrl = profileData.avatarUrl;
         _selectedImage = null;
@@ -220,6 +224,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       if (success) {
         _currentAvatarUrl = newAvatarUrl;
         _selectedImage = null;
+        _initialLocation = locationController.text.trim();
+        _locationEdited = false;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully!')),
         );
@@ -375,6 +381,12 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                     prefixIcon: Icons.location_on_outlined,
                   ),
                   validator: (v) {
+                    final value = (v ?? '').trim();
+                    // Keep existing saved location valid when user did not edit it.
+                    if (!_locationEdited && value == _initialLocation) {
+                      return null;
+                    }
+
                     if (_selectedPlace == null) {
                       return "Please select a location from the search results";
                     }
@@ -382,6 +394,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                   },
                   onFieldSubmitted: _onSearchChanged,
                   onChanged: (val) {
+                    final trimmed = val.trim();
+                    _locationEdited = trimmed != _initialLocation;
                     if (_selectedPlace != null) {
                       setState(() => _selectedPlace = null);
                     }
@@ -411,7 +425,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                           onTap: () {
                             setState(() {
                               _selectedPlace = place;
-                              _searchController.text = place.displayName;
+                              locationController.text = place.displayName;
+                              _locationEdited = false;
                               _suggestions.clear();
                             });
                           },

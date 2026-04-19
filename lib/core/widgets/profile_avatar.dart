@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
 import 'package:pawhub/core/utils/local_file_service.dart';
+import 'dart:async';
 
 const String kProfileAvatarStorageKeyPrefix = 'profile_edit_avatar_path';
 
@@ -121,25 +122,15 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
         final localAvatar = snapshot.data;
 
         Widget avatarChild;
+        final hasLocalAvatar = localAvatar != null;
         if (hasNetworkAvatar) {
-          avatarChild = Image.network(
+          avatarChild = _buildNetworkImageWithFallback(
             avatarUrl,
-            width: diameter,
-            height: diameter,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) {
-              if (localAvatar != null) {
-                return Image.file(
-                  localAvatar,
-                  width: diameter,
-                  height: diameter,
-                  fit: BoxFit.cover,
-                );
-              }
-              return _buildFallbackInitials();
-            },
+            diameter,
+            hasLocalAvatar ? localAvatar : null,
           );
-        } else if (localAvatar != null) {
+        } else if (hasLocalAvatar) {
+          debugPrint('📱 Showing cached local avatar for user: ${widget.userId}');
           avatarChild = Image.file(
             localAvatar,
             width: diameter,
@@ -154,6 +145,48 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
           radius: widget.radius,
           backgroundColor: widget.backgroundColor,
           child: ClipOval(child: avatarChild),
+        );
+      },
+    );
+  }
+
+  Widget _buildNetworkImageWithFallback(
+    String avatarUrl,
+    double diameter,
+    File? localAvatar,
+  ) {
+    return Image.network(
+      avatarUrl,
+      width: diameter,
+      height: diameter,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) {
+        if (localAvatar != null) {
+          return Image.file(
+            localAvatar,
+            width: diameter,
+            height: diameter,
+            fit: BoxFit.cover,
+          );
+        }
+        return _buildFallbackInitials();
+      },
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        if (localAvatar != null) {
+          return Image.file(
+            localAvatar,
+            width: diameter,
+            height: diameter,
+            fit: BoxFit.cover,
+          );
+        }
+        return const Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
         );
       },
     );

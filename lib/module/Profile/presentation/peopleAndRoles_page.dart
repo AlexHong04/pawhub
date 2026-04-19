@@ -5,10 +5,18 @@ import 'package:pawhub/module/Profile/model/user_model.dart';
 import 'package:pawhub/module/Profile/service/profile_service.dart';
 
 import '../../../core/widgets/profile_avatar.dart';
+import '../../../core/widgets/search_field.dart';
 // import 'user_model.dart'; // Make sure to import your UserModel file here!
 
 class PeopleAndRolesPage extends StatefulWidget {
-  const PeopleAndRolesPage({super.key});
+  const PeopleAndRolesPage({
+    super.key,
+    this.eventId,
+    this.volunteerOnly = false,
+  });
+
+  final String? eventId;
+  final bool volunteerOnly;
 
   @override
   State<PeopleAndRolesPage> createState() => _PeopleAndRolesPageState();
@@ -18,12 +26,16 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
   static const Color _unbanCyan = Color(0xFF06B6D4);
   int _selectedFilterIndex = 0;
   final List<String> _filters = ['All', 'Volunteers', 'User', 'Admin'];
-  final List<String> _roleChoices = ['Admin', 'Volunteer', 'User'];
+  final List<String> _roleChoices = ['Admin', 'User'];
+  final searchController = TextEditingController();
 
   List<UserModel> _allUsers = []; // Stores the master list from DB
   List<UserModel> _filteredUsers = []; // Stores what is currently on screen
   bool _isLoading = true;
   String _searchQuery = "";
+
+  List<String> get _activeFilters =>
+      widget.volunteerOnly ? const ['Volunteers'] : _filters;
 
   @override
   void initState() {
@@ -31,12 +43,31 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
     _fetchUsers();
   }
 
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
   // 1. Fetch data from Supabase
   Future<void> _fetchUsers() async {
     setState(() => _isLoading = true);
 
-    // Call the new service function
-    final users = await ProfileService.getAllUsers();
+    List<UserModel> users;
+    final eventId = widget.eventId?.trim() ?? '';
+
+    if (eventId.isNotEmpty) {
+      users = await ProfileService.getEventVolunteers(eventId);
+    } else {
+      users = await ProfileService.getAllUsers();
+    }
+
+    if (widget.volunteerOnly) {
+      users = users.where((u) {
+        final role = u.role.trim().toLowerCase();
+        return u.isVolunteer || role == 'volunteer' || role == 'volunteers';
+      }).toList();
+    }
 
     if (mounted) {
       setState(() {
@@ -53,7 +84,7 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
     List<UserModel> results = List.from(_allUsers);
 
     // 1. Apply Chip Filter
-    final selectedFilter = _filters[_selectedFilterIndex];
+    final selectedFilter = _activeFilters[_selectedFilterIndex];
     if (selectedFilter == 'Volunteers') {
       results = results.where((u) => u.isVolunteer).toList();
     } else if (selectedFilter == 'User') {
@@ -155,40 +186,39 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
   // --- WIDGET BUILDERS ---
 
   Widget _buildSearchBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: TextField(
-        onChanged: (value) {
-          _searchQuery = value;
-          _applyFilters();
-        },
-        decoration: InputDecoration(
-          hintText: "Search name, email or role...",
-          hintStyle: TextStyle(color: AppColors.textLight, fontSize: 15),
-          prefixIcon: Icon(Icons.search, color: AppColors.textLight),
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(vertical: 14),
-        ),
-      ),
+    return CustomSearchField(
+      controller: searchController,
+      onChanged: (value) {
+        _searchQuery = value;
+        _applyFilters();
+      },
+      hintText: "Search name, email or role...",
     );
   }
 
   Widget _buildFilterChips() {
+    if (_activeFilters.length == 1) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: FilterButton(
+          text: _activeFilters.first,
+          isSelected: true,
+          onPressed: () {},
+        ),
+      );
+    }
+
     return SizedBox(
       width: double.infinity,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
-          children: List.generate(_filters.length, (index) {
+          children: List.generate(_activeFilters.length, (index) {
             final isSelected = _selectedFilterIndex == index;
             return Padding(
               padding: const EdgeInsets.only(right: 12),
               child: FilterButton(
-                text: _filters[index],
+                text: _activeFilters[index],
                 isSelected: isSelected,
                 onPressed: () {
                   setState(() => _selectedFilterIndex = index);
@@ -489,7 +519,9 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
   }
 
   void _showChangeRoleSheet(UserModel user) {
-    String selectedRole = _resolveDisplayRole(user);
+    String selectedRole =
+        user.role.trim().toLowerCase() == 'admin' ? 'Admin' : 'User';
+    bool selectedIsVolunteer = user.isVolunteer;
     bool saving = false;
 
     showModalBottomSheet(
@@ -508,6 +540,7 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
               final success = await ProfileService.updateUserRole(
                 user.id,
                 selectedRole,
+                isVolunteer: selectedIsVolunteer,
               );
 
               if (!mounted) return;
@@ -569,10 +602,43 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
                         child: _buildRoleOptionCard(
                           role: role,
                           isSelected: isSelected,
-                          onTap: () => setModalState(() => selectedRole = role),
+                          onTap: () => setModalState(() {
+                            selectedRole = role;
+                            if (selectedRole == 'Admin') {
+                              selectedIsVolunteer = false;
+                            }
+                          }),
                         ),
                       );
                     }),
+                    const SizedBox(height: 4),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(
+                        'Volunteer',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textDark,
+                        ),
+                      ),
+                      value: selectedIsVolunteer,
+                      onChanged: selectedRole == 'Admin'
+                          ? null
+                          : (value) =>
+                                setModalState(() => selectedIsVolunteer = value),
+                    ),
+                    if (selectedRole == 'Admin')
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Admin cannot be volunteer.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textLight,
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,

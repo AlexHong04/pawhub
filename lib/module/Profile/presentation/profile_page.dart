@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:pawhub/module/Profile/model/user_model.dart';
 import 'package:pawhub/core/utils/biometric_session_service.dart';
 import 'package:pawhub/module/communityPost/service/post_service.dart';
@@ -6,11 +7,12 @@ import 'package:pawhub/module/petAdoption/service/pet_adoption_service.dart';
 
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/current_user_store.dart';
+import '../../../core/widgets/profile_avatar.dart';
+import '../../../core/utils/local_file_service.dart';
 import '../../auth/service/auth_service.dart';
 import '../../communityPost/presentation/favourite_posts_page.dart';
 import '../../donation/presentation/donation_page.dart';
 import '../service/profile_service.dart';
-import '../../../core/widgets/profile_avatar.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -34,6 +36,30 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadUserData();
   }
 
+  Future<UserModel?> _loadOfflineProfileFromCache() async {
+    try {
+      final cachedAuth = await CurrentUserStore.read();
+      if (cachedAuth == null) return null;
+
+      return UserModel(
+        id: cachedAuth.id,
+        name: cachedAuth.name,
+        email: cachedAuth.email,
+        gender: '',
+        contact: '',
+        address: '',
+        role: cachedAuth.role,
+        onlineStatus: 'Offline',
+        isVolunteer: false,
+        updatedAt: cachedAuth.createAt,
+        avatarUrl: '',
+      );
+    } catch (e) {
+      debugPrint('Failed to read offline user cache: $e');
+      return null;
+    }
+  }
+
   // Fetch the data from Supabase (primary) → fallback to SharedPreferences if error
   Future<void> _loadUserData() async {
     setState(() => _isLoading = true);
@@ -44,46 +70,46 @@ class _ProfilePageState extends State<ProfilePage> {
 
     // Step 1: Try to fetch from Supabase (primary source)
     try {
-      profileData = await ProfileService.getCurrentUserProfile();
+      profileData = await ProfileService.getCurrentUserProfileWithTimeout();
+
+      if (profileData != null && profileData.avatarUrl.isNotEmpty) {
+        final storageKey = profileAvatarStorageKey(profileData.id);
+        await LocalFileService.cacheRemoteUrl(storageKey, profileData.avatarUrl);
+        debugPrint('Avatar cached locally: $storageKey');
+      }
+
+      // Important: Supabase methods may return null on offline/timeouts.
+      // In that case we must still fallback to local SharedPreferences.
+      if (profileData == null) {
+        debugPrint('Supabase returned null profile, loading offline cache...');
+        profileData = await _loadOfflineProfileFromCache();
+      }
     } catch (e) {
       debugPrint('Supabase sync error, falling back to local cache: $e');
-
-      // Step 2: If Supabase fails, fallback to local SharedPreferences cache
-      try {
-        final cachedAuth = await CurrentUserStore.read();
-        if (cachedAuth != null) {
-          profileData = UserModel(
-            id: cachedAuth.id,
-            name: cachedAuth.name,
-            email: cachedAuth.email,
-            gender: '',
-            contact: '',
-            address: '',
-            role: cachedAuth.role,
-            onlineStatus: 'Online',
-            isVolunteer: false,
-            updatedAt: cachedAuth.createAt,
-            avatarUrl: '',
-          );
-        }
-      } catch (fallbackError) {
-        debugPrint('Also failed to read local cache: $fallbackError');
-      }
+      profileData = await _loadOfflineProfileFromCache();
     }
 
     if (profileData != null && profileData.id.trim().isNotEmpty) {
       try {
-        final adoptions = await _adoptionService.fetchUserPetAdoptions(profileData.id);
+        final adoptions = await _adoptionService
+            .fetchUserPetAdoptions(profileData.id)
+            .timeout(const Duration(seconds: 4));
         adoptedCount = adoptions.where((item) {
           final status = item.adoptionStatus.toString().trim().toLowerCase();
           return status == 'completed';
         }).length;
+      } on TimeoutException {
+        debugPrint('Adopted count request timed out in offline mode.');
       } catch (e) {
         debugPrint('Failed to fetch adopted count: $e');
       }
 
       try {
-        favoritesCount = await _postService.fetchLikedPostsCountByUser(profileData.id);
+        favoritesCount = await _postService
+            .fetchLikedPostsCountByUser(profileData.id)
+            .timeout(const Duration(seconds: 4));
+      } on TimeoutException {
+        debugPrint('Favorites count request timed out in offline mode.');
       } catch (e) {
         debugPrint('Failed to fetch favorites count: $e');
       }
@@ -379,13 +405,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 onPressed: () async {
                   await AuthService.logout();
-                  if (!context.mounted) return;
-
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/login',
-                        (route) => false,
-                  );
+                  // The app.dart listenToAuthChanges listener will handle navigation to /login
                 },
                 icon: const Icon(Icons.logout, color: Colors.red),
                 label: const Text(

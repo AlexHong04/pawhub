@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:pawhub/module/Profile/model/user_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:async';
 
 import '../../../core/utils/supabase_file_service.dart';
 
@@ -82,6 +83,21 @@ class ProfileService {
     }
   }
 
+  static Future<UserModel?> getCurrentUserProfileWithTimeout({
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    try {
+      print('⏱️ Fetching user profile from Supabase (timeout: ${timeout.inSeconds}s)...');
+      return await getCurrentUserProfile().timeout(timeout);
+    } on TimeoutException catch (e) {
+      print('⏰ Timeout fetching user profile (network unavailable?): $e');
+      return null;
+    } catch (e) {
+      print('❌ Error fetching user profile: $e');
+      return null;
+    }
+  }
+
   static Future<String?> uploadAvatar(File imageFile) async {
     // try {
       final user = supabase.auth.currentUser;
@@ -120,13 +136,17 @@ class ProfileService {
       }
 
       // Build the exact map of data we want to save
+      final nowIso = DateTime.now().toIso8601String();
       final Map<String, dynamic> updates = {
         'name': name,
         'email': normalizedEmail,
         'gender': gender,
         'contact': contact,
         'address': address,
-        'updated_at': DateTime.now().toIso8601String(),
+        'updated_at': nowIso,
+        // Keep presence alive when user actively saves profile changes.
+        'last_seen': nowIso,
+        'online_status': 'Online',
       };
 
       // Add the image URL to the map ONLY if they uploaded a new one
@@ -144,12 +164,20 @@ class ProfileService {
     }
   }
 
-  static Future<bool> updateUserRole(String userId, String role) async {
+  static Future<bool> updateUserRole(
+    String userId,
+    String role, {
+    bool? isVolunteer,
+  }) async {
     try {
       final normalizedRole = role.trim();
+      final normalizedRoleLower = normalizedRole.toLowerCase();
+      final resolvedIsVolunteer =
+          normalizedRoleLower == 'admin' ? false : (isVolunteer ?? false);
+
       final updatedRow = await supabase.from('User').update({
         'role': normalizedRole,
-        'is_volunteer': normalizedRole.toLowerCase() == 'volunteer',
+        'is_volunteer': resolvedIsVolunteer,
         'updated_at': DateTime.now().toIso8601String(),
       }).eq('user_id', userId).select('user_id, role').maybeSingle();
 
@@ -220,6 +248,57 @@ class ProfileService {
     } catch (e) {
       print('Error fetching all users: $e');
       return []; // Return empty list if it fails
+    }
+  }
+
+  static Future<List<UserModel>> getEventVolunteers(String eventId) async {
+    try {
+      final data = await supabase
+          .from('JoinedEvent')
+          .select('''
+            User:user_id (
+              user_id,
+              name,
+              gender,
+              contact,
+              address,
+              role,
+              online_status,
+              is_volunteer,
+              is_banned,
+              last_seen,
+              updated_at,
+              avatar_url,
+              email
+            )
+          ''')
+          .eq('event_id', eventId);
+
+      final Map<String, UserModel> uniqueUsers = {};
+      for (final row in (data as List)) {
+        final joinedRow = row as Map<String, dynamic>;
+        final userData = joinedRow['User'];
+
+        if (userData is Map<String, dynamic>) {
+          final user = UserModel.fromJson(userData);
+          uniqueUsers[user.id] = user;
+          continue;
+        }
+
+        if (userData is List) {
+          for (final item in userData) {
+            if (item is Map<String, dynamic>) {
+              final user = UserModel.fromJson(item);
+              uniqueUsers[user.id] = user;
+            }
+          }
+        }
+      }
+
+      return uniqueUsers.values.toList();
+    } catch (e) {
+      print('Error fetching event volunteers: $e');
+      return [];
     }
   }
 }

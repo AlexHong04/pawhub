@@ -6,6 +6,7 @@ import 'package:pawhub/core/constants/colors.dart';
 import 'package:pawhub/core/widgets/appDecorations.dart';
 import 'package:pawhub/core/widgets/filterButton.dart';
 import 'package:pawhub/core/utils/qr_service.dart';
+import 'package:pawhub/module/Profile/presentation/peopleAndRoles_page.dart';
 import 'package:pawhub/module/Volunteer/service/volunteerService.dart';
 import '../../../core/widgets/search_field.dart';
 import '../Model/event.dart';
@@ -249,7 +250,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   // ================= MINIMALIST POPUP =================
 
   void _showEventPopup(Map<String, dynamic> event) {
-    final String eventId = event['event_id'] ?? '';
+    final String eventId = (event['event_id'] ?? '').toString();
     final String title = event['title'] ?? '';
     final bool isExpired = event['event_status'] == 'Expired'; // ✅ Check if expired
 
@@ -328,7 +329,18 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
                           // Volunteers still visible
-                          _buildSmallAction(Icons.group, "Volunteers", Colors.blue, () {}),
+                          _buildSmallAction(Icons.group, "Volunteers", Colors.blue, () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PeopleAndRolesPage(
+                                  eventId: eventId,
+                                  volunteerOnly: true,
+                                ),
+                              ),
+                            );
+                          }),
 
                           // ✅ Hide Edit Button if Expired
                           if (!isExpired)

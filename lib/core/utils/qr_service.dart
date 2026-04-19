@@ -78,7 +78,7 @@ class _QRDialogState extends State<QRDialog> {
     }
   }
 
-  // Triggers the native share sheet with the provided text
+  // Triggers the native share sheet with the pro vided text
   void _shareLink() {
     if (widget.shareText != null) {
       SharePlus.instance.share(ShareParams(text: widget.shareText!));

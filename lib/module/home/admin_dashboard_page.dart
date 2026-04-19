@@ -387,8 +387,8 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildDataViewToggle() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
           "DATA VIEW",
@@ -399,14 +399,15 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             color: AppColors.dashboardHint,
           ),
         ),
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: AppColors.chartBackground, // Light grey background
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+        const SizedBox(height: 10),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: AppColors.chartBackground,
+              borderRadius: BorderRadius.circular(24),
+            ),
             child: Row(
               children: [
                 _buildTogglePill("Today", 0),

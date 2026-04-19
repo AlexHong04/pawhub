@@ -218,16 +218,6 @@ class _LoginPageState extends State<LoginPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Tap logo to unlock with biometrics (Lock App only)',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textLight,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
                   const SizedBox(height: 24),
                   Text(
                     "Pet Login",
