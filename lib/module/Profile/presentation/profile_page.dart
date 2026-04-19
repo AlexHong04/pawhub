@@ -391,6 +391,20 @@ class _ProfilePageState extends State<ProfilePage> {
           ],
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(context,MaterialPageRoute(builder: (context) => const DonationPage())
+          );
+        },
+        backgroundColor: Colors.white,
+        elevation: 4,
+        shape: const CircleBorder(),
+        child: const Icon(
+          Icons.favorite,
+          color: Colors.red,
+          size: 32,
+        ),
+      ),
     );
   }
 
