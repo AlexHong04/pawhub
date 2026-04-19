@@ -40,8 +40,10 @@ class _AdoptionDetailsState extends State<AdoptionDetailsPage> {
   @override
   void initState() {
     super.initState();
-    _fetchAdoption();
     _fetchCurrentUser();
+    if (_user != null) {
+      _fetchAdoption();
+    }
   }
 
   Future<AuthModel?> _fetchCurrentUser() async {
@@ -239,15 +241,21 @@ class _AdoptionDetailsState extends State<AdoptionDetailsPage> {
               // show Approve/Reject buttons if status is "Pending"
               if (_user?.role == 'Admin' && lastStatus == 'Pending')
                 _buildActionButtons()
-              // dhow Schedule button if user and status is "Approved"
+              // show Schedule button if user and status is "Approved"
               else if (_user?.role == 'User' && lastStatus == 'Approved')
                 _buildScheduleButton(),
 
-              // show QR button if user and status is "Pending Pickup" and today is pickup day
+              // show generate QR button if user and status is "Pending Pickup" and today is pickup day
               if (_user?.role == 'User' &&
                   lastStatus == "Pending Pickup" &&
                   isPickupToday)
                 _buildGenerateQRButton(_application!.adoptionId),
+
+              // show scan QR button if user and status is "Pending Pickup" and today is pickup day
+              if (_user?.role == 'Admin' &&
+                  lastStatus == "Pending Pickup" &&
+                  isPickupToday)
+                _buildScanQRButton(),
             ],
           ),
         ),
@@ -601,13 +609,9 @@ class _AdoptionDetailsState extends State<AdoptionDetailsPage> {
         onPressed: () async {
           await showDialog(
             context: context,
-            builder: (_) => QRDialog(
-              data: adoptionId,
-              title: 'Pickup QR',
-            ),
+            builder: (_) => QRDialog(data: adoptionId, title: 'Pickup QR'),
           );
 
-          // 🔥 refresh AFTER dialog is closed
           await _fetchAdoption();
         },
         style: ElevatedButton.styleFrom(
@@ -619,6 +623,51 @@ class _AdoptionDetailsState extends State<AdoptionDetailsPage> {
         ),
         icon: const Icon(Icons.qr_code),
         label: const Text("Generate QR"),
+      ),
+    );
+  }
+
+  Widget _buildScanQRButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => QRScannerPage(id: _application!.adoptionId),
+            ),
+          );
+
+          if (result != null) {
+            debugPrint("Scanned QR: $result");
+
+            final success = await _adoptionService.confirmPickup(data: result);
+
+            if (success) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Pickup successfully")),
+              );
+
+              await _fetchAdoption();
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Invalid QR / Adoption not found"),
+                ),
+              );
+            }
+          }
+        },
+        icon: const Icon(Icons.qr_code_scanner, size: 18),
+        label: const Text("SCAN QR"),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        ),
       ),
     );
   }

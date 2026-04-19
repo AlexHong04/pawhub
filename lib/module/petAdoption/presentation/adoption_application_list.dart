@@ -29,6 +29,7 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
   bool _isLoading = true;
   bool selectAll = false;
   Set<String> _selectedApplicationIds = {};
+  Map<String, DateTime?> _pickupDates = {};
 
   String _activeFilter = "All";
   List<String> filters = ["All", "Approved", "Rejected", "Completed"];
@@ -58,8 +59,8 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
 
       final matchesSearch =
           a.petName.toLowerCase().contains(query) ||
-              a.petGender.toLowerCase().contains(query) ||
-              a.adoptionId.toLowerCase().contains(query);
+          a.petGender.toLowerCase().contains(query) ||
+          a.adoptionId.toLowerCase().contains(query);
 
       return matchesFilter && matchesSearch;
     }).toList();
@@ -99,7 +100,7 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
 
   void _toggleSelection(String adoptionId) {
     final application = _applications.firstWhere(
-          (a) => a.adoptionId == adoptionId,
+      (a) => a.adoptionId == adoptionId,
     );
 
     final status = application.adoptionStatuses.isNotEmpty
@@ -124,9 +125,9 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
         _selectedApplicationIds = _applications
             .where(
               (a) =>
-          a.adoptionStatuses.isNotEmpty &&
-              a.adoptionStatuses.first.toLowerCase() == "pending",
-        )
+                  a.adoptionStatuses.isNotEmpty &&
+                  a.adoptionStatuses.first.toLowerCase() == "pending",
+            )
             .map((a) => a.adoptionId)
             .toSet();
       } else {
@@ -145,10 +146,7 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
 
       for (var application in data) {
         String? firstImageName = (application.petImage.isNotEmpty)
-            ? application.petImage
-            .split(',')
-            .first
-            .trim()
+            ? application.petImage.split(',').first.trim()
             : null;
 
         if (firstImageName != null && firstImageName.isNotEmpty) {
@@ -156,6 +154,22 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
           imageMap[application.petId] = file;
         } else {
           imageMap[application.petId] = null;
+        }
+
+        try {
+          final date = await _adoptionService.getPickupDate(
+            adoptionId: application.adoptionId,
+          );
+          log("AdoptionId: ${application.adoptionId}");
+          log("PickupDate RAW: $date");
+
+          if (date != null) {
+            log("PickupDate LOCAL: ${date.toLocal()}");
+          }
+
+          _pickupDates[application.adoptionId] = date;
+        } catch (e) {
+          _pickupDates[application.adoptionId] = null;
         }
       }
 
@@ -255,31 +269,27 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
 
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) =>
-          AlertDialog(
-            title: const Text("Approve Applications?"),
-            content: Text(
-              "Are you sure you want to approve ${_selectedApplicationIds
-                  .length} application(s)?",
+      builder: (context) => AlertDialog(
+        title: const Text("Approve Applications?"),
+        content: Text(
+          "Are you sure you want to approve ${_selectedApplicationIds.length} application(s)?",
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        backgroundColor: Colors.white,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(color: AppColors.textLight),
             ),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15)),
-            backgroundColor: Colors.white,
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text(
-                  "Cancel",
-                  style: TextStyle(color: AppColors.textLight),
-                ),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text(
-                    "Approve", style: TextStyle(color: Colors.green)),
-              ),
-            ],
           ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Approve", style: TextStyle(color: Colors.green)),
+          ),
+        ],
+      ),
     );
 
     if (confirm == true) {
@@ -292,36 +302,36 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
 
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) =>
-          AlertDialog(
-            title: const Text("Reject Applications?"),
-            content: Text(
-              "Are you sure you want to reject ${_selectedApplicationIds
-                  .length} application(s)? This action cannot be undone.",
+      builder: (context) => AlertDialog(
+        title: const Text("Reject Applications?"),
+        content: Text(
+          "Are you sure you want to reject ${_selectedApplicationIds.length} application(s)? This action cannot be undone.",
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        backgroundColor: Colors.white,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(color: AppColors.textLight),
             ),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15)),
-            backgroundColor: Colors.white,
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text(
-                  "Cancel",
-                  style: TextStyle(color: AppColors.textLight),
-                ),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text(
-                    "Reject", style: TextStyle(color: Colors.red)),
-              ),
-            ],
           ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Reject", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
 
     if (confirm == true) {
       await _rejectApplication();
     }
+  }
+
+  bool isSameDate(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
   @override
@@ -343,9 +353,7 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
   @override
   Widget build(BuildContext context) {
     bool hasPendingSelected = _selectedApplicationIds.any((id) {
-      final app = _applications
-          .where((a) => a.adoptionId == id)
-          .firstOrNull;
+      final app = _applications.where((a) => a.adoptionId == id).firstOrNull;
       if (app == null) return false;
       final status = app.adoptionStatuses.isNotEmpty
           ? app.adoptionStatuses.first.toLowerCase()
@@ -354,8 +362,10 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
     });
 
     if (_isLoading) {
-      return const Scaffold(backgroundColor: AppColors.background,
-          body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
     return Scaffold(
@@ -387,10 +397,7 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
 
   Widget _buildApplicationCard(Application application) {
     final imageUrl = application.petImage.isNotEmpty
-        ? application.petImage
-        .split(',')
-        .first
-        .trim()
+        ? application.petImage.split(',').first.trim()
         : null;
 
     final file = _petImages[application.petId];
@@ -398,6 +405,9 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
         ? application.adoptionStatuses.first.toLowerCase()
         : "";
     final isPending = status == "pending";
+
+    final pickupDate = _pickupDates[application.adoptionId];
+    final today = DateTime.now();
 
     return GestureDetector(
       onTap: () async {
@@ -435,9 +445,7 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
                 children: [
                   _buildStatusBadge(status),
                   Text(
-                    "#${application.adoptionId
-                        .split('-')
-                        .last}",
+                    "#${application.adoptionId.split('-').last}",
                     style: TextStyle(
                       color: AppColors.textLight,
                       fontSize: 12,
@@ -473,33 +481,33 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
                           height: 70,
                           child: imageUrl != null && imageUrl.isNotEmpty
                               ? Image.network(
-                            imageUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              if (file != null) {
-                                return Image.file(
-                                  file,
+                                  imageUrl,
                                   fit: BoxFit.cover,
-                                );
-                              }
-                              return Container(
-                                color: Colors.grey[100],
-                                child: const Icon(
-                                  Icons.pets,
-                                  color: Colors.grey,
-                                ),
-                              );
-                            },
-                          )
+                                  errorBuilder: (context, error, stackTrace) {
+                                    if (file != null) {
+                                      return Image.file(
+                                        file,
+                                        fit: BoxFit.cover,
+                                      );
+                                    }
+                                    return Container(
+                                      color: Colors.grey[100],
+                                      child: const Icon(
+                                        Icons.pets,
+                                        color: Colors.grey,
+                                      ),
+                                    );
+                                  },
+                                )
                               : file != null
                               ? Image.file(file, fit: BoxFit.cover)
                               : Container(
-                            color: Colors.grey[100],
-                            child: const Icon(
-                              Icons.pets,
-                              color: Colors.grey,
-                            ),
-                          ),
+                                  color: Colors.grey[100],
+                                  child: const Icon(
+                                    Icons.pets,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                         ),
                       ),
                     ],
@@ -593,7 +601,9 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
                       ),
                     ],
                   ),
-                  if (status == "pending pickup")
+                  if (status == "pending pickup" &&
+                      pickupDate != null &&
+                      isSameDate(pickupDate, today))
                     ElevatedButton.icon(
                       onPressed: () async {
                         final result = await Navigator.push(
@@ -667,24 +677,21 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
   Widget _buildFilterSection() {
     return SizedBox(
       width: double.infinity,
-      child: RefreshIndicator(
-        onRefresh: _fetchApplications,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: filters.map((filter) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
-                child: FilterButton(
-                  text: filter,
-                  isSelected: _activeFilter == filter,
-                  onPressed: () {
-                    setState(() => _activeFilter = filter);
-                  },
-                ),
-              );
-            }).toList(),
-          ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: filters.map((filter) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
+              child: FilterButton(
+                text: filter,
+                isSelected: _activeFilter == filter,
+                onPressed: () {
+                  setState(() => _activeFilter = filter);
+                },
+              ),
+            );
+          }).toList(),
         ),
       ),
     );
@@ -738,28 +745,25 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
 
   Widget _buildApplicationList() {
     if (_isLoading) {
-      return const Expanded(
-        child: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Expanded(child: Center(child: CircularProgressIndicator()));
     }
 
     if (_filteredApplications.isEmpty) {
       return const Expanded(
-        child: Center(
-          child: Text("No applications found"),
-        ),
+        child: Center(child: Text("No applications found")),
       );
     }
 
     return Expanded(
-      child: ListView.builder(
-        itemCount: _filteredApplications.length,
-        itemBuilder: (context, index) {
-          final application = _filteredApplications[index];
-          return _buildApplicationCard(application);
-        },
+      child: RefreshIndicator(
+        onRefresh: _fetchApplications,
+        child: ListView.builder(
+          itemCount: _filteredApplications.length,
+          itemBuilder: (context, index) {
+            final application = _filteredApplications[index];
+            return _buildApplicationCard(application);
+          },
+        ),
       ),
     );
   }
@@ -770,9 +774,7 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
       children: [
         _buildStatusBadge(status),
         Text(
-          "#${application.adoptionId
-              .split('-')
-              .last}",
+          "#${application.adoptionId.split('-').last}",
           style: TextStyle(
             color: AppColors.textLight,
             fontSize: 12,
@@ -791,15 +793,15 @@ class _AdoptionApplicationListState extends State<AdoptionApplicationListPage> {
         height: 70,
         child: imageUrl != null && imageUrl.isNotEmpty
             ? Image.network(
-          imageUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) {
-            if (file != null) {
-              return Image.file(file, fit: BoxFit.cover);
-            }
-            return _buildPlaceholder();
-          },
-        )
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) {
+                  if (file != null) {
+                    return Image.file(file, fit: BoxFit.cover);
+                  }
+                  return _buildPlaceholder();
+                },
+              )
             : file != null
             ? Image.file(file, fit: BoxFit.cover)
             : _buildPlaceholder(),
