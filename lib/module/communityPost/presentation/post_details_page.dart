@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/local_file_service.dart';
 import '../model/post_model.dart';
@@ -26,9 +27,23 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
   String _currentUserName = "Me";
   String? _currentUserAvatar;
 
+  // 💡 --- 新增：语音识别的状态变量 ---
+  late stt.SpeechToText _speechToText;
+  bool _isListening = false;
+
+  String _currentLocaleId = 'en_US';
+  String _textBeforeListening = "";
+
+  final Map<String, String> _supportedLocales = {
+    'en_US': 'EN', // 英文
+    'zh_CN': '华', // 华语 (简体)
+    'ms_MY': 'BM', // 马来文
+  };
+
   @override
   void initState() {
     super.initState();
+    _speechToText = stt.SpeechToText(); // 💡 初始化语音实例
     _initializeData();
   }
 
@@ -217,6 +232,11 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
   void _submitComment() async {
     final text = _commentController.text.trim();
     if (text.isEmpty) return;
+    if (_isListening) {
+      _speechToText.stop();
+      setState(() => _isListening = false);
+    }
+
     _commentController.clear();
     FocusScope.of(context).unfocus();
 
@@ -362,6 +382,50 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
         );
         _loadComments();
       }
+    }
+  }
+
+  void _listen() async {
+    if (!_isListening) {
+      bool available = await _speechToText.initialize(
+        onStatus: (val) => debugPrint('onStatus: $val'),
+        onError: (val) => debugPrint('onError: $val'),
+      );
+
+      if (available) {
+        setState(() {
+          _isListening = true;
+          _textBeforeListening = _commentController.text;
+        });
+
+        _speechToText.listen(
+          onResult: (val) => setState(() {
+            String combinedText = _textBeforeListening;
+
+            if (combinedText.isNotEmpty && !combinedText.endsWith(' ')) {
+              combinedText += ' ';
+            }
+
+            combinedText += val.recognizedWords;
+
+            _commentController.text = combinedText;
+
+            _commentController.selection = TextSelection.fromPosition(
+              TextPosition(offset: _commentController.text.length),
+            );
+          }),
+          localeId: _currentLocaleId,
+        );
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Microphone permission denied.")),
+          );
+        }
+      }
+    } else {
+      setState(() => _isListening = false);
+      _speechToText.stop();
     }
   }
 
@@ -634,35 +698,98 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
         border: Border(top: BorderSide(color: Colors.grey.shade200)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              margin: const EdgeInsets.only(bottom: 4),
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(25),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: TextField(
                 controller: _commentController,
-                decoration: const InputDecoration(
-                  hintText: "Add a comment...",
+                // Allow the text field to expand up to 3 lines
+                minLines: 1,
+                maxLines: 3,
+                // Enable multiline keyboard (changes 'Done' key to 'Enter/Return' key)
+                keyboardType: TextInputType.multiline,
+                decoration: InputDecoration(
+                  hintText: _isListening ? "Listening..." : "Add a comment...",
                   border: InputBorder.none,
+                  hintStyle: TextStyle(color: _isListening ? Colors.redAccent : Colors.grey),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 ),
               ),
             ),
           ),
-          IconButton(
-            onPressed: _submitComment,
-            icon: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
+
+          // --- Language Switcher Dropdown ---
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: PopupMenuButton<String>(
+              initialValue: _currentLocaleId,
+              tooltip: 'Change Language',
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                margin: const EdgeInsets.only(left: 8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  _supportedLocales[_currentLocaleId]!,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade700,
+                    fontSize: 13,
+                  ),
+                ),
               ),
-              child: const Icon(
-                Icons.arrow_upward_rounded,
-                color: Colors.white,
-                size: 20,
+              onSelected: (String locale) {
+                setState(() {
+                  _currentLocaleId = locale;
+                });
+              },
+              itemBuilder: (BuildContext context) {
+                return [
+                  const PopupMenuItem(value: 'en_US', child: Text('English (EN)')),
+                  const PopupMenuItem(value: 'zh_CN', child: Text('华语 (Chinese)')),
+                  const PopupMenuItem(value: 'ms_MY', child: Text('Bahasa Melayu (BM)')),
+                ];
+              },
+            ),
+          ),
+
+          // --- Microphone Button ---
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: IconButton(
+              onPressed: _listen,
+              icon: Icon(
+                _isListening ? Icons.mic : Icons.mic_none,
+                color: _isListening ? Colors.redAccent : Colors.grey.shade600,
+                size: 24,
+              ),
+            ),
+          ),
+
+          // --- Send Button ---
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: IconButton(
+              onPressed: _submitComment,
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.arrow_upward_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
             ),
           ),
