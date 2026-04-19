@@ -241,12 +241,22 @@ class PostService {
           .eq('like', true)
           .filter('comment_text', 'is', null);
 
-      final uniquePostIds = (response as List)
+      final likedPostIds = (response as List)
           .map((row) => (row['post_id'] ?? '').toString())
           .where((postId) => postId.trim().isNotEmpty)
           .toSet();
 
-      return uniquePostIds.length;
+      if (likedPostIds.isEmpty) return 0;
+
+      // Only count posts that are public and still active.
+      final visiblePosts = await _supabase
+          .from('CommunityPost')
+          .select('post_id')
+          .inFilter('post_id', likedPostIds.toList())
+          .eq('is_private', false)
+          .eq('is_active', false);
+
+      return (visiblePosts as List).length;
     } catch (e) {
       debugPrint('Fetch liked posts count error: $e');
       return 0;

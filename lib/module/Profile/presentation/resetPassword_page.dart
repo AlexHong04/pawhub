@@ -28,6 +28,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     return value.isNotEmpty &&
         value.length >= 8 &&
         RegExp(r'\d').hasMatch(value) &&
+        RegExp(r'[A-Z]').hasMatch(value) &&
         RegExp(r'[^A-Za-z0-9]').hasMatch(value);
   }
 
@@ -236,6 +237,9 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                         }
                         if (!RegExp(r'\d').hasMatch(value)) {
                           return "Password must include at least 1 number";
+                        }
+                        if (!RegExp(r'[A-Z]').hasMatch(value)) {
+                          return "Password must include at least 1 uppercase letter";
                         }
                         if (!RegExp(r'[^A-Za-z0-9]').hasMatch(value)) {
                           return "Password must include at least 1 symbol";

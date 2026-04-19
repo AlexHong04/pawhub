@@ -133,11 +133,23 @@ class AuthService {
 			String gender,
 			) async {
 		lastError = null;
+		final normalizedEmail = email.trim().toLowerCase();
 
 		try {
+			if (normalizedEmail.isEmpty) {
+				lastError = 'Email is required.';
+				return null;
+			}
+
+			final exists = await _isEmailAlreadyRegistered(normalizedEmail);
+			if (exists) {
+				lastError = _duplicateEmailMessage;
+				return null;
+			}
+
 			// create the user in auth.users.
 			final response = await supabase.auth.signUp(
-				email: email,
+				email: normalizedEmail,
 				password: password,
 			);
 
@@ -164,12 +176,12 @@ class AuthService {
 			await supabase
 					.from('User')
 					.update({
-						'email': email.trim(),
+						'email': normalizedEmail,
 						'updated_at': DateTime.now().toIso8601String(),
 					})
 					.eq('auth_id', authUserId);
 
-			existingUser['email'] = email;
+			existingUser['email'] = normalizedEmail;
 			final authModel = AuthModel.fromJson(existingUser);
 			await CurrentUserStore.save(authModel);
 			await BiometricSessionService.saveCurrentSession();
@@ -203,7 +215,7 @@ class AuthService {
 						'is_banned': false,
 						'is_volunteer': false,
 						'avatar_url': null,
-						'email': email.trim(),
+						'email': normalizedEmail,
 						'auth_id': authUserId,
 					})
 							.select()
@@ -225,7 +237,7 @@ class AuthService {
 			}
 
 		if (userData != null) {
-			userData['email'] = email;
+			userData['email'] = normalizedEmail;
 			final authModel = AuthModel.fromJson(userData);
 			await CurrentUserStore.save(authModel);
 			await BiometricSessionService.saveCurrentSession();
@@ -236,13 +248,13 @@ class AuthService {
 		}
 
 		} on AuthException catch (e, stackTrace) {
-			lastError = e.message;
+			lastError = _isDuplicateEmailError(e.message) ? _duplicateEmailMessage : e.message;
 			// Auth-layer errors such as duplicate email or signup restrictions.
 			print('register auth error: ${e.message}');
 			print('register auth stackTrace: $stackTrace');
 			return null;
 		} on PostgrestException catch (e, stackTrace) {
-			lastError = e.message;
+			lastError = _isDuplicateEmailError(e.message) ? _duplicateEmailMessage : e.message;
 			print('register database error: ${e.message}');
 			print('register database stackTrace: $stackTrace');
 			return null;
@@ -252,6 +264,36 @@ class AuthService {
 			print('register error: $e');
 			print('register stackTrace: $stackTrace');
 			return null;
+		}
+	}
+
+	static const String _duplicateEmailMessage =
+			'This email is already registered. Please use another email or login.';
+
+	static bool _isDuplicateEmailError(String? message) {
+		final text = (message ?? '').toLowerCase();
+		return text.contains('already registered') ||
+				text.contains('already been registered') ||
+				text.contains('duplicate') ||
+				text.contains('unique') ||
+				text.contains('email_exists') ||
+				text.contains('user already registered');
+	}
+
+	static Future<bool> _isEmailAlreadyRegistered(String normalizedEmail) async {
+		try {
+			final existing = await supabase
+					.from('User')
+					.select('auth_id')
+					.ilike('email', normalizedEmail)
+					.maybeSingle();
+			return existing != null;
+		} on PostgrestException catch (e) {
+			print('register pre-check warning: ${e.message}');
+			return false;
+		} catch (e) {
+			print('register pre-check warning: $e');
+			return false;
 		}
 	}
 

@@ -9,6 +9,7 @@ import '../../../core/utils/supabase_file_service.dart';
 class ProfileService {
   static final supabase = Supabase.instance.client;
   static const Duration onlineFreshness = Duration(minutes: 2);
+  static String? lastError;
 
   static Future<bool> updateOnlineStatus(String authId, String status) async {
     try {
@@ -120,13 +121,30 @@ class ProfileService {
       String? avatarUrl
       ) async {
     try {
+      lastError = null;
       final user = supabase.auth.currentUser;
       if (user == null) {
         print('No authenticated user found or user ID mismatch.');
+        lastError = 'No authenticated user found.';
         return false;
       }
 
       final normalizedEmail = email.trim();
+      final normalizedContact = contact.trim();
+
+      if (normalizedContact.isNotEmpty) {
+        final duplicateContactRow = await supabase
+            .from('User')
+            .select('auth_id')
+            .eq('contact', normalizedContact)
+            .neq('auth_id', user.id)
+            .maybeSingle();
+
+        if (duplicateContactRow != null) {
+          lastError = 'This contact number is already used by another user.';
+          return false;
+        }
+      }
 
       // Update Email in Auth (if it changed)
       if (user.email != normalizedEmail) {
@@ -141,7 +159,7 @@ class ProfileService {
         'name': name,
         'email': normalizedEmail,
         'gender': gender,
-        'contact': contact,
+        'contact': normalizedContact,
         'address': address,
         'updated_at': nowIso,
         // Keep presence alive when user actively saves profile changes.
@@ -158,7 +176,21 @@ class ProfileService {
       await supabase.from('User').update(updates).eq('auth_id', user.id);
 
       return true;
+    } on PostgrestException catch (e) {
+      final message = e.message.toLowerCase();
+      final isDuplicate =
+          e.code == '23505' || message.contains('duplicate') || message.contains('unique');
+
+      if (isDuplicate) {
+        lastError = 'This contact number is already used by another user.';
+      } else {
+        lastError = e.message;
+      }
+
+      print('Error updating user profile: ${e.message} (code: ${e.code})');
+      return false;
     } catch (e) {
+      lastError = e.toString();
       print('Error updating user profile: $e');
       return false;
     }
