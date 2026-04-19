@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import 'package:pawhub/core/widgets/app_snackbar.dart';
 import 'package:pawhub/module/auth/service/auth_service.dart';
 
 import '../auth_routes.dart';
@@ -47,9 +48,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
 
     // Check for 6 digits
     if (otpCode.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter all 6 digits')),
-      );
+      AppSnackBar.error(context, 'Please enter all 6 digits');
       return;
     }
 
@@ -62,12 +61,9 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
       if (success) {
         Navigator.pushReplacementNamed(context, AuthRoutes.newPassword);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AuthService.lastError ?? 'Invalid OTP code. Please try again.',
-            ),
-          ),
+        AppSnackBar.error(
+          context,
+          AuthService.lastError ?? 'Invalid OTP code. Please try again.',
         );
       }
     }

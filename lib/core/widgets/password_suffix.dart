@@ -34,7 +34,7 @@ class PasswordSuffix extends StatelessWidget {
             ),
           IconButton(
             icon: Icon(
-              isObscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+              isObscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
               color: AppColors.iconColor,
             ),
             onPressed: onToggleVisibility,

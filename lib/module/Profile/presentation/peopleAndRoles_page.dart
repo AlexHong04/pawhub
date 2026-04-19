@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import 'package:pawhub/core/widgets/app_snackbar.dart';
 import 'package:pawhub/core/widgets/filterButton.dart';
 import 'package:pawhub/module/Profile/model/user_model.dart';
 import 'package:pawhub/module/Profile/service/profile_service.dart';
@@ -472,18 +473,14 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
 
             if (!mounted) return;
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  success
-                      ? (shouldBan
-                            ? '${resolvedRole == 'Volunteer' ? 'Volunteer' : 'User'} ${user.name} has been banned'
-                            : '${resolvedRole == 'Volunteer' ? 'Volunteer' : 'User'} ${user.name} has been unbanned')
-                      : 'Failed to update ban status for ${user.name}',
-                ),
-                backgroundColor: success ? null : Colors.red,
-              ),
-            );
+            if (success) {
+              final message = shouldBan
+                  ? '${resolvedRole == 'Volunteer' ? 'Volunteer' : 'User'} ${user.name} has been banned'
+                  : '${resolvedRole == 'Volunteer' ? 'Volunteer' : 'User'} ${user.name} has been unbanned';
+              AppSnackBar.success(context, message);
+            } else {
+              AppSnackBar.error(context, 'Failed to update ban status for ${user.name}');
+            }
 
             if (success) {
               await _fetchUsers();
@@ -548,16 +545,11 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
                 Navigator.pop(roleSheetContext);
               }
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    success
-                        ? 'Role updated to $selectedRole for ${user.name}'
-                        : 'Failed to update role for ${user.name}',
-                  ),
-                  backgroundColor: success ? null : Colors.red,
-                ),
-              );
+              if (success) {
+                AppSnackBar.success(context, 'Role updated to $selectedRole for ${user.name}');
+              } else {
+                AppSnackBar.error(context, 'Failed to update role for ${user.name}');
+              }
 
               if (success) {
                 await _fetchUsers();

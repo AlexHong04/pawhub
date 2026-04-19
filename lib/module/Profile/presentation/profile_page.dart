@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:pawhub/module/Profile/model/user_model.dart';
 import 'package:pawhub/core/utils/biometric_session_service.dart';
+import 'package:pawhub/core/widgets/app_snackbar.dart';
 import 'package:pawhub/module/communityPost/service/post_service.dart';
 import 'package:pawhub/module/petAdoption/service/pet_adoption_service.dart';
 
@@ -103,7 +104,6 @@ class _ProfilePageState extends State<ProfilePage> {
       } catch (e) {
         debugPrint('Failed to fetch adopted count: $e');
       }
-
       try {
         favoritesCount = await _postService
             .fetchLikedPostsCountByUser(profileData.id)
@@ -135,7 +135,7 @@ class _ProfilePageState extends State<ProfilePage> {
       if (disable) {
         await BiometricSessionService.setEnabled(false);
         if (mounted) {
-          _showBiometricSnackBar('Biometric login disabled');
+          AppSnackBar.success(context, 'Biometric login disabled');
         }
       }
       return;
@@ -144,7 +144,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final supported = await BiometricSessionService.isSupported();
     if (!supported) {
       if (mounted) {
-        _showBiometricSnackBar('Biometric authentication is not available on this device.');
+        AppSnackBar.error(context, 'Biometric authentication is not available on this device.');
       }
       return;
     }
@@ -159,7 +159,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
       if (!unlocked) {
         if (mounted) {
-          _showBiometricSnackBar('Biometric verification failed. Not enabled.');
+          AppSnackBar.error(context, 'Biometric verification failed. Not enabled.');
         }
         return;
       }
@@ -168,14 +168,14 @@ class _ProfilePageState extends State<ProfilePage> {
       final hasSession = await BiometricSessionService.hasStoredSession();
       if (!hasSession) {
         if (mounted) {
-          _showBiometricSnackBar('No active session found. Please login again first.');
+          AppSnackBar.error(context, 'No active session found. Please login again first.');
         }
         return;
       }
 
       await BiometricSessionService.setEnabled(true);
       if (mounted) {
-        _showBiometricSnackBar('Biometric login enabled');
+        AppSnackBar.success(context, 'Biometric login enabled');
       }
     }
   }
@@ -226,9 +226,6 @@ class _ProfilePageState extends State<ProfilePage> {
         .then((value) => value ?? false);
   }
 
-  void _showBiometricSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -252,9 +249,13 @@ class _ProfilePageState extends State<ProfilePage> {
       // Show a loading spinner while fetching data
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-        child: Column(
+          : RefreshIndicator(
+        onRefresh: _loadUserData,
+        color: AppColors.primary,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          child: Column(
           children: [
             // 1. Profile Picture & Name (Now Dynamic!)
             _buildProfileHeader(),
@@ -420,6 +421,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             const SizedBox(height: 40),
           ],
+          ),
         ),
       ),
       floatingActionButton: (_userProfile?.role.toLowerCase() == 'user')
@@ -566,7 +568,7 @@ class _ProfilePageState extends State<ProfilePage> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),

@@ -58,7 +58,12 @@ class AuthService {
 			}
 
 			return null;
+		} on AuthException catch (e) {
+			lastError = e.message;
+			print('login auth error: ${e.message}');
+			return null;
 		} catch (e) {
+			lastError = e.toString();
 			print('login error: $e');
 			return null;
 		}

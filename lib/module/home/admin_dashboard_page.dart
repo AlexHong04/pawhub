@@ -5,6 +5,8 @@ import 'package:pawhub/core/widgets/profile_avatar.dart';
 import 'package:pawhub/module/Profile/service/profile_service.dart';
 import 'package:pawhub/module/donation/presentation/admin_donation_page.dart';
 import 'package:pawhub/module/donation/service/donation_service.dart';
+import 'package:pawhub/core/utils/biometric_session_service.dart';
+import 'package:pawhub/module/auth/service/auth_service.dart';
 
 import '../../core/constants/colors.dart';
 import '../../../core/utils/qr_service.dart';
@@ -147,78 +149,183 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
     }
   }
 
-  void _showScanOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.only(bottom: 30, top: 12),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 5,
-              margin: const EdgeInsets.only(bottom: 24),
-              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
-            ),
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: Colors.blue.shade50, shape: BoxShape.circle),
-                child: Icon(Icons.camera_alt_rounded, color: Colors.blue.shade600, size: 22),
-              ),
-              title: const Text('Scan with Camera', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              onTap: () async {
-                Navigator.pop(context);
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const QRScannerPage(id: 'admin_dashboard')),
-                );
-                _processScannedData(result as String?);
-              },
-            ),
-            const SizedBox(height: 8),
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: Colors.green.shade50, shape: BoxShape.circle),
-                child: Icon(Icons.photo_library_rounded, color: Colors.green.shade600, size: 22),
-              ),
-              title: const Text('Pick from Gallery', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              onTap: () async {
-                Navigator.pop(context);
-                final ImagePicker picker = ImagePicker();
-                final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+   void _showScanOptions() {
+     showModalBottomSheet(
+       context: context,
+       backgroundColor: Colors.transparent,
+       builder: (context) => Container(
+         padding: const EdgeInsets.only(bottom: 30, top: 12),
+         decoration: const BoxDecoration(
+           color: Colors.white,
+           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+         ),
+         child: Column(
+           mainAxisSize: MainAxisSize.min,
+           children: [
+             Container(
+               width: 40,
+               height: 5,
+               margin: const EdgeInsets.only(bottom: 24),
+               decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
+             ),
+             ListTile(
+               contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+               leading: Container(
+                 padding: const EdgeInsets.all(10),
+                 decoration: BoxDecoration(color: Colors.blue.shade50, shape: BoxShape.circle),
+                 child: Icon(Icons.camera_alt_rounded, color: Colors.blue.shade600, size: 22),
+               ),
+               title: const Text('Scan with Camera', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+               onTap: () async {
+                 Navigator.pop(context);
+                 final result = await Navigator.push(
+                   context,
+                   MaterialPageRoute(builder: (context) => const QRScannerPage(id: 'admin_dashboard')),
+                 );
+                 _processScannedData(result as String?);
+               },
+             ),
+             const SizedBox(height: 8),
+             ListTile(
+               contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+               leading: Container(
+                 padding: const EdgeInsets.all(10),
+                 decoration: BoxDecoration(color: Colors.green.shade50, shape: BoxShape.circle),
+                 child: Icon(Icons.photo_library_rounded, color: Colors.green.shade600, size: 22),
+               ),
+               title: const Text('Pick from Gallery', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+               onTap: () async {
+                 Navigator.pop(context);
+                 final ImagePicker picker = ImagePicker();
+                 final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-                if (image != null) {
-                  final MobileScannerController controller = MobileScannerController();
-                  final BarcodeCapture? capture = await controller.analyzeImage(image.path);
+                 if (image != null) {
+                   final MobileScannerController controller = MobileScannerController();
+                   final BarcodeCapture? capture = await controller.analyzeImage(image.path);
 
-                  if (capture != null && capture.barcodes.isNotEmpty) {
-                    _processScannedData(capture.barcodes.first.rawValue);
-                  } else {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("No QR Code found in the image"), backgroundColor: Colors.orange),
-                      );
-                    }
-                  }
-                  controller.dispose();
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+                   if (capture != null && capture.barcodes.isNotEmpty) {
+                     _processScannedData(capture.barcodes.first.rawValue);
+                   } else {
+                     if (mounted) {
+                       ScaffoldMessenger.of(context).showSnackBar(
+                         const SnackBar(content: Text("No QR Code found in the image"), backgroundColor: Colors.orange),
+                       );
+                     }
+                   }
+                   controller.dispose();
+                 }
+               },
+             ),
+           ],
+         ),
+       ),
+     );
+   }
+
+   Future<void> _handleBiometricLoginTap() async {
+     final enabled = await BiometricSessionService.isEnabled();
+
+     if (enabled) {
+       if (!mounted) return;
+       final disable = await _confirmDisableBiometricLogin();
+
+       if (disable) {
+         await BiometricSessionService.setEnabled(false);
+         if (mounted) {
+           _showBiometricSnackBar('Biometric login disabled');
+         }
+       }
+       return;
+     }
+
+     final supported = await BiometricSessionService.isSupported();
+     if (!supported) {
+       if (mounted) {
+         _showBiometricSnackBar('Biometric authentication is not available on this device.');
+       }
+       return;
+     }
+
+     if (!mounted) return;
+     final enable = await _confirmEnableBiometricLogin();
+
+     if (enable) {
+       final unlocked = await BiometricSessionService.authenticate(
+         localizedReason: 'Verify your identity to enable biometric login',
+       );
+
+       if (!unlocked) {
+         if (mounted) {
+           _showBiometricSnackBar('Biometric verification failed. Not enabled.');
+         }
+         return;
+       }
+
+       await BiometricSessionService.saveCurrentSession();
+       final hasSession = await BiometricSessionService.hasStoredSession();
+       if (!hasSession) {
+         if (mounted) {
+           _showBiometricSnackBar('No active session found. Please login again first.');
+         }
+         return;
+       }
+
+       await BiometricSessionService.setEnabled(true);
+       if (mounted) {
+         _showBiometricSnackBar('Biometric login enabled');
+       }
+     }
+   }
+
+   Future<bool> _confirmEnableBiometricLogin() {
+     return showDialog<bool>(
+           context: context,
+           builder: (context) => AlertDialog(
+             title: const Text('Enable biometric login?'),
+             content: const Text(
+               'Allow fingerprint / Face ID to unlock your saved Supabase session next time.',
+             ),
+             actions: [
+               TextButton(
+                 onPressed: () => Navigator.pop(context, false),
+                 child: const Text('Not now'),
+               ),
+               ElevatedButton(
+                 onPressed: () => Navigator.pop(context, true),
+                 child: const Text('Enable'),
+               ),
+             ],
+           ),
+         )
+         .then((value) => value ?? false);
+   }
+
+   Future<bool> _confirmDisableBiometricLogin() {
+     return showDialog<bool>(
+           context: context,
+           builder: (context) => AlertDialog(
+             title: const Text('Disable biometric login?'),
+             content: const Text(
+               'This will turn off fingerprint / Face ID unlock for the next app launch.',
+             ),
+             actions: [
+               TextButton(
+                 onPressed: () => Navigator.pop(context, false),
+                 child: const Text('Cancel'),
+               ),
+               ElevatedButton(
+                 onPressed: () => Navigator.pop(context, true),
+                 child: const Text('Disable'),
+               ),
+             ],
+           ),
+         )
+         .then((value) => value ?? false);
+   }
+
+   void _showBiometricSnackBar(String message) {
+     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+   }
 
   @override
   Widget build(BuildContext context) {
@@ -252,51 +359,174 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             const SizedBox(height: 32),
 
             // Recent Donations Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Expanded(
-                  child: Text(
-                    "Recent Donations",
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.dashboardHeading,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const AdminDonationPage()),
-                    );
-                  },
-                  child: const Text(
-                    "VIEW ALL",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.dashboardBlue,
-                      fontSize: 12,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
+             Row(
+               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+               children: [
+                 const Expanded(
+                   child: Text(
+                     "Recent Donations",
+                     maxLines: 1,
+                     overflow: TextOverflow.ellipsis,
+                     style: TextStyle(
+                       fontSize: 18,
+                       fontWeight: FontWeight.bold,
+                       color: AppColors.dashboardHeading,
+                     ),
+                   ),
+                 ),
+                 TextButton(
+                   style: TextButton.styleFrom(
+                     padding: const EdgeInsets.symmetric(horizontal: 8),
+                     minimumSize: Size.zero,
+                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                   ),
+                   onPressed: () {
+                     Navigator.push(
+                       context,
+                       MaterialPageRoute(builder: (_) => const AdminDonationPage()),
+                     );
+                   },
+                   child: const Text(
+                     "VIEW ALL",
+                     style: TextStyle(
+                       fontWeight: FontWeight.bold,
+                       color: AppColors.dashboardBlue,
+                       fontSize: 12,
+                       letterSpacing: 1.0,
+                     ),
+                   ),
+                 ),
+               ],
+             ),
+             const SizedBox(height: 8),
 
-            // Donation List
-            ..._buildRecentDonationCards(),
+             // Donation List
+             ..._buildRecentDonationCards(),
 
-            const SizedBox(height: 24),
+             const SizedBox(height: 48),
+
+             // Account Settings Section
+             const Align(
+               alignment: Alignment.centerLeft,
+               child: Text(
+                 "ACCOUNT",
+                 style: TextStyle(
+                   fontSize: 12,
+                   fontWeight: FontWeight.bold,
+                   letterSpacing: 1.2,
+                   color: AppColors.textLight,
+                 ),
+               ),
+             ),
+             const SizedBox(height: 12),
+
+             // Account Settings List
+             Container(
+               decoration: BoxDecoration(
+                 color: Colors.white,
+                 borderRadius: BorderRadius.circular(16),
+                 border: Border.all(color: AppColors.dashboardBorder),
+               ),
+               child: Column(
+                 children: [
+                   _buildAdminSettingTile(
+                     icon: Icons.person,
+                     iconBgColor: AppColors.primary.withAlpha(26),
+                     iconColor: AppColors.primary,
+                     title: "Edit Profile",
+                     onTap: () {
+                       Navigator.pushNamed(context, '/edit_profile').then((_) {
+                         _loadDashboardData();
+                       });
+                     },
+                   ),
+                   const Divider(height: 1, color: AppColors.borderGray),
+                   _buildAdminSettingTile(
+                     icon: Icons.lock,
+                     iconBgColor: Colors.orange.withAlpha(26),
+                     iconColor: Colors.orange,
+                     title: "Reset Password",
+                     onTap: () {
+                       Navigator.pushNamed(context, '/reset_password');
+                     },
+                   ),
+                   const Divider(height: 1, color: AppColors.borderGray),
+                   _buildAdminSettingTile(
+                     icon: Icons.fingerprint,
+                     iconBgColor: Colors.orange.withAlpha(26),
+                     iconColor: Colors.orange,
+                     title: "Biometric Login",
+                     onTap: () {
+                       _handleBiometricLoginTap();
+                     },
+                   ),
+                 ],
+               ),
+             ),
+             const SizedBox(height: 24),
+
+             // Lock App Button
+             SizedBox(
+               width: double.infinity,
+               child: OutlinedButton.icon(
+                 style: OutlinedButton.styleFrom(
+                   padding: const EdgeInsets.symmetric(vertical: 16),
+                   side: const BorderSide(color: AppColors.primary),
+                   foregroundColor: AppColors.primary,
+                   shape: RoundedRectangleBorder(
+                     borderRadius: BorderRadius.circular(12),
+                   ),
+                 ),
+                 onPressed: () async {
+                   await AuthService.lockApp();
+                   if (!context.mounted) return;
+
+                   Navigator.pushNamedAndRemoveUntil(
+                     context,
+                     '/login',
+                     (route) => false,
+                   );
+                 },
+                 icon: const Icon(Icons.lock_outline, color: AppColors.primary),
+                 label: const Text(
+                   'Lock App',
+                   style: TextStyle(
+                     fontSize: 16,
+                     fontWeight: FontWeight.w600,
+                     color: AppColors.primary,
+                   ),
+                 ),
+               ),
+             ),
+             const SizedBox(height: 12),
+
+             // Sign Out Button
+             SizedBox(
+               width: double.infinity,
+               child: OutlinedButton.icon(
+                 style: OutlinedButton.styleFrom(
+                   padding: const EdgeInsets.symmetric(vertical: 16),
+                   side: const BorderSide(color: Colors.red),
+                   foregroundColor: Colors.red,
+                   shape: RoundedRectangleBorder(
+                     borderRadius: BorderRadius.circular(12),
+                   ),
+                 ),
+                 onPressed: () async {
+                   await AuthService.logout();
+                 },
+                 icon: const Icon(Icons.logout, color: Colors.red),
+                 label: const Text(
+                   "Sign Out",
+                   style: TextStyle(
+                     fontSize: 16,
+                     fontWeight: FontWeight.w600,
+                     color: Colors.red,
+                   ),
+                 ),
+               ),
+             ),
+             const SizedBox(height: 40),
                   ],
                 ),
               ),
@@ -1176,20 +1406,48 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
     }).toList();
   }
 
-  String _timeAgo(DateTime dateTime) {
-    final diff = DateTime.now().difference(dateTime);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inHours < 1) return '${diff.inMinutes} min ago';
-    if (diff.inDays < 1) return '${diff.inHours} hr ago';
-    return '${diff.inDays} day ago';
+   String _timeAgo(DateTime dateTime) {
+     final diff = DateTime.now().difference(dateTime);
+     if (diff.inMinutes < 1) return 'Just now';
+     if (diff.inHours < 1) return '${diff.inMinutes} min ago';
+     if (diff.inDays < 1) return '${diff.inHours} hr ago';
+     return '${diff.inDays} day ago';
+   }
+
+    // Helper for the Account Settings List Tiles
+    Widget _buildAdminSettingTile({
+      required IconData icon,
+      required Color iconBgColor,
+      required Color iconColor,
+      required String title,
+      required VoidCallback onTap,
+    }) {
+      return ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        onTap: onTap,
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: iconBgColor, shape: BoxShape.circle),
+          child: Icon(icon, color: iconColor, size: 22),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textDark,
+          ),
+        ),
+        trailing: const Icon(Icons.chevron_right, color: AppColors.textLight),
+      );
+    }
   }
-}
 
 class _DonationChartBucket {
-  final String label;
-  final double value;
+   final String label;
+   final double value;
 
-  const _DonationChartBucket(this.label, this.value);
+   const _DonationChartBucket(this.label, this.value);
 }
 
 // --- CUSTOM PAINTER FOR THE SMOOTH LINE CHART ---

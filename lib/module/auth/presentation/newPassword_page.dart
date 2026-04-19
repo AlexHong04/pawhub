@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import 'package:pawhub/core/widgets/app_snackbar.dart';
 import 'package:pawhub/core/widgets/password_suffix.dart';
 import 'package:pawhub/module/auth/service/auth_service.dart';
 
@@ -61,9 +62,7 @@ class _SetNewPasswordPageState extends State<SetNewPasswordPage> {
           isSuccess = true; // Triggers the smooth animation to the Success UI!
         });
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update password. Try again.')),
-        );
+        AppSnackBar.error(context, 'Failed to update password. Try again.');
       }
     }
   }

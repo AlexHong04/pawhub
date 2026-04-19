@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
 import 'package:pawhub/core/utils/biometric_session_service.dart';
+import 'package:pawhub/core/widgets/app_snackbar.dart';
 import 'package:pawhub/core/widgets/password_suffix.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:pawhub/module/auth/model/auth_model.dart';
@@ -150,7 +151,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    AppSnackBar.error(context, message);
   }
 
 

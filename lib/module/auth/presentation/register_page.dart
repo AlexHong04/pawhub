@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import 'package:pawhub/core/widgets/app_snackbar.dart';
 import 'package:pawhub/core/widgets/password_suffix.dart';
 import 'package:pawhub/module/auth/service/auth_service.dart';
 import '../../../core/widgets/appDecorations.dart';
@@ -68,9 +69,7 @@ class _RegisterPageState extends State<RegisterPage> {
       });
 
       if (user != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registration Successful')),
-        );
+        AppSnackBar.success(context, 'Registration Successful');
 
         Navigator.pushNamedAndRemoveUntil(
           context,
@@ -79,9 +78,7 @@ class _RegisterPageState extends State<RegisterPage> {
         );
       } else {
         final errorMessage = AuthService.lastError ?? 'Registration Failed';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
+        AppSnackBar.error(context, errorMessage);
       }
     }
   }

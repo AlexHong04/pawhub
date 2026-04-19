@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/widgets/appDecorations.dart';
+import 'package:pawhub/core/widgets/app_snackbar.dart';
 import 'package:pawhub/core/widgets/password_suffix.dart';
 
 import '../../../core/constants/colors.dart';
@@ -57,9 +58,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     final currentUser = AuthService.supabase.auth.currentUser;
     if (currentUser == null || currentUser.email == null) {
       setState(() => loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: No authenticated user found.')),
-      );
+      AppSnackBar.error(context, 'Error: No authenticated user found.');
       return;
     }
     // Verify the "Current Password" by attempting a silent login
@@ -72,12 +71,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     if (verifyOldPassword == null) {
       if (mounted) {
         setState(() => loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Current password is incorrect!'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackBar.error(context, 'Current password is incorrect!');
       }
       return; // Stop here if the old password is wrong
     }
@@ -88,20 +82,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         loading = false;
       });
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password updated successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        AppSnackBar.success(context, 'Password updated successfully!');
         Navigator.pop(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to update password. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackBar.error(context, 'Failed to update password. Please try again.');
       }
     }
   }

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import 'package:pawhub/core/widgets/app_snackbar.dart';
 import 'package:pawhub/core/utils/local_file_service.dart';
 import 'package:pawhub/core/widgets/appDecorations.dart';
 import 'package:pawhub/module/Profile/model/user_model.dart';
@@ -137,9 +138,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         loading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Network error. Loading offline avatar.')),
-      );
+      AppSnackBar.show(context, message: 'Network error. Loading offline avatar.', backgroundColor: Colors.orange);
     }
   }
   Future<void> _pickImage(ImageSource source) async {
@@ -150,9 +149,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       if (pickedFile != null) {
         if (_userId == null) {
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile is still loading, please try again.')),
-          );
+          AppSnackBar.error(context, 'Profile is still loading, please try again.');
           return;
         }
 
@@ -177,12 +174,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       // If it fails, print the error and show a SnackBar!
       if (!mounted) return;
       debugPrint("Image picker error: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error opening image picker: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackBar.error(context, 'Error opening image picker: $e');
     }
   }
 
@@ -198,9 +190,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       if (!mounted) return;
       if (uploadedAvatarUrl == null) {
         setState(() => loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to upload image to Supabase.')),
-        );
+        AppSnackBar.error(context, 'Failed to upload image to Supabase.');
         return;
       }
       newAvatarUrl = uploadedAvatarUrl;
@@ -226,13 +216,9 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         _selectedImage = null;
         _initialLocation = locationController.text.trim();
         _locationEdited = false;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully!')),
-        );
+        AppSnackBar.success(context, 'Profile updated successfully!');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update profile. Try again.')),
-        );
+        AppSnackBar.error(context, 'Failed to update profile. Try again.');
       }
     }
   }
