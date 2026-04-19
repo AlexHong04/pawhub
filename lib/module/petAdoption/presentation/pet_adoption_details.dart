@@ -161,6 +161,7 @@ class _AdoptionDetailsState extends State<AdoptionDetailsPage> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
           ),
+          backgroundColor: Colors.white,
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -224,31 +225,31 @@ class _AdoptionDetailsState extends State<AdoptionDetailsPage> {
         backgroundColor: Colors.white,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            if (_user?.role == 'Admin') _buildUserInfoCard(_adoptionUser!),
-            _buildPetInfoCard(_pet!),
-            const SizedBox(height: 10),
-            _buildStatusTrackingCard(_application!.adoptionStatuses, _pickup),
-            const SizedBox(height: 20),
-            // show Approve/Reject buttons if status is "Pending"
-            if (_user?.role == 'Admin' &&
-                lastStatus == 'Pending')
-              _buildActionButtons()
+      body: RefreshIndicator(
+        onRefresh: _fetchAdoption,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              if (_user?.role == 'Admin') _buildUserInfoCard(_adoptionUser!),
+              _buildPetInfoCard(_pet!),
+              const SizedBox(height: 10),
+              _buildStatusTrackingCard(_application!.adoptionStatuses, _pickup),
+              const SizedBox(height: 20),
+              // show Approve/Reject buttons if status is "Pending"
+              if (_user?.role == 'Admin' && lastStatus == 'Pending')
+                _buildActionButtons()
+              // dhow Schedule button if user and status is "Approved"
+              else if (_user?.role == 'User' && lastStatus == 'Approved')
+                _buildScheduleButton(),
 
-            // dhow Schedule button if user and status is "Approved"
-            else if (_user?.role == 'User' &&
-                lastStatus == 'Approved')
-              _buildScheduleButton(),
-
-            // show QR button if user and status is "Pending Pickup" and today is pickup day
-            if (_user?.role == 'User' &&
-                lastStatus == "Pending Pickup" &&  // ✅ Changed from lastStatus to check against lastStatus
-                isPickupToday)
-              _buildGenerateQRButton(_application!.adoptionId),
-          ],
+              // show QR button if user and status is "Pending Pickup" and today is pickup day
+              if (_user?.role == 'User' &&
+                  lastStatus == "Pending Pickup" &&
+                  isPickupToday)
+                _buildGenerateQRButton(_application!.adoptionId),
+            ],
+          ),
         ),
       ),
     );
@@ -277,8 +278,7 @@ class _AdoptionDetailsState extends State<AdoptionDetailsPage> {
           "User's adoption application request submitted successfully. Waiting for your approval.",
       'Approved':
           "User's adoption application has been approved, pending user schedule pickup.",
-      'Rejected':
-          "User's adoption application has been rejected.",
+      'Rejected': "User's adoption application has been rejected.",
       'Pending Pickup': "User's pick up booking has been made.",
       'Completed': "Pet has been picked up. Thanks!",
     };
@@ -350,7 +350,10 @@ class _AdoptionDetailsState extends State<AdoptionDetailsPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+          ),
         ],
       ),
       child: Row(
@@ -566,14 +569,15 @@ class _AdoptionDetailsState extends State<AdoptionDetailsPage> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => SchedulePickupPage(adoptionId: _application!.adoptionId),
+              builder: (_) =>
+                  SchedulePickupPage(adoptionId: _application!.adoptionId),
             ),
           );
-          _fetchAdoption();
+          await _fetchAdoption();
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.orange,
@@ -594,11 +598,17 @@ class _AdoptionDetailsState extends State<AdoptionDetailsPage> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: () {
-          showDialog(
+        onPressed: () async {
+          await showDialog(
             context: context,
-            builder: (_) => QRDialog(data: adoptionId, title: 'Pickup QR'),
+            builder: (_) => QRDialog(
+              data: adoptionId,
+              title: 'Pickup QR',
+            ),
           );
+
+          // 🔥 refresh AFTER dialog is closed
+          await _fetchAdoption();
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,

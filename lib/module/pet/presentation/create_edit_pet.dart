@@ -377,6 +377,8 @@ class _PetDetailsState extends State<CreateEditPetPage> {
         description: _descCtrl.text.isEmpty ? null : _descCtrl.text,
       );
 
+      Navigator.pop(context);
+
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Pet created successfully!'))
       );

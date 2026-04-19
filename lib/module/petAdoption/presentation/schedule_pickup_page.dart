@@ -43,6 +43,7 @@ class _PickupState extends State<SchedulePickupPage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(15),
             ),
+            backgroundColor: Colors.white,
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -72,6 +73,7 @@ class _PickupState extends State<SchedulePickupPage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(15),
             ),
+            backgroundColor: Colors.white,
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, _selectedDate),

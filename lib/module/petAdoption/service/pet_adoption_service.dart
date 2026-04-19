@@ -45,7 +45,7 @@ class AdoptionService {
         .toList();
   }
 
-  // ✅ Approve single application
+  // approve single application
   Future<void> approveSingleApplication(String adoptionId) async {
     final now = DateTime.now();
     final formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
@@ -55,38 +55,37 @@ class AdoptionService {
       return;
     }
 
-    debugPrint("🟢 Approving single application: $adoptionId");
+    debugPrint("Approving single application: $adoptionId");
 
     try {
-      // 1️⃣ Fetch pet_id
       final adoptionRes = await supabase
           .from('Adoption')
           .select('adoption_id, pet_id')
           .eq('adoption_id', adoptionId)
           .single();
 
-      debugPrint("✅ Fetched adoption: $adoptionId");
+      debugPrint("Fetched adoption: $adoptionId");
 
       final petId = adoptionRes['pet_id'] as String;
-      debugPrint("✅ Pet ID: $petId");
+      debugPrint("Pet ID: $petId");
 
-      // 2️⃣ Update Adoption
+      // update Adoption
       await supabase
           .from('Adoption')
           .update({'updated_at': formattedDate})
           .eq('adoption_id', adoptionId);
 
-      debugPrint("✅ Updated Adoption: $adoptionId");
+      debugPrint("Updated Adoption: $adoptionId");
 
-      // 3️⃣ Update Pet
+      // update Pet
       await supabase
           .from('Pet')
           .update({'adoption_status': true})
           .eq('pet_id', petId);
 
-      debugPrint("✅ Updated Pet: $petId");
+      debugPrint("Updated Pet: $petId");
 
-      // 4️⃣ Generate and insert status
+      // generate and insert status
       final statusId = await GeneratorId.generateId(
         tableName: 'AdoptionStatus',
         idColumnName: 'status_id',
@@ -101,14 +100,14 @@ class AdoptionService {
         'adoption_id': adoptionId,
       });
 
-      debugPrint("✅ Successfully approved: $adoptionId");
+      debugPrint("Successfully approved: $adoptionId");
     } catch (e) {
-      log("❌ Approve single application error: $e");
+      log("Approve single application error: $e");
       rethrow;
     }
   }
 
-// ✅ Reject single application
+// reject single application
   Future<void> rejectSingleApplication(String adoptionId) async {
     final now = DateTime.now();
     final formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
@@ -118,38 +117,37 @@ class AdoptionService {
       return;
     }
 
-    debugPrint("🔴 Rejecting single application: $adoptionId");
+    debugPrint("Rejecting single application: $adoptionId");
 
     try {
-      // 1️⃣ Fetch pet_id
       final adoptionRes = await supabase
           .from('Adoption')
           .select('adoption_id, pet_id')
           .eq('adoption_id', adoptionId)
           .single();
 
-      debugPrint("✅ Fetched adoption: $adoptionId");
+      debugPrint("Fetched adoption: $adoptionId");
 
       final petId = adoptionRes['pet_id'] as String;
-      debugPrint("✅ Pet ID: $petId");
+      debugPrint("Pet ID: $petId");
 
-      // 2️⃣ Update Pet
+      // update Pet
       await supabase
           .from('Pet')
           .update({'adoption_status': false})
           .eq('pet_id', petId);
 
-      debugPrint("✅ Updated Pet: $petId");
+      debugPrint("Updated Pet: $petId");
 
-      // 3️⃣ Update Adoption
+      // 3update Adoption
       await supabase
           .from('Adoption')
           .update({'updated_at': formattedDate})
           .eq('adoption_id', adoptionId);
 
-      debugPrint("✅ Updated Adoption: $adoptionId");
+      debugPrint("Updated Adoption: $adoptionId");
 
-      // 4️⃣ Generate and insert status
+      // generate and insert status
       final statusId = await GeneratorId.generateId(
         tableName: 'AdoptionStatus',
         idColumnName: 'status_id',
@@ -164,14 +162,14 @@ class AdoptionService {
         'adoption_id': adoptionId,
       });
 
-      debugPrint("✅ Successfully rejected: $adoptionId");
+      debugPrint("Successfully rejected: $adoptionId");
     } catch (e) {
-      log("❌ Reject single application error: $e");
+      log("Reject single application error: $e");
       rethrow;
     }
   }
 
-// ✅ Approve multiple applications (loops through each one)
+// approve multiple applications (loops through each one)
   Future<void> approveApplications(Set<String> ids) async {
     final cleanIds = ids.where((e) => e.trim().isNotEmpty).toList();
 
@@ -190,13 +188,13 @@ class AdoptionService {
         await approveSingleApplication(id);
         successCount++;
       } catch (e) {
-        log("❌ Failed to approve $id: $e");
+        log("Failed to approve $id: $e");
         failureCount++;
       }
     }
 
     debugPrint(
-      "✅ Approve complete: $successCount succeeded, $failureCount failed",
+      "Approve complete: $successCount succeeded, $failureCount failed",
     );
 
     if (failureCount > 0) {
@@ -215,7 +213,7 @@ class AdoptionService {
       return;
     }
 
-    debugPrint("🔴 Rejecting ${cleanIds.length} applications");
+    debugPrint("Rejecting ${cleanIds.length} applications");
 
     int successCount = 0;
     int failureCount = 0;
@@ -225,13 +223,13 @@ class AdoptionService {
         await rejectSingleApplication(id);
         successCount++;
       } catch (e) {
-        log("❌ Failed to reject $id: $e");
+        log("Failed to reject $id: $e");
         failureCount++;
       }
     }
 
     debugPrint(
-      "✅ Reject complete: $successCount succeeded, $failureCount failed",
+      "Reject complete: $successCount succeeded, $failureCount failed",
     );
 
     if (failureCount > 0) {
@@ -240,166 +238,6 @@ class AdoptionService {
       );
     }
   }
-
-//   Future<void> approveApplications(Set<String> ids) async {
-//     final now = DateTime.now();
-//     final formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
-//
-//     // ✅ FIXED: Properly convert Set to List
-//     final cleanIds = ids.where((e) => e.trim().isNotEmpty).toList();
-//
-//     if (cleanIds.isEmpty) {
-//       log("No valid IDs to approve");
-//       return;
-//     }
-//
-//     debugPrint("🟢 Approving ${cleanIds.length} applications: $cleanIds");
-//
-//     try {
-//       // 1️⃣ Fetch pet_ids
-//       final adoptionRes = await supabase
-//           .from('Adoption')
-//           .select('adoption_id, pet_id')
-//           .inFilter('adoption_id', cleanIds);
-//
-//       debugPrint("✅ Fetched adoptions: ${adoptionRes.length}");
-//
-//       final petIds = adoptionRes
-//           .map((e) => e['pet_id'] as String)
-//           .toList();
-//
-//       debugPrint("✅ Pet IDs: $petIds");
-//
-//       // 2️⃣ Update Adoption (batch)
-//       await supabase
-//           .from('Adoption')
-//           .update({'updated_at': formattedDate})
-//           .inFilter('adoption_id', cleanIds);
-//
-//       debugPrint("✅ Updated Adoption table");
-//
-//       // 3️⃣ Update Pet (batch)
-//       if (petIds.isNotEmpty) {
-//         await supabase
-//             .from('Pet')
-//             .update({'adoption_status': true})
-//             .inFilter('pet_id', petIds);
-//
-//         debugPrint("✅ Updated Pet table: ${petIds.length} pets");
-//       }
-//
-//       // 4️⃣ Generate statuses safely (parallel)
-//       debugPrint("🟡 Generating ${cleanIds.length} status records...");
-//
-//       final statusData = await Future.wait(
-//         cleanIds.map((id) async {
-//           final statusId = await GeneratorId.generateId(
-//             tableName: 'AdoptionStatus',
-//             idColumnName: 'status_id',
-//             prefix: 'S',
-//             numberLength: 5,
-//           );
-//
-//           return {
-//             'status_id': statusId,
-//             'adoption_status': 'Approved',
-//             'created_at': formattedDate,
-//             'adoption_id': id,
-//           };
-//         }),
-//       );
-//
-//       debugPrint("✅ Generated ${statusData.length} status records");
-//
-//       // 5️⃣ Insert statuses (batch)
-//       await supabase.from('AdoptionStatus').insert(statusData);
-//
-//       debugPrint("✅ Successfully approved ${cleanIds.length} applications");
-//     } catch (e) {
-//       log("❌ Approve application error: $e");
-//       rethrow;
-//     }
-//   }
-//
-// // REJECT
-//   Future<void> rejectApplications(Set<String> ids) async {
-//     final now = DateTime.now();
-//     final formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
-//
-//     // ✅ FIXED: Properly convert Set to List
-//     final cleanIds = ids.where((e) => e.trim().isNotEmpty).toList();
-//
-//     if (cleanIds.isEmpty) {
-//       log("No valid IDs to reject");
-//       return;
-//     }
-//
-//     debugPrint("🔴 Rejecting ${cleanIds.length} applications: $cleanIds");
-//
-//     try {
-//       // 1️⃣ Get pet ids
-//       final adoptionRes = await supabase
-//           .from('Adoption')
-//           .select('adoption_id, pet_id')
-//           .inFilter('adoption_id', cleanIds);
-//
-//       debugPrint("✅ Fetched adoptions: ${adoptionRes.length}");
-//
-//       final petIds = adoptionRes
-//           .map((e) => e['pet_id'] as String)
-//           .toList();
-//
-//       debugPrint("✅ Pet IDs: $petIds");
-//
-//       // 2️⃣ Update Pet
-//       if (petIds.isNotEmpty) {
-//         await supabase
-//             .from('Pet')
-//             .update({'adoption_status': false})
-//             .inFilter('pet_id', petIds);
-//
-//         debugPrint("✅ Updated Pet table: ${petIds.length} pets");
-//       }
-//
-//       // 3️⃣ Update Adoption
-//       await supabase
-//           .from('Adoption')
-//           .update({'updated_at': formattedDate})
-//           .inFilter('adoption_id', cleanIds);
-//
-//       debugPrint("✅ Updated Adoption table");
-//
-//       // 4️⃣ Insert statuses
-//       debugPrint("🟡 Generating ${cleanIds.length} status records...");
-//
-//       final statusData = await Future.wait(
-//         cleanIds.map((id) async {
-//           final statusId = await GeneratorId.generateId(
-//             tableName: 'AdoptionStatus',
-//             idColumnName: 'status_id',
-//             prefix: 'S',
-//             numberLength: 5,
-//           );
-//
-//           return {
-//             'status_id': statusId,
-//             'adoption_status': 'Rejected',
-//             'created_at': formattedDate,
-//             'adoption_id': id,
-//           };
-//         }),
-//       );
-//
-//       debugPrint("✅ Generated ${statusData.length} status records");
-//
-//       await supabase.from('AdoptionStatus').insert(statusData);
-//
-//       debugPrint("✅ Successfully rejected ${cleanIds.length} applications");
-//     } catch (e) {
-//       log("❌ Reject application error: $e");
-//       rethrow;
-//     }
-//   }
 
   Future<bool> submitApplication({
     required String petId,

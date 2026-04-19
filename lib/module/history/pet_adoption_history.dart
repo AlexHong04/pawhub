@@ -51,7 +51,8 @@ class _AdoptionHistoryState extends State<AdoptionHistoryPage> {
       if (_activeFilter == "Applied") {
         matchesFilter = adoption.adoptionStatus == "Pending";
       } else if (_activeFilter == "Approved") {
-        matchesFilter = adoption.adoptionStatus == "Approved" ||
+        matchesFilter =
+            adoption.adoptionStatus == "Approved" ||
             adoption.adoptionStatus == "Pending Pickup";
       } else if (_activeFilter == "Past") {
         matchesFilter = adoption.adoptionStatus == "Completed";
@@ -59,7 +60,8 @@ class _AdoptionHistoryState extends State<AdoptionHistoryPage> {
 
       final query = _searchQuery.toLowerCase();
 
-      bool matchesSearch = query.isEmpty ||
+      bool matchesSearch =
+          query.isEmpty ||
           adoption.pet.name.toLowerCase().contains(query) ||
           adoption.adoptionId.toLowerCase().contains(query);
 
@@ -128,8 +130,8 @@ class _AdoptionHistoryState extends State<AdoptionHistoryPage> {
   @override
   void initState() {
     // TODO: implement initState
-    _fetchPetAdoptions();
     super.initState();
+    _fetchPetAdoptions();
   }
 
   @override
@@ -186,199 +188,203 @@ class _AdoptionHistoryState extends State<AdoptionHistoryPage> {
 
             // Pet List
             Expanded(
-              child: ListView.builder(
-                itemCount: _filteredPetAdoptions.length,
-                itemBuilder: (context, index) {
-                  final pet = _filteredPetAdoptions[index];
+              child: RefreshIndicator(
+                onRefresh: _fetchPetAdoptions,
+                child: ListView.builder(
+                  itemCount: _filteredPetAdoptions.length,
+                  itemBuilder: (context, index) {
+                    final pet = _filteredPetAdoptions[index];
 
-                  String normalizedStatus = pet.adoptionStatus
-                      .trim();
+                    String normalizedStatus = pet.adoptionStatus.trim();
 
-                  Map<String, String> adoptionStatusColor = {
-                    'Pending': '0xFF2B85EC',
-                    'Approved': '0xFF36D43E',
-                    'Pending Pickup': '0xFF36D43E',
-                    'Completed': '0xFF36D43E',
-                  };
+                    Map<String, String> adoptionStatusColor = {
+                      'Pending': '0xFF2B85EC',
+                      'Approved': '0xFF36D43E',
+                      'Pending Pickup': '0xFF36D43E',
+                      'Completed': '0xFF36D43E',
+                    };
 
-                  String? colorHex =
-                      adoptionStatusColor[normalizedStatus] ?? '0xFFB0B0B0';
-                  Color statusColor = Color(int.parse(colorHex));
+                    String? colorHex =
+                        adoptionStatusColor[normalizedStatus] ?? '0xFFB0B0B0';
+                    Color statusColor = Color(int.parse(colorHex));
 
-                  final pickupDate = _pickupDates[pet.adoptionId];
-                  final today = DateTime.now();
+                    final pickupDate = _pickupDates[pet.adoptionId];
+                    final today = DateTime.now();
 
-                  return PetCard(
-                    pet: pet.pet,
-                    file: _petImages[pet.pet.id],
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => AdoptionDetailsPage(
-                            adoptionId: pet.adoptionId,
+                    return PetCard(
+                      pet: pet.pet,
+                      file: _petImages[pet.pet.id],
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                AdoptionDetailsPage(adoptionId: pet.adoptionId),
                           ),
-                        ),
-                      );
+                        );
 
-                      await _fetchPetAdoptions();
-                    },
-                    trailingStatus: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: statusColor,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            pet.adoptionStatus,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
+                        await _fetchPetAdoptions();
+                      },
+                      trailingStatus: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              pet.adoptionStatus,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                              ),
                             ),
                           ),
+
+                          const SizedBox(height: 8),
+                        ],
+                      ),
+                      tableRows: [
+                        TableRow(
+                          children: [
+                            InfoCell(
+                              icon: Icons.cake,
+                              text: "${pet.pet.age} years",
+                            ),
+                            InfoCell(
+                              icon: Icons.transgender_outlined,
+                              text: pet.pet.gender,
+                            ),
+                          ],
                         ),
-
-                        const SizedBox(height: 8),
+                        const TableRow(
+                          children: [SizedBox(height: 8), SizedBox(height: 8)],
+                        ),
+                        TableRow(
+                          children: [
+                            InfoCell(
+                              icon: Icons.scale,
+                              text: "${pet.pet.weight} kg",
+                            ),
+                            InfoCell(icon: Icons.palette, text: pet.pet.color),
+                          ],
+                        ),
+                        const TableRow(
+                          children: [SizedBox(height: 8), SizedBox(height: 8)],
+                        ),
+                        TableRow(
+                          children: [
+                            InfoCell(
+                              icon: Icons.local_hospital_outlined,
+                              text: pet.pet.health,
+                              textColor: pet.pet.health == "Good"
+                                  ? Colors.green
+                                  : Colors.red,
+                            ),
+                            InfoCell(
+                              icon: Icons.vaccines,
+                              text: pet.pet.vaccination
+                                  ? "Vaccinated"
+                                  : "Not yet",
+                              textColor: pet.pet.vaccination
+                                  ? Colors.blue
+                                  : Colors.orange,
+                            ),
+                          ],
+                        ),
                       ],
-                    ),
-                    tableRows: [
-                      TableRow(
+                      bottomWidget: Column(
                         children: [
-                          InfoCell(
-                            icon: Icons.cake,
-                            text: "${pet.pet.age} years",
-                          ),
-                          InfoCell(
-                            icon: Icons.transgender_outlined,
-                            text: pet.pet.gender,
-                          ),
-                        ],
-                      ),
-                      const TableRow(
-                        children: [SizedBox(height: 8), SizedBox(height: 8)],
-                      ),
-                      TableRow(
-                        children: [
-                          InfoCell(
-                            icon: Icons.scale,
-                            text: "${pet.pet.weight} kg",
-                          ),
-                          InfoCell(icon: Icons.palette, text: pet.pet.color),
-                        ],
-                      ),
-                      const TableRow(
-                        children: [SizedBox(height: 8), SizedBox(height: 8)],
-                      ),
-                      TableRow(
-                        children: [
-                          InfoCell(
-                            icon: Icons.local_hospital_outlined,
-                            text: pet.pet.health,
-                            textColor: pet.pet.health == "Good"
-                                ? Colors.green
-                                : Colors.red,
-                          ),
-                          InfoCell(
-                            icon: Icons.vaccines,
-                            text:
-                                pet.pet.vaccination ? "Vaccinated" : "Not yet",
-                            textColor: pet.pet.vaccination
-                                ? Colors.blue
-                                : Colors.orange,
-                          ),
-                        ],
-                      ),
-                    ],
-                    bottomWidget: Column(
-                      children: [
-                        const SizedBox(height: 20),
+                          const SizedBox(height: 20),
 
-                        if (pet.adoptionStatus.trim() == "Approved")
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: InkWell(
-                              onTap: () async {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => SchedulePickupPage(
-                                      adoptionId: pet.adoptionId,
+                          if (pet.adoptionStatus.trim() == "Approved")
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: InkWell(
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => SchedulePickupPage(
+                                        adoptionId: pet.adoptionId,
+                                      ),
                                     ),
-                                  ),
-                                );
+                                  );
 
-                                await _fetchPetAdoptions();
-                              },
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: const [
-                                  Icon(
-                                    Icons.calendar_month,
-                                    size: 18,
-                                    color: Colors.blue,
-                                  ),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    "Schedule pickup",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
+                                  await _fetchPetAdoptions();
+                                },
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: const [
+                                    Icon(
+                                      Icons.calendar_month,
+                                      size: 18,
                                       color: Colors.blue,
                                     ),
-                                  ),
-                                  SizedBox(width: 4),
-                                  Icon(
-                                    Icons.arrow_forward_ios,
-                                    size: 12,
-                                    color: Colors.blue,
-                                  ),
-                                ],
+                                    SizedBox(width: 6),
+                                    Text(
+                                      "Schedule pickup",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                    SizedBox(width: 4),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      size: 12,
+                                      color: Colors.blue,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
 
-                        if (pet.adoptionStatus.trim() == "Pending Pickup" &&
-                            pickupDate != null &&
-                            isSameDate(pickupDate, today))
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (_) => QRDialog(
-                                    data: pet.adoptionId,
-                                    title: 'Pickup QR',
+                          if (pet.adoptionStatus.trim() == "Pending Pickup" &&
+                              pickupDate != null &&
+                              isSameDate(pickupDate, today))
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  await showDialog(
+                                    context: context,
+                                    builder: (_) => QRDialog(
+                                      data: pet.adoptionId,
+                                      title: 'Pickup QR',
+                                    ),
+                                  );
+
+                                  await _fetchPetAdoptions();
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
                                 ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
+                                icon: const Icon(Icons.qr_code),
+                                label: const Text("Generate QR"),
                               ),
-                              icon: const Icon(Icons.qr_code),
-                              label: const Text("Generate QR"),
                             ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
           ],
