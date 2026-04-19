@@ -6,6 +6,8 @@ import '../../../core/constants/colors.dart';
 import '../../../core/utils/local_file_service.dart';
 import '../model/post_model.dart';
 import '../service/post_service.dart';
+import '../../../core/utils/qr_service.dart';
+import 'manage_post.dart';
 
 class PostDetailsPage extends StatefulWidget {
   final CommunityPostModel post;
@@ -27,7 +29,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
   String _currentUserName = "Me";
   String? _currentUserAvatar;
 
-  // 💡 --- 新增：语音识别的状态变量 ---
+  // Speech Recognition States
   late stt.SpeechToText _speechToText;
   bool _isListening = false;
 
@@ -35,15 +37,15 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
   String _textBeforeListening = "";
 
   final Map<String, String> _supportedLocales = {
-    'en_US': 'EN', // 英文
-    'zh_CN': '华', // 华语 (简体)
-    'ms_MY': 'BM', // 马来文
+    'en_US': 'EN',
+    'zh_CN': '华',
+    'ms_MY': 'BM',
   };
 
   @override
   void initState() {
     super.initState();
-    _speechToText = stt.SpeechToText(); // 💡 初始化语音实例
+    _speechToText = stt.SpeechToText();
     _initializeData();
   }
 
@@ -51,6 +53,25 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
     _currentUserId = await _service.getCurrentUserId();
     _currentUserName = await _service.getCurrentUserName();
 
+    bool isOwner = widget.post.userId == _currentUserId;
+    bool canView = true;
+
+    if (widget.post.isPrivate && !isOwner && !widget.isAdmin) {
+      canView = false;
+    }
+
+    if (!canView) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("You do not have permission to view this post."),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        Navigator.pop(context);
+      }
+      return;
+    }
     await Future.wait([_loadComments(), _loadCurrentUserAvatar()]);
   }
 
@@ -127,11 +148,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
                         setDialogState(() => currentIndex = index),
                     itemBuilder: (context, index) {
                       final String url = urls[index];
-                      final String fileName = url
-                          .split('/')
-                          .last
-                          .split('?')
-                          .first;
+                      final String fileName = url.split('/').last.split('?').first;
 
                       return InteractiveViewer(
                         child: Center(
@@ -140,12 +157,9 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
                             fit: BoxFit.contain,
                             errorBuilder: (context, error, stackTrace) {
                               return FutureBuilder<File?>(
-                                future: LocalFileService.loadSavedImage(
-                                  fileName,
-                                ),
+                                future: LocalFileService.loadSavedImage(fileName),
                                 builder: (context, snapshot) {
-                                  if (snapshot.hasData &&
-                                      snapshot.data != null) {
+                                  if (snapshot.hasData && snapshot.data != null) {
                                     return Image.file(
                                       snapshot.data!,
                                       fit: BoxFit.contain,
@@ -164,7 +178,6 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
                       );
                     },
                   ),
-
                   Positioned(
                     top: 40,
                     left: 20,
@@ -177,7 +190,6 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
                       onPressed: () => Navigator.pop(context),
                     ),
                   ),
-
                   if (urls.length > 1)
                     Positioned(
                       top: 45,
@@ -195,7 +207,6 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
                         ),
                       ),
                     ),
-
                   if (urls.length > 1)
                     Positioned(
                       bottom: 40,
@@ -205,7 +216,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(
                           urls.length,
-                          (index) => AnimatedContainer(
+                              (index) => AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             margin: const EdgeInsets.symmetric(horizontal: 4),
                             width: currentIndex == index ? 8.0 : 6.0,
@@ -247,7 +258,10 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
         'created_at': DateTime.now().toIso8601String(),
         'User': {'name': _currentUserName, 'avatar_url': _currentUserAvatar},
       });
+      //update for comment count
+      widget.post.commentsCount++;
     });
+
     await _service.addComment(widget.post.postId, text);
     _loadComments();
   }
@@ -265,7 +279,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha:0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -369,6 +383,10 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
     final interactionId = comment['interaction_id'];
     setState(() {
       _allComments.removeAt(index);
+      // update for comment count
+      if (widget.post.commentsCount > 0) {
+        widget.post.commentsCount--;
+      }
     });
 
     if (interactionId != null) {
@@ -442,21 +460,60 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
         elevation: 0,
         backgroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.black),
+        actions: [
+          if (widget.post.userId == _currentUserId)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ManagePostPage(post: widget.post),
+                  ),
+                );
+
+                if (result == true && mounted) {
+                  setState(() {
+                  });
+                }
+              },
+            ),
+
+          IconButton(
+            icon: const Icon(Icons.share_outlined, color: Colors.black87),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => QRDialog(
+                  title: "Share Post",
+                  data: "pawhub://post/${widget.post.postId}",
+                  showSaveButton: true,
+                  shareText: "🐾 Look at this adorable post on PawHub!\n\n"
+                      "👤 Posted by: ${widget.post.userName}\n\n"
+                      "✨ Click the link to view the full story:\n"
+                      "https://pawhub.hongjin.site/post/${widget.post.postId}\n\n"
+                      "❤️ Join our pet-loving community today!",
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Column(
         children: [
           Expanded(
             child: _isLoading
                 ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  )
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
                 : ListView(
-                    children: [
-                      _buildOriginalPost(),
-                      Container(height: 8, color: Colors.grey.shade100),
-                      _buildCommentList(),
-                    ],
-                  ),
+              children: [
+                _buildOriginalPost(),
+                Container(height: 8, color: Colors.grey.shade100),
+                _buildCommentList(),
+              ],
+            ),
           ),
           _buildInputArea(),
         ],
@@ -474,8 +531,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
             children: [
               Builder(
                 builder: (context) {
-                  bool hasValidAvatar =
-                      widget.post.userAvatar != null &&
+                  bool hasValidAvatar = widget.post.userAvatar != null &&
                       widget.post.userAvatar!.trim().isNotEmpty &&
                       widget.post.userAvatar!.startsWith('http');
                   return CircleAvatar(
@@ -509,6 +565,51 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
           ),
           const SizedBox(height: 12),
           _buildPostImages(),
+
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (widget.post.isLiked) {
+                      widget.post.likesCount--;
+                      widget.post.isLiked = false;
+                    } else {
+                      widget.post.likesCount++;
+                      widget.post.isLiked = true;
+                    }
+                  });
+                  _service.toggleLike(widget.post.postId);
+                },
+                child: Row(
+                  children: [
+                    Icon(
+                      widget.post.isLiked ? Icons.favorite : Icons.favorite_border,
+                      size: 20,
+                      color: widget.post.isLiked ? Colors.redAccent : Colors.grey.shade500,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      "${widget.post.likesCount}",
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 24),
+              Row(
+                children: [
+                  Icon(Icons.chat_bubble_outline, size: 20, color: Colors.grey.shade500),
+                  const SizedBox(width: 6),
+                  Text(
+                    "${widget.post.commentsCount}",
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -596,12 +697,10 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
             userData['name'] ?? c['name'] ?? c['user_id'] ?? "User";
         final String? avatarUrl = userData['avatar_url'];
 
-        bool hasValidAvatar =
-            avatarUrl != null &&
+        bool hasValidAvatar = avatarUrl != null &&
             avatarUrl.trim().isNotEmpty &&
             avatarUrl.startsWith('http');
 
-        // Admin --> delete post both user and admin
         final bool canDelete = widget.isAdmin || c['user_id'] == _currentUserId;
 
         return Row(
@@ -612,10 +711,10 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
               backgroundImage: hasValidAvatar ? NetworkImage(avatarUrl) : null,
               child: !hasValidAvatar
                   ? Text(
-                      displayName.isNotEmpty
-                          ? displayName[0].toUpperCase()
-                          : 'U',
-                    )
+                displayName.isNotEmpty
+                    ? displayName[0].toUpperCase()
+                    : 'U',
+              )
                   : null,
             ),
             const SizedBox(width: 12),
@@ -702,95 +801,91 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
         children: [
           Expanded(
             child: Container(
-              margin: const EdgeInsets.only(bottom: 4),
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: TextField(
                 controller: _commentController,
-                // Allow the text field to expand up to 3 lines
                 minLines: 1,
                 maxLines: 3,
-                // Enable multiline keyboard (changes 'Done' key to 'Enter/Return' key)
                 keyboardType: TextInputType.multiline,
                 decoration: InputDecoration(
                   hintText: _isListening ? "Listening..." : "Add a comment...",
                   border: InputBorder.none,
-                  hintStyle: TextStyle(color: _isListening ? Colors.redAccent : Colors.grey),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  hintStyle: TextStyle(
+                      color: _isListening ? Colors.redAccent : Colors.grey),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
                 ),
               ),
             ),
           ),
-
-          // --- Language Switcher Dropdown ---
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: PopupMenuButton<String>(
-              initialValue: _currentLocaleId,
-              tooltip: 'Change Language',
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                margin: const EdgeInsets.only(left: 8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
+          Container(
+            height: 48,
+            padding: const EdgeInsets.only(left: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                PopupMenuButton<String>(
+                  initialValue: _currentLocaleId,
+                  tooltip: 'Change Language',
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _supportedLocales[_currentLocaleId]!,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  onSelected: (String locale) {
+                    setState(() {
+                      _currentLocaleId = locale;
+                    });
+                  },
+                  itemBuilder: (BuildContext context) {
+                    return [
+                      const PopupMenuItem(
+                          value: 'en_US', child: Text('English (EN)')),
+                      const PopupMenuItem(
+                          value: 'zh_CN', child: Text('华语 (Chinese)')),
+                      const PopupMenuItem(
+                          value: 'ms_MY', child: Text('Bahasa Melayu (BM)')),
+                    ];
+                  },
                 ),
-                child: Text(
-                  _supportedLocales[_currentLocaleId]!,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade700,
-                    fontSize: 13,
+                IconButton(
+                  onPressed: _listen,
+                  icon: Icon(
+                    _isListening ? Icons.mic : Icons.mic_none,
+                    color: _isListening ? Colors.redAccent : Colors.grey.shade600,
+                    size: 24,
                   ),
                 ),
-              ),
-              onSelected: (String locale) {
-                setState(() {
-                  _currentLocaleId = locale;
-                });
-              },
-              itemBuilder: (BuildContext context) {
-                return [
-                  const PopupMenuItem(value: 'en_US', child: Text('English (EN)')),
-                  const PopupMenuItem(value: 'zh_CN', child: Text('华语 (Chinese)')),
-                  const PopupMenuItem(value: 'ms_MY', child: Text('Bahasa Melayu (BM)')),
-                ];
-              },
-            ),
-          ),
-
-          // --- Microphone Button ---
-          Padding(
-            padding: const EdgeInsets.only(bottom: 2),
-            child: IconButton(
-              onPressed: _listen,
-              icon: Icon(
-                _isListening ? Icons.mic : Icons.mic_none,
-                color: _isListening ? Colors.redAccent : Colors.grey.shade600,
-                size: 24,
-              ),
-            ),
-          ),
-
-          // --- Send Button ---
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: IconButton(
-              onPressed: _submitComment,
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
+                IconButton(
+                  onPressed: _submitComment,
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.arrow_upward_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
                 ),
-                child: const Icon(
-                  Icons.arrow_upward_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
+              ],
             ),
           ),
         ],

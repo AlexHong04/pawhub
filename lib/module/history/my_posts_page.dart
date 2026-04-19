@@ -9,6 +9,7 @@ import '../communityPost/service/post_service.dart';
 import '../communityPost/presentation/manage_post.dart';
 import '../communityPost/presentation/post_details_page.dart';
 import '../../../core/utils/current_user_store.dart';
+import '../../../core/utils/qr_service.dart';
 
 class MyPostsPage extends StatefulWidget {
   const MyPostsPage({super.key});
@@ -447,98 +448,98 @@ class _MyPostsPageState extends State<MyPostsPage> with AutomaticKeepAliveClient
           const SizedBox(height: 16),
 
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        if (post.isLiked) {
-                          post.likesCount--;
-                          post.isLiked = false;
-                        } else {
-                          post.likesCount++;
-                          post.isLiked = true;
-                        }
-                      });
-                      _postService.toggleLike(post.postId);
-                    },
-                    child: Row(
-                      children: [
-                        Icon(
-                          post.isLiked ? Icons.favorite : Icons.favorite_border,
-                          size: 18,
-                          color: post.isLiked
-                              ? Colors.redAccent
-                              : Colors.grey.shade400,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          "${post.likesCount}",
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (post.isLiked) {
+                      post.likesCount--;
+                      post.isLiked = false;
+                    } else {
+                      post.likesCount++;
+                      post.isLiked = true;
+                    }
+                  });
+                  _postService.toggleLike(post.postId);
+                },
+                child: Row(
+                  children: [
+                    Icon(
+                      post.isLiked ? Icons.favorite : Icons.favorite_border,
+                      size: 18,
+                      color: post.isLiked
+                          ? Colors.redAccent
+                          : Colors.grey.shade400,
                     ),
-                  ),
-
-                  const SizedBox(width: 20),
-
-                  GestureDetector(
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => PostDetailsPage(post: post),
-                        ),
-                      );
-                      _loadMyPosts(silent: true);
-                    },
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          size: 18,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          "${post.commentsCount}",
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(width: 5),
+                    Text(
+                      "${post.likesCount}",
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 13,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
 
-              if (_isShowingDeleted)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isExpired
-                        ? Colors.red.withOpacity(0.1)
-                        : Colors.orange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    isExpired ? "Expired" : _getExpiryInfo(post.updatedAt),
-                    style: TextStyle(
-                      color: isExpired ? Colors.red : Colors.orange,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
+              const SizedBox(width: 20),
+
+              // --- Comment Button ---
+              GestureDetector(
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PostDetailsPage(post: post),
                     ),
-                  ),
+                  );
+                  _loadMyPosts(silent: true);
+                },
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.chat_bubble_outline,
+                      size: 18,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      "${post.commentsCount}",
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+
+              const SizedBox(width: 20),
+
+              // ---  Share Button ---
+              GestureDetector(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => QRDialog(
+                      title: "Share Post",
+                      data: "pawhub://post/${post.postId}",
+                      showSaveButton: true,
+                      shareText: "🐾 Look at this adorable post on PawHub!\n\n"
+                          "👤 Posted by: ${post.userName}\n\n"
+                          "✨ Click the link to view the full story:\n"
+                          "https://pawhub.hongjin.site/post/${post.postId}\n\n"
+                          "❤️ Join our pet-loving community today!",
+                    ),
+                  );
+                },
+                child: Icon(
+                  Icons.share_outlined,
+                  size: 18,
+                  color: Colors.grey.shade400,
+                ),
+              ),
             ],
           ),
         ],
