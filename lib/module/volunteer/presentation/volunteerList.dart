@@ -8,6 +8,7 @@ import 'dart:io';
 import '../../../core/widgets/filterButton.dart';
 import '../../../core/widgets/search_field.dart';
 import '../../../core/widgets/sorting.dart';
+import '../../donation/presentation/donation_page.dart';
 import 'event_details.dart';
 
 class VolunteerEventsPage extends StatefulWidget {
@@ -138,6 +139,19 @@ class _VolunteerEventsPageState extends State<VolunteerEventsPage> {
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(context,MaterialPageRoute(builder: (context) => const DonationPage()));
+        },
+        backgroundColor: Colors.white,
+        elevation: 4,
+        shape: const CircleBorder(),
+        child: const Icon(
+          Icons.favorite,
+          color: Colors.red,
+          size: 32,
+        ),
       ),
     );
   }

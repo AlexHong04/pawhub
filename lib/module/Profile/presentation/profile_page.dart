@@ -4,6 +4,7 @@ import 'package:pawhub/module/Profile/model/user_model.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/current_user_store.dart';
 import '../../auth/service/auth_service.dart';
+import '../../donation/presentation/donation_page.dart';
 import '../service/profile_service.dart';
 import '../../../core/widgets/profile_avatar.dart';
 
@@ -29,7 +30,7 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isLoading = true);
 
     UserModel? profileData;
-    
+
     // Step 1: Try to fetch from Supabase (primary source)
     try {
       profileData = await ProfileService.getCurrentUserProfile();
@@ -208,6 +209,20 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             const SizedBox(height: 40),
           ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(context,MaterialPageRoute(builder: (context) => const DonationPage())
+          );
+        },
+        backgroundColor: Colors.white,
+        elevation: 4,
+        shape: const CircleBorder(),
+        child: const Icon(
+          Icons.favorite,
+          color: Colors.red,
+          size: 32,
         ),
       ),
     );

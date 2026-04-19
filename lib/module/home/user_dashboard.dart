@@ -7,6 +7,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../core/widgets/search_field.dart';
 import '../../core/widgets/filterButton.dart';
 import '../../core/widgets/sorting.dart';
+import '../donation/presentation/donation_page.dart';
 import '../pet/service/pet_service.dart';
 import '../../../core/utils/qr_service.dart';
 import '../communityPost/model/post_model.dart';
@@ -355,6 +356,22 @@ class _PetAdoptionHomeState extends State<PetAdoptionHome> {
                 ),
               ],
             ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const DonationPage()),
+          );
+        },
+        backgroundColor: Colors.white,
+        elevation: 4,
+        shape: const CircleBorder(),
+        child: const Icon(
+          Icons.favorite,
+          color: Colors.red,
+          size: 32,
+        ),
+      ),
     );
   }
 

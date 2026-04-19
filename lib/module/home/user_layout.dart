@@ -4,6 +4,7 @@ import 'package:pawhub/module/petAdoption/presentation/pet_adoption.dart';
 
 import '../../core/constants/colors.dart';
 import '../Profile/presentation/profile_page.dart';
+import '../communityPost/presentation/community_feed_page.dart';
 import '../history/history_page.dart';
 import '../volunteer/presentation/volunteerList.dart';
 
@@ -21,7 +22,7 @@ class UserLayoutState extends State<UserLayout> {
   // Order must match destinations
   final List<Widget> _pages = [
     const VolunteerEventsPage(),
-    const Center(child: Text("Community Page")),
+    const CommunityFeedPage(),
     const PetAdoptionHome(),
     const UserCollectionsPage(),
     const ProfilePage(),

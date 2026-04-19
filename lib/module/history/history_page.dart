@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import 'package:pawhub/module/history/donation_history_page.dart';
+import 'package:pawhub/module/history/my_posts_page.dart';
 import 'package:pawhub/module/history/pet_adoption_history.dart';
-
+import 'package:pawhub/module/donation/presentation/donation_page.dart';
 import '../Volunteer/service/volunteerService.dart';
 import 'my_events.dart';
 
@@ -64,7 +66,9 @@ class UserCollectionsPage extends StatelessWidget {
                     subtitle: "View your contribution history",
                     icon: Icons.volunteer_activism,
                     color: Colors.teal,
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => DonationHistoryPage()));
+                    },
                   ),
 
                   const SizedBox(height: 16),
@@ -89,10 +93,26 @@ class UserCollectionsPage extends StatelessWidget {
                     subtitle: "View and edit your community stories",
                     icon: Icons.dynamic_feed,
                     color: Colors.orangeAccent,
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => MyPostsPage()));
+                    },
                   ),
                 ],
               ),
+            ),
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () {
+              Navigator.push(context,MaterialPageRoute(builder: (context) => const DonationPage()),
+              );
+            },
+            backgroundColor: Colors.white,
+            elevation: 4,
+            shape: const CircleBorder(),
+            child: const Icon(
+              Icons.favorite,
+              color: Colors.red,
+              size: 32,
             ),
           ),
         );
