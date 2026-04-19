@@ -6,11 +6,13 @@ import 'package:pawhub/module/petAdoption/presentation/pet_adoption.dart';
 
 import '../../core/constants/colors.dart';
 import '../Profile/presentation/profile_page.dart';
+import '../Volunteer/service/volunteerService.dart';
 import '../communityPost/presentation/community_feed_page.dart';
 import '../communityPost/presentation/post_details_page.dart';
 import '../communityPost/service/post_service.dart';
 import '../../app.dart';
 import '../history/history_page.dart';
+import '../volunteer/presentation/event_details.dart';
 import '../volunteer/presentation/volunteerList.dart';
 
 class UserLayout extends StatefulWidget {
@@ -91,6 +93,17 @@ class UserLayoutState extends State<UserLayout> {
             const SnackBar(content: Text("Post not found or has been deleted.")),
           );
         }
+      }
+    }
+
+    if (uri.path.startsWith('/event/')) {
+      String eventId = uri.pathSegments.last.trim();
+      final eventData = await EventService.getEventById(eventId);
+      if (eventData != null && mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => EventDetailsPage(event: eventData)),
+        );
       }
     }
   }

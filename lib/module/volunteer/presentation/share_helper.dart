@@ -10,7 +10,8 @@ class ShareHelper {
     final int spots = event['spot_left'] ?? 0;
 
     // In a real app, this link would lead to your website or a deep link
-    final String appLink = "https://pawhub.app/events/${event['id']}";
+    // final String appLink = "https://pawhub.app/events/${event['id']}";
+    final String appLink = "https://pawhub.hongjin.site/event/${event['event_id']}";
 
     final String baseMessage =
         "🐾 Join me for a Volunteer Event: $title!\n\n"

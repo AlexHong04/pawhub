@@ -40,6 +40,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data android:scheme="https" android:host="pawhub.hongjin.site" android:pathPrefix="/post" />
+                <data android:scheme="https" android:host="pawhub.hongjin.site" android:pathPrefix="/event" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
