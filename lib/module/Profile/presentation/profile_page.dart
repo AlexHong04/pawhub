@@ -274,7 +274,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Expanded(
                   child: _buildStatCard(
                     number: _favoritesCount.toString(),
-                    label: "FAVORITES",
+                    label: "FAVOURITES",
                     numberColor: AppColors.textDark,
                     onTap: () {
                       if (_userProfile != null) {
