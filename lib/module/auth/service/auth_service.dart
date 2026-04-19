@@ -1,5 +1,9 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/utils/biometric_session_service.dart';
 import '../../../core/utils/current_user_store.dart';
 import '../../../core/utils/generatorId.dart';
 import 'package:pawhub/module/Profile/service/profile_service.dart';
@@ -9,6 +13,10 @@ class AuthService {
 	// Shared Supabase client used by all auth operations.
 	static final supabase = Supabase.instance.client;
 	static String? lastError;
+	static const String _oauthRedirectScheme = 'com.pawhub.pawhub';
+	static const String _oauthRedirectHost = 'login-callback';
+
+	static String? get _oauthRedirectTo => kIsWeb ? null : '$_oauthRedirectScheme://$_oauthRedirectHost';
 
 	static Future<AuthModel?> login(
 		String email,
@@ -25,35 +33,10 @@ class AuthService {
 			);
 
 			if (response.session != null && response.user != null) {
-				AuthModel? authModel;
-
-				// Try to load profile from Supabase (primary source)
-				try {
-					final userData = await supabase
-							.from('User')
-							.select()
-							.eq('auth_id', response.user!.id)
-							.single();
-
-					if ((userData['is_banned'] ?? false) == true) {
-						lastError = 'Your account has been banned. Please contact support.';
-						await supabase.auth.signOut();
-						return null;
-					}
-
-					// The User table may not store email, so keep auth email in the model.
-					userData['email'] = response.user!.email ?? email;
-					authModel = AuthModel.fromJson(userData);
-				} catch (supabseError) {
-					print('Failed to fetch profile from Supabase, falling back to local cache: $supabseError');
-
-					// If Supabase profile fetch fails, fallback to local cache
-					try {
-						authModel = await CurrentUserStore.read();
-					} catch (cacheError) {
-						print('Also failed to read local cache: $cacheError');
-					}
-				}
+				final authModel = await _resolveOrCreateProfileForAuthUser(
+					response.user!,
+					fallbackEmail: response.user!.email ?? email,
+				);
 
 				if (authModel != null) {
 					if (syncDatabase) {
@@ -61,14 +44,84 @@ class AuthService {
 					}
 					if (persistLocal) {
 						await CurrentUserStore.save(authModel);
+						await BiometricSessionService.saveCurrentSession();
 					}
 					return authModel;
+				}
+
+				// If profile sync fails, fallback to local cache for offline continuity.
+				try {
+					return await CurrentUserStore.read();
+				} catch (cacheError) {
+					print('Failed to read local cache after login: $cacheError');
 				}
 			}
 
 			return null;
 		} catch (e) {
 			print('login error: $e');
+			return null;
+		}
+	}
+
+	static Future<AuthModel?> loginWithGoogle({
+		bool persistLocal = true,
+		bool syncDatabase = true,
+	}) async {
+		lastError = null;
+
+		try {
+			final launched = await supabase.auth.signInWithOAuth(
+				OAuthProvider.google,
+				redirectTo: _oauthRedirectTo,
+				authScreenLaunchMode: LaunchMode.externalApplication,
+			);
+
+			if (!launched) {
+				lastError = 'Unable to open Google sign-in screen.';
+				return null;
+			}
+
+			final authUser = await _waitForAuthenticatedUser();
+			if (authUser == null) {
+				lastError =
+						'Google sign-in was cancelled or timed out. Please try again.';
+				return null;
+			}
+
+			final authModel = await _resolveOrCreateProfileForAuthUser(
+				authUser,
+				fallbackEmail: authUser.email,
+				fallbackName: _extractDisplayName(authUser),
+			);
+
+			if (authModel == null) {
+				return null;
+			}
+
+			if (authModel.role == 'Admin') {
+				lastError =
+						'Google login is only available for User accounts. Please use email login for staff.';
+				await supabase.auth.signOut();
+				return null;
+			}
+
+			if (syncDatabase) {
+				await _syncLoginToDatabase(authUser.id, email: authUser.email);
+			}
+			if (persistLocal) {
+				await CurrentUserStore.save(authModel);
+				await BiometricSessionService.saveCurrentSession();
+			}
+
+			return authModel;
+		} on AuthException catch (e) {
+			lastError = e.message;
+			print('loginWithGoogle auth error: ${e.message}');
+			return null;
+		} catch (e) {
+			lastError = e.toString();
+			print('loginWithGoogle error: $e');
 			return null;
 		}
 	}
@@ -118,6 +171,8 @@ class AuthService {
 
 			existingUser['email'] = email;
 			final authModel = AuthModel.fromJson(existingUser);
+			await CurrentUserStore.save(authModel);
+			await BiometricSessionService.saveCurrentSession();
 			return authModel;
 		}
 
@@ -172,6 +227,8 @@ class AuthService {
 		if (userData != null) {
 			userData['email'] = email;
 			final authModel = AuthModel.fromJson(userData);
+			await CurrentUserStore.save(authModel);
+			await BiometricSessionService.saveCurrentSession();
 			return authModel;
 		} else {
 			lastError = 'server error, please try again。';
@@ -253,6 +310,30 @@ class AuthService {
 		return CurrentUserStore.read();
 	}
 
+	static Future<AuthModel?> resolveCurrentUserFromActiveSession({
+		bool persistLocal = true,
+	}) async {
+		final authUser = supabase.auth.currentUser;
+		if (authUser == null) return null;
+
+		final authModel = await _resolveOrCreateProfileForAuthUser(
+			authUser,
+			fallbackEmail: authUser.email,
+			fallbackName: _extractDisplayName(authUser),
+		);
+
+		if (authModel != null && persistLocal) {
+			await CurrentUserStore.save(authModel);
+		}
+
+		return authModel;
+	}
+
+	static Future<void> lockApp() async {
+		// Soft lock: keep Supabase session and biometric token, clear only cached profile.
+		await CurrentUserStore.clear();
+	}
+
 	static Future<void> logout() async {
 		// End the current Supabase session and clear local cached user.
 		try {
@@ -266,6 +347,7 @@ class AuthService {
 			await supabase.auth.signOut();
 		} finally {
 			await CurrentUserStore.clear();
+			await BiometricSessionService.clear();
 		}
 	}
 
@@ -279,6 +361,7 @@ class AuthService {
 		supabase.auth.onAuthStateChange.listen((data) async {
 			if (data.event == AuthChangeEvent.signedOut) {
 				await CurrentUserStore.clear();
+				await BiometricSessionService.clear();
 				onSignedOut();
 			}
 		});
@@ -303,5 +386,163 @@ class AuthService {
 			// Keep login successful even if this non-critical sync fails.
 			print('sync login status error: $e');
 		}
+	}
+
+	static Future<User?> _waitForAuthenticatedUser({
+		Duration timeout = const Duration(seconds: 90),
+	}) async {
+		final current = supabase.auth.currentUser;
+		if (current != null) return current;
+
+		final completer = Completer<User?>();
+		late final StreamSubscription<AuthState> subscription;
+
+		subscription = supabase.auth.onAuthStateChange.listen((data) {
+			final user = data.session?.user ?? supabase.auth.currentUser;
+			if (user != null && !completer.isCompleted) {
+				completer.complete(user);
+			}
+		});
+
+		try {
+			return await completer.future.timeout(timeout);
+		} on TimeoutException {
+			return supabase.auth.currentUser;
+		} finally {
+			await subscription.cancel();
+		}
+	}
+
+	static String _extractDisplayName(User user) {
+		final metadata = user.userMetadata ?? const <String, dynamic>{};
+		final possibleNames = <String?>[
+			metadata['full_name']?.toString(),
+			metadata['name']?.toString(),
+			metadata['given_name']?.toString(),
+			user.email?.split('@').first,
+		];
+
+		for (final candidate in possibleNames) {
+			if (candidate != null && candidate.trim().isNotEmpty) {
+				return candidate.trim();
+			}
+		}
+
+		return 'User';
+	}
+
+	static Future<AuthModel?> _resolveOrCreateProfileForAuthUser(
+		User authUser, {
+		String? fallbackEmail,
+		String? fallbackName,
+	}) async {
+		try {
+			Map<String, dynamic>? userData = await supabase
+					.from('User')
+					.select()
+					.eq('auth_id', authUser.id)
+					.maybeSingle();
+
+			if (userData == null) {
+				userData = await _createUserProfileForAuthUser(
+					authUser,
+					email: (fallbackEmail ?? authUser.email ?? '').trim(),
+					name: (fallbackName ?? _extractDisplayName(authUser)).trim(),
+				);
+			}
+
+			if (userData == null) {
+				lastError = 'Unable to create profile for this account.';
+				return null;
+			}
+
+			if ((userData['is_banned'] ?? false) == true) {
+				lastError = 'Your account has been banned. Please contact support.';
+				await supabase.auth.signOut();
+				return null;
+			}
+
+			final existingEmail = (userData['email'] ?? '').toString().trim();
+			final resolvedEmail = existingEmail.isNotEmpty
+					? existingEmail
+					: (fallbackEmail ?? authUser.email ?? '').trim();
+
+			if (resolvedEmail.isNotEmpty && existingEmail != resolvedEmail) {
+				await supabase
+						.from('User')
+						.update({
+							'email': resolvedEmail,
+							'updated_at': DateTime.now().toIso8601String(),
+						})
+						.eq('auth_id', authUser.id);
+				userData['email'] = resolvedEmail;
+			} else {
+				userData['email'] = resolvedEmail;
+			}
+
+			return AuthModel.fromJson(userData);
+		} on PostgrestException catch (e) {
+			lastError = e.message;
+			print('resolve profile error: ${e.message}');
+			return null;
+		} catch (e) {
+			lastError = e.toString();
+			print('resolve profile error: $e');
+			return null;
+		}
+	}
+
+	static Future<Map<String, dynamic>?> _createUserProfileForAuthUser(
+		User authUser, {
+		required String email,
+		required String name,
+	}) async {
+		const maxRetries = 3;
+
+		for (int i = 0; i < maxRetries; i++) {
+			try {
+				final newUserId = await GeneratorId.generateId(
+					tableName: 'User',
+					idColumnName: 'user_id',
+					prefix: 'U',
+					numberLength: 5,
+				);
+
+				final now = DateTime.now().toIso8601String();
+				final created = await supabase
+						.from('User')
+						.insert({
+							'user_id': newUserId,
+							'name': name.isEmpty ? 'User' : name,
+							'gender': '',
+							'contact': '',
+							'address': '',
+							'role': 'User',
+							'online_status': 'Online',
+							'last_seen': now,
+							'updated_at': now,
+							'is_banned': false,
+							'is_volunteer': false,
+							'avatar_url': null,
+							'email': email,
+							'auth_id': authUser.id,
+						})
+						.select()
+						.single();
+
+				return created;
+			} on PostgrestException catch (e) {
+				final isDuplicate = e.code == '23505' ||
+						e.message.toLowerCase().contains('duplicate') ||
+						e.message.toLowerCase().contains('unique');
+
+				if (isDuplicate && i < maxRetries - 1) {
+					continue;
+				}
+				rethrow;
+			}
+		}
+
+		return null;
 	}
 }

@@ -47,12 +47,12 @@ class AppColors {
   // --- Dashboard Colors ---
   // Backgrounds
   static const Color dashboardBackground = Color(0xFFF9FAFB);
-  static const Color chartBackground = Color(0xFFF2F4F7);
+  static const Color chartBackground = defaultBadgeBg;
 
   // Dashboard text & headings
   static const Color dashboardHeading = Color(0xFF101828);
   static const Color dashboardSubtitle = Color(0xFF667085);
-  static const Color dashboardHint = Color(0xFF98A2B3);
+  static const Color dashboardHint = iconColor;
 
   // Chart colors
   static const Color chartBlue = Color(0xFF539DF8);
@@ -65,5 +65,5 @@ class AppColors {
   static const Color errorText = Color(0xFFF04438);
 
   // Neutral grays (Dashboard)
-  static const Color dashboardBorder = Color(0xFFE0E5EC);
+  static const Color dashboardBorder = borderGray;
 }

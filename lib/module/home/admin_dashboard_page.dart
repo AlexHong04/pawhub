@@ -223,7 +223,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.dashboardBackground,
       appBar: _buildAppBar(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -255,15 +255,24 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  "Recent Donations",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF101828),
+                const Expanded(
+                  child: Text(
+                    "Recent Donations",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.dashboardHeading,
+                    ),
                   ),
                 ),
                 TextButton(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -274,7 +283,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                     "VIEW ALL",
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF2E82F4),
+                      color: AppColors.dashboardBlue,
                       fontSize: 12,
                       letterSpacing: 1.0,
                     ),
@@ -299,7 +308,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.white,
       elevation: 0,
       scrolledUnderElevation: 0,
       toolbarHeight: 70,
@@ -311,9 +320,9 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
           name: _currentUserName,
           avatarUrl: _currentUserAvatarUrl,
           radius: 22,
-          backgroundColor: const Color(0xFFE0E5EC),
+          backgroundColor: AppColors.dashboardBorder,
           fallbackTextStyle: const TextStyle(
-            color: Colors.white,
+            color: AppColors.white,
             fontWeight: FontWeight.bold,
             fontSize: 14,
           ),
@@ -321,25 +330,29 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
       ),
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             "Admin Dashboard",
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF101828),
+              color: AppColors.dashboardHeading,
             ),
           ),
           Text(
             "Welcome back, $_currentUserName",
-            style: TextStyle(fontSize: 13, color: Color(0xFF667085)),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, color: AppColors.dashboardSubtitle),
           ),
         ],
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.qr_code_scanner_rounded, color: Color(0xFF667085)),
-          // icon: const Icon(Icons.qr_code, color: Color(0xFF667085)),
+          icon: const Icon(Icons.qr_code_scanner_rounded, color:AppColors.dashboardSubtitle),
           onPressed: _showScanOptions,
         ),
         Stack(
@@ -348,7 +361,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             IconButton(
               icon: const Icon(
                 Icons.people_outline,
-                color: Color(0xFF667085),
+                color: AppColors.dashboardSubtitle,
               ),
               onPressed: () {
                 Navigator.pushNamed(context, '/people_and_roles');
@@ -361,7 +374,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                 width: 8,
                 height: 8,
                 decoration: const BoxDecoration(
-                  color: Color(0xFF2E82F4),
+                  color: AppColors.dashboardBlue,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -383,21 +396,24 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             fontSize: 12,
             fontWeight: FontWeight.bold,
             letterSpacing: 1.2,
-            color: Color(0xFF98A2B3),
+            color: AppColors.dashboardHint,
           ),
         ),
         Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: const Color(0xFFF2F4F7), // Light grey background
+            color: AppColors.chartBackground, // Light grey background
             borderRadius: BorderRadius.circular(24),
           ),
-          child: Row(
-            children: [
-              _buildTogglePill("Today", 0),
-              _buildTogglePill("Per Month", 1),
-              _buildTogglePill("Per Year", 2),
-            ],
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildTogglePill("Today", 0),
+                _buildTogglePill("Per Month", 1),
+                _buildTogglePill("Per Year", 2),
+              ],
+            ),
           ),
         ),
       ],
@@ -433,9 +449,9 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-            color: isSelected
-                ? const Color(0xFF2E82F4)
-                : const Color(0xFF667085),
+              color: isSelected
+                    ? AppColors.dashboardBlue
+                    : AppColors.dashboardSubtitle,
           ),
         ),
       ),
@@ -652,31 +668,43 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
   Widget _buildChartBars(List<_DonationChartBucket> buckets) {
     final maxValue = buckets.fold<double>(0, (max, bucket) => bucket.value > max ? bucket.value : max);
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: buckets.map((bucket) {
-        final percentage = maxValue <= 0 ? 0.0 : (bucket.value / maxValue).toDouble();
-        return _buildBar(percentage, bucket.label, bucket.value);
-      }).toList(),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: buckets
+            .map((bucket) {
+              final percentage = maxValue <= 0 ? 0.0 : (bucket.value / maxValue).toDouble();
+              return Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: _buildBar(percentage, bucket.label, bucket.value),
+              );
+            })
+            .toList(),
+      ),
     );
   }
 
   Widget _buildTrendLabels(List<_DonationChartBucket> buckets) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: buckets
-          .map(
-            (bucket) => Text(
-              bucket.label,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF667085),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: buckets
+            .map(
+              (bucket) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Text(
+                  bucket.label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.dashboardSubtitle,
+                  ),
+                ),
               ),
-            ),
-          )
-          .toList(),
+            )
+            .toList(),
+      ),
     );
   }
 
@@ -691,9 +719,9 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0E5EC), width: 1),
+        border: Border.all(color: AppColors.dashboardBorder, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -710,12 +738,12 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.0,
-                    color: Color(0xFF667085),
+                    color: AppColors.dashboardSubtitle,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(icon, size: 18, color: const Color(0xFF98A2B3)),
+              Icon(icon, size: 18, color: AppColors.dashboardHint),
             ],
           ),
           const SizedBox(height: 12),
@@ -724,7 +752,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF101828),
+              color: AppColors.dashboardHeading,
             ),
           ),
           const SizedBox(height: 12),
@@ -734,8 +762,8 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: isPositive
-                      ? const Color(0xFFE6F4EA)
-                      : const Color(0xFFFCE8E8),
+                      ? AppColors.successBg
+                      : AppColors.errorBg,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -744,8 +772,8 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     color: isPositive
-                        ? const Color(0xFF12B76A)
-                        : const Color(0xFFF04438),
+                        ? AppColors.successText
+                        : AppColors.errorText,
                   ),
                 ),
               ),
@@ -756,7 +784,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                   style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF98A2B3),
+                    color: AppColors.dashboardHint,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -775,9 +803,9 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0E5EC)),
+        border: Border.all(color: AppColors.dashboardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -791,13 +819,13 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.0,
-                  color: Color(0xFF667085),
+                  color: AppColors.dashboardSubtitle,
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE6F4EA),
+                  color: AppColors.successBg,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
@@ -805,7 +833,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF12B76A),
+                    color: AppColors.successText,
                   ),
                 ),
               ),
@@ -817,7 +845,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF101828),
+              color: AppColors.dashboardHeading,
             ),
           ),
           const SizedBox(height: 4),
@@ -825,7 +853,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             "$successful successful donations",
             style: const TextStyle(
               fontSize: 12,
-              color: Color(0xFF667085),
+              color: AppColors.dashboardSubtitle,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -848,7 +876,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
               width: 36,
               height: 100,
               decoration: BoxDecoration(
-                color: const Color(0xFFF2F4F7),
+                color: AppColors.chartBackground,
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
@@ -856,7 +884,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
               width: 36,
               height: 100 * percentage,
               decoration: BoxDecoration(
-                color: const Color(0xFF539DF8),
+                color: AppColors.chartBlue,
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
@@ -877,7 +905,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
           style: const TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF98A2B3),
+            color: AppColors.dashboardHint,
           ),
         ),
       ],
@@ -891,7 +919,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.dashboardBorder),
       ),
@@ -1025,20 +1053,20 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0E5EC)),
+        border: Border.all(color: AppColors.dashboardBorder),
       ),
       child: Row(
         children: [
           // Donor Avatar
           CircleAvatar(
             radius: 25,
-            backgroundColor: const Color(0xFFE0E5EC),
+            backgroundColor: AppColors.dashboardBorder,
             backgroundImage: hasAvatar ? NetworkImage(imageUrl) : null,
             child: hasAvatar
                 ? null
                 : const Icon(
                     Icons.person,
-                    color: Colors.white,
+                    color: AppColors.white,
                   ),
           ),
           const SizedBox(width: 16),
@@ -1052,7 +1080,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF101828),
+                    color: AppColors.dashboardHeading,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -1060,7 +1088,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                   donorName,
                   style: const TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF667085),
+                    color: AppColors.dashboardSubtitle,
                   ),
                 ),
               ],
@@ -1092,7 +1120,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                 style: const TextStyle(
                   fontSize: 11,
                   fontStyle: FontStyle.italic,
-                  color: Color(0xFF98A2B3),
+                  color: AppColors.dashboardHint,
                 ),
               ),
             ],
@@ -1111,7 +1139,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             'No recent donations for this filter yet.',
             style: TextStyle(
               fontSize: 13,
-              color: Color(0xFF98A2B3),
+              color: AppColors.dashboardHint,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -1180,7 +1208,7 @@ class _DonationTrendPainter extends CustomPainter {
     }).toList();
 
     final paint = Paint()
-      ..color = const Color(0xFF2E82F4)
+      ..color = AppColors.dashboardBlue
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4.0
       ..strokeCap = StrokeCap.round;
@@ -1205,10 +1233,10 @@ class _DonationTrendPainter extends CustomPainter {
 
     // Draw the dots on the nodes
     final dotPaintWhite = Paint()
-      ..color = Colors.white
+      ..color = AppColors.white
       ..style = PaintingStyle.fill;
     final dotPaintBlue = Paint()
-      ..color = const Color(0xFF2E82F4)
+      ..color = AppColors.dashboardBlue
       ..style = PaintingStyle.fill;
 
     void drawDot(Offset offset) {

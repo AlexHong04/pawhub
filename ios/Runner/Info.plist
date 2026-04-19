@@ -60,5 +60,7 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Use Face ID or Touch ID to securely unlock your saved Pawhub session.</string>
 </dict>
 </plist>
