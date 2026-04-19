@@ -216,6 +216,18 @@ class PostService {
   }
   Future<int> fetchLikedPostsCountByUser(String userId) async {
     if (userId.trim().isEmpty) return 0;
+
+    try {
+      final response = await _supabase
+          .from('PostInteractions')
+          .select('post_id')
+          .eq('user_id', userId)
+          .eq('like', true)
+          .filter('comment_text', 'is', null);
+
+      final uniquePostIds = (response as List)
+          .map((row) => (row['post_id'] ?? '').toString())
+          .where((postId) => postId.trim().isNotEmpty)
           .toSet();
 
       return uniquePostIds.length;

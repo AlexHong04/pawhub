@@ -223,7 +223,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: AppColors.dashboardBackground,
       appBar: _buildAppBar(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -255,15 +255,24 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  "Recent Donations",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF101828),
+                const Expanded(
+                  child: Text(
+                    "Recent Donations",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.dashboardHeading,
+                    ),
                   ),
                 ),
                 TextButton(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -274,7 +283,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
                     "VIEW ALL",
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF2E82F4),
+                      color: AppColors.dashboardBlue,
                       fontSize: 12,
                       letterSpacing: 1.0,
                     ),
@@ -299,7 +308,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.white,
       elevation: 0,
       scrolledUnderElevation: 0,
       toolbarHeight: 70,
@@ -311,9 +320,9 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
           name: _currentUserName,
           avatarUrl: _currentUserAvatarUrl,
           radius: 22,
-          backgroundColor: const Color(0xFFE0E5EC),
+          backgroundColor: AppColors.dashboardBorder,
           fallbackTextStyle: const TextStyle(
-            color: Colors.white,
+            color: AppColors.white,
             fontWeight: FontWeight.bold,
             fontSize: 14,
           ),
@@ -321,18 +330,23 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
       ),
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             "Admin Dashboard",
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF101828),
+              color: AppColors.dashboardHeading,
             ),
           ),
           Text(
             "Welcome back, $_currentUserName",
-            style: TextStyle(fontSize: 13, color: Color(0xFF667085)),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, color: AppColors.dashboardSubtitle),
           ),
         ],
       ),
