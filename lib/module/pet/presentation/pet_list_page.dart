@@ -336,6 +336,12 @@ class _PetListPageState extends State<PetListPage> {
                           builder: (context) => CreateEditPetPage(),
                         ),
                       );
+
+                      setState(() {
+                        _selectedPetIds.clear();
+                        selectAll = false;
+                      });
+
                       await _fetchPets();
                     },
                     icon: const Icon(Icons.add),
@@ -354,6 +360,12 @@ class _PetListPageState extends State<PetListPage> {
                               CreateEditPetPage(petId: selectedPet.id),
                         ),
                       );
+
+                      setState(() {
+                        _selectedPetIds.clear();
+                        selectAll = false;
+                      });
+
                       await _fetchPets();
                       log("Editing: ${selectedPet.name}");
                     },
@@ -392,8 +404,11 @@ class _PetListPageState extends State<PetListPage> {
                           ),
                           // Navigator.pushNamed(context, '/pet_details');
                         );
-
-                        _fetchPets();
+                        setState(() {
+                          _selectedPetIds.clear();
+                          selectAll = false;
+                        });
+                        await _fetchPets();
                       },
 
                       showCheckbox: true,
