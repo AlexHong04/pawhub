@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
+import 'package:pawhub/core/utils/biometric_session_service.dart';
 import 'package:pawhub/core/widgets/password_suffix.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:pawhub/module/auth/model/auth_model.dart';
@@ -20,7 +21,17 @@ class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   bool loading = false;
+  bool googleLoading = false;
+  bool biometricLoading = false;
   bool obscurePassword = true;
+
+  bool get _isPasswordValid {
+    final value = passwordController.text;
+    return value.isNotEmpty &&
+        value.trim().length >= 8 &&
+        RegExp(r'\d').hasMatch(value) &&
+        RegExp(r'[^A-Za-z0-9]').hasMatch(value);
+  }
 
   @override
   void dispose() {
@@ -36,7 +47,6 @@ class _LoginPageState extends State<LoginPage> {
         loading = true;
       });
 
-
       final AuthModel? userData = await AuthService.login(
         emailController.text.trim(),
         passwordController.text.trim(),
@@ -46,19 +56,100 @@ class _LoginPageState extends State<LoginPage> {
         setState(() => loading = false);
 
         if (userData != null) {
-          if (userData.role == 'Admin') {
-            Navigator.pushReplacementNamed(context, '/staff_layout');
-          } else {
-            Navigator.pushReplacementNamed(context, '/user_layout');
-          }
+          _navigateAfterLogin(userData);
         } else {
           final message = AuthService.lastError ?? 'Invalid email or password';
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(message)));
+          _showSnackBar(message);
         }
       }
     }
+  }
+
+  Future<void> loginWithGoogle() async {
+    FocusScope.of(context).unfocus();
+    setState(() => googleLoading = true);
+
+    final userData = await AuthService.loginWithGoogle();
+
+    if (!mounted) return;
+    setState(() => googleLoading = false);
+
+    if (userData != null) {
+      Navigator.pushReplacementNamed(context, '/user_layout');
+      return;
+    }
+
+    final message =
+        AuthService.lastError ?? 'Google login failed. Please try again.';
+    _showSnackBar(message);
+  }
+
+  Future<void> loginWithBiometric() async {
+    FocusScope.of(context).unfocus();
+
+    if (loading || googleLoading || biometricLoading) return;
+
+    final enabled = await BiometricSessionService.isEnabled();
+    if (!enabled) {
+      _showSnackBar('Enable biometric in Profile first, then use Lock App (not Sign Out).');
+      return;
+    }
+
+    final hasStoredSession = await BiometricSessionService.hasStoredSession();
+    if (!hasStoredSession) {
+      _showSnackBar('No saved session. Sign Out clears biometric login; use normal login first.');
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => biometricLoading = true);
+
+    final unlocked = await BiometricSessionService.authenticate(
+      localizedReason: 'Scan to login with biometrics',
+    );
+
+    if (!mounted) return;
+    if (!unlocked) {
+      setState(() => biometricLoading = false);
+      _showSnackBar('Biometric authentication failed.');
+      return;
+    }
+
+    if (!AuthService.isLoggedIn()) {
+      final restored = await BiometricSessionService.restoreSessionFromSecureStorage();
+      if (!mounted) return;
+
+      if (!restored) {
+        setState(() => biometricLoading = false);
+        _showSnackBar('Unable to restore your session. Please login with password.');
+        return;
+      }
+    }
+
+    AuthModel? userData = await AuthService.getStoredCurrentUser();
+    userData ??= await AuthService.resolveCurrentUserFromActiveSession();
+
+    if (!mounted) return;
+    setState(() => biometricLoading = false);
+
+    if (userData == null) {
+      _showSnackBar('Session restored, but profile could not be loaded. Please login again.');
+      return;
+    }
+
+    _navigateAfterLogin(userData);
+  }
+
+  void _navigateAfterLogin(AuthModel userData) {
+    if (userData.role == 'Admin') {
+      Navigator.pushReplacementNamed(context, '/staff_layout');
+    } else {
+      Navigator.pushReplacementNamed(context, '/user_layout');
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
 
@@ -87,9 +178,55 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Image.asset(
-                    'assets/images/registerLogo.png',
-                    height: 130,
+                  GestureDetector(
+                    onTap: biometricLoading ? null : loginWithBiometric,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Opacity(
+                          opacity: biometricLoading ? 0.55 : 1,
+                          child: Image.asset(
+                            'assets/images/registerLogo.png',
+                            height: 130,
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 4,
+                          right: 4,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: biometricLoading
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.white,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.fingerprint,
+                                    size: 14,
+                                    color: AppColors.white,
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Tap logo to unlock with biometrics (Lock App only)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textLight,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
                   Text(
@@ -129,24 +266,36 @@ class _LoginPageState extends State<LoginPage> {
                     controller: passwordController,
                     obscureText: obscurePassword,
                     decoration:
-                        AppDecorations.outlineInputDecoration(
-                          hintText: "••••••••",
-                          prefixIcon: Icons.lock,
-                          labelText: "Password",
-                        ).copyWith(
-                          suffixIcon: PasswordSuffix(
-                            showCheck: false,
-                            isObscure: obscurePassword,
-                            onToggleVisibility: () {
-                              setState(() {
-                                obscurePassword = !obscurePassword;
-                              });
-                            },
-                          ),
+                    AppDecorations.outlineInputDecoration(
+                      hintText: "••••••••",
+                      prefixIcon: Icons.lock_outline,
+                      labelText: "Password",
+                    ).copyWith(
+                      suffixIcon: AnimatedBuilder(
+                        animation: passwordController,
+                        builder: (context, _) => PasswordSuffix(
+                          showCheck: _isPasswordValid,
+                          isObscure: obscurePassword,
+                          onToggleVisibility: () {
+                            setState(() {
+                              obscurePassword = !obscurePassword;
+                            });
+                          },
                         ),
+                      ),
+                    ),
                     validator: (value) {
-                      if (value == null || value.length < 8) {
+                      if (value == null || value.isEmpty) {
+                        return "Please enter a password";
+                      }
+                      if (value.trim().length < 8) {
                         return "Password must be at least 8 characters";
+                      }
+                      if (!RegExp(r'\d').hasMatch(value)) {
+                        return "Password must include at least 1 number";
+                      }
+                      if (!RegExp(r'[^A-Za-z0-9]').hasMatch(value)) {
+                        return "Password must include at least 1 symbol";
                       }
                       return null;
                     },
@@ -189,7 +338,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       onPressed: loading ? null : login,
                       child: Text(
-                        loading ? 'Logging In...' : "login",
+                        loading ? 'Logging In...' : "Login",
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -257,9 +406,7 @@ class _LoginPageState extends State<LoginPage> {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        // handle google sign in
-                      },
+                      onPressed: loading || googleLoading ? null : loginWithGoogle,
                       icon: const FaIcon(
                         FontAwesomeIcons.google,
                         size: 20,
@@ -267,7 +414,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       // icon: Image.asset('assets/images/googleLogo.jpg', height: 24),
                       label: Text(
-                        "Google",
+                        googleLoading ? "Connecting..." : "Google",
                         style: TextStyle(
                           color: AppColors.textDark,
                           fontSize: 16,

@@ -9,6 +9,7 @@ import 'module/auth/service/auth_service.dart';
 import 'module/home/home_routes.dart';
 import 'module/home/staff_layout.dart';
 import 'module/home/user_layout.dart';
+import 'core/utils/biometric_session_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -83,17 +84,36 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   Future<String> _determineInitialRoute() async {
-    final cachedUser = await AuthService.getStoredCurrentUser();
+    final hasActiveSession = AuthService.isLoggedIn();
+    final hasStoredSession = await BiometricSessionService.hasStoredSession();
+    final biometricEnabled = await BiometricSessionService.isEnabled();
 
-    if (AuthService.isLoggedIn()) {
-      if (cachedUser?.role == 'Admin') {
-        return '/staff_layout';
+    if (!hasActiveSession && hasStoredSession) {
+      if (biometricEnabled) {
+        final unlocked = await BiometricSessionService.authenticate();
+        if (!unlocked) return AuthRoutes.login;
       }
-      return '/user_layout';
+
+      final restored = await BiometricSessionService.restoreSessionFromSecureStorage();
+      if (!restored && !AuthService.isLoggedIn()) {
+        return AuthRoutes.login;
+      }
+    } else if (hasActiveSession && biometricEnabled) {
+      final unlocked = await BiometricSessionService.authenticate();
+      if (!unlocked) return AuthRoutes.login;
     }
 
-    return AuthRoutes.login;
+    if (!AuthService.isLoggedIn()) {
+      return AuthRoutes.login;
+    }
+
+    final cachedUser = await AuthService.getStoredCurrentUser();
+    if (cachedUser?.role == 'Admin') {
+      return '/staff_layout';
+    }
+    return '/user_layout';
   }
+
 
   @override
   Widget build(BuildContext context) {

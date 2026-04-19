@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:pawhub/core/constants/colors.dart';
 import 'package:pawhub/core/widgets/filterButton.dart';
+import 'package:pawhub/module/Profile/model/user_model.dart';
+import 'package:pawhub/module/Profile/service/profile_service.dart';
 
-import '../model/user_model.dart';
-import '../service/profile_service.dart';
 import '../../../core/widgets/profile_avatar.dart';
 // import 'user_model.dart'; // Make sure to import your UserModel file here!
 
@@ -52,20 +52,19 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
     // Start with all users
     List<UserModel> results = List.from(_allUsers);
 
-    // 1. Apply Chip Filter (Case-insensitive & space-trimmed)
-    String selectedFilter = _filters[_selectedFilterIndex];
-    if (selectedFilter != 'All') {
-      String targetRole = '';
-
-      // Map to the database roles, but use strictly lowercase for safe comparing
-      if (selectedFilter == 'Volunteers') targetRole = 'volunteer';
-      if (selectedFilter == 'User') targetRole = 'user';
-      if (selectedFilter == 'Admin') targetRole = 'admin';
-
+    // 1. Apply Chip Filter
+    final selectedFilter = _filters[_selectedFilterIndex];
+    if (selectedFilter == 'Volunteers') {
+      results = results.where((u) => u.isVolunteer).toList();
+    } else if (selectedFilter == 'User') {
       results = results.where((u) {
-        // .trim() removes accidental spaces, .toLowerCase() makes it ignore capitals
-        return u.role.trim().toLowerCase() == targetRole;
+        final role = u.role.trim().toLowerCase();
+        return role == 'user' && !u.isVolunteer;
       }).toList();
+    } else if (selectedFilter == 'Admin') {
+      results = results
+          .where((u) => u.role.trim().toLowerCase() == 'admin')
+          .toList();
     }
 
     // 2. Apply Text Search (Case-insensitive & space-trimmed)
@@ -75,7 +74,7 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
       results = results.where((u) {
         final nameLower = u.name.trim().toLowerCase();
         final emailLower = u.email.trim().toLowerCase();
-        final roleLower = u.role.trim().toLowerCase();
+        final roleLower = _resolveDisplayRole(u).toLowerCase();
 
         return nameLower.contains(searchLower) ||
             emailLower.contains(searchLower) ||
@@ -257,7 +256,7 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    _buildRoleBadge(user.role),
+                    _buildRoleBadge(user),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -294,6 +293,8 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
   }
 
   void _showUserActionsSheet(UserModel user) {
+    final resolvedRole = _resolveDisplayRole(user);
+
     showModalBottomSheet(
       context: context,
       useRootNavigator: true,
@@ -334,135 +335,12 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    children: [
-                      ProfileAvatar(
-                        userId: user.id,
-                        name: user.name,
-                        avatarUrl: user.avatarUrl,
-                        radius: 22,
-                        backgroundColor: AppColors.inputFill,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              user.name,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textDark,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              user.email,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textLight,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _buildUserInfoCard(user),
                 const SizedBox(height: 12),
-                _buildActionTile(
-                  icon: Icons.admin_panel_settings_outlined,
-                  iconColor: AppColors.primary,
-                  title: 'Change Role',
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _showChangeRoleSheet(user);
-                  },
-                ),
-                _buildActionTile(
-                  icon: Icons.person_outline,
-                  iconColor: AppColors.primary,
-                  title: 'View Profile',
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('View profile for ${user.name}')),
-                    );
-                  },
-                ),
-                _buildActionTile(
-                  icon: Icons.lock_reset,
-                  iconColor: AppColors.primary,
-                  title: 'Reset Password',
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    Navigator.pushNamed(context, '/reset_password');
-                  },
-                ),
-                const Divider(height: 24, color: AppColors.borderGray),
-                _buildActionTile(
-                  icon: user.isBanned ? Icons.check_circle_outline : Icons.block,
-                  iconColor: user.isBanned ? _unbanCyan : Colors.red,
-                  title: user.isBanned ? 'Unban User' : 'Ban User',
-                  titleColor: user.isBanned ? _unbanCyan : Colors.red,
-                  onTap: () async {
-                    Navigator.pop(sheetContext);
-
-                    final shouldBan = !user.isBanned;
-                    final success = await ProfileService.updateUserBanStatus(
-                      user.id,
-                      shouldBan,
-                    );
-
-                    if (!mounted) return;
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          success
-                              ? (shouldBan
-                                    ? 'User ${user.name} has been banned'
-                                    : 'User ${user.name} has been unbanned')
-                              : 'Failed to update ban status for ${user.name}',
-                        ),
-                        backgroundColor: success ? null : Colors.red,
-                      ),
-                    );
-
-                    if (success) {
-                      await _fetchUsers();
-                    }
-                  },
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF1F5F9),
-                      side: BorderSide.none,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    onPressed: () => Navigator.pop(sheetContext),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textDark,
-                      ),
-                    ),
-                  ),
+                ..._buildRoleBasedActions(
+                  user: user,
+                  resolvedRole: resolvedRole,
+                  sheetContext: sheetContext,
                 ),
               ],
             ),
@@ -470,6 +348,122 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
         );
       },
     );
+  }
+
+  Widget _buildUserInfoCard(UserModel user) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          ProfileAvatar(
+            userId: user.id,
+            name: user.name,
+            avatarUrl: user.avatarUrl,
+            radius: 22,
+            backgroundColor: AppColors.inputFill,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  user.name,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textDark,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  user.email,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textLight,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildRoleBasedActions({
+    required UserModel user,
+    required String resolvedRole,
+    required BuildContext sheetContext,
+  }) {
+    final actions = <Widget>[
+      _buildActionTile(
+        icon: Icons.admin_panel_settings_outlined,
+        iconColor: AppColors.primary,
+        title: 'Change Role',
+        onTap: () {
+          Navigator.pop(sheetContext);
+          _showChangeRoleSheet(user);
+        },
+      ),
+      _buildActionTile(
+        icon: Icons.lock_reset,
+        iconColor: AppColors.primary,
+        title: 'Reset Password',
+        onTap: () {
+          Navigator.pop(sheetContext);
+          Navigator.pushNamed(context, '/reset_password');
+        },
+      ),
+    ];
+
+    if (resolvedRole != 'Admin') {
+      actions.add(const Divider(height: 24, color: AppColors.borderGray));
+      actions.add(
+        _buildActionTile(
+          icon: user.isBanned ? Icons.check_circle_outline : Icons.block,
+          iconColor: user.isBanned ? _unbanCyan : Colors.red,
+          title: user.isBanned
+              ? 'Unban ${resolvedRole == 'Volunteer' ? 'Volunteer' : 'User'}'
+              : 'Ban ${resolvedRole == 'Volunteer' ? 'Volunteer' : 'User'}',
+          titleColor: user.isBanned ? _unbanCyan : Colors.red,
+          onTap: () async {
+            Navigator.pop(sheetContext);
+
+            final shouldBan = !user.isBanned;
+            final success = await ProfileService.updateUserBanStatus(
+              user.id,
+              shouldBan,
+            );
+
+            if (!mounted) return;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  success
+                      ? (shouldBan
+                            ? '${resolvedRole == 'Volunteer' ? 'Volunteer' : 'User'} ${user.name} has been banned'
+                            : '${resolvedRole == 'Volunteer' ? 'Volunteer' : 'User'} ${user.name} has been unbanned')
+                      : 'Failed to update ban status for ${user.name}',
+                ),
+                backgroundColor: success ? null : Colors.red,
+              ),
+            );
+
+            if (success) {
+              await _fetchUsers();
+            }
+          },
+        ),
+      );
+    }
+
+    return actions;
   }
 
   Widget _buildActionTile({
@@ -495,7 +489,7 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
   }
 
   void _showChangeRoleSheet(UserModel user) {
-    String selectedRole = _normalizeRoleLabel(user.role);
+    String selectedRole = _resolveDisplayRole(user);
     bool saving = false;
 
     showModalBottomSheet(
@@ -712,10 +706,12 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
     );
   }
 
-  String _normalizeRoleLabel(String role) {
-    final raw = role.trim().toLowerCase();
-    if (raw == 'admin') return 'Admin';
-    if (raw == 'volunteer' || raw == 'volunteers') return 'Volunteer';
+  String _resolveDisplayRole(UserModel user) {
+    final rawRole = user.role.trim().toLowerCase();
+    if (rawRole == 'admin') return 'Admin';
+    if (user.isVolunteer || rawRole == 'volunteer' || rawRole == 'volunteers') {
+      return 'Volunteer';
+    }
     return 'User';
   }
 
@@ -754,8 +750,8 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
     );
   }
 
-  Widget _buildRoleBadge(String role) {
-    final normalizedRole = _normalizeRoleLabel(role);
+  Widget _buildRoleBadge(UserModel user) {
+    final normalizedRole = _resolveDisplayRole(user);
     Color bgColor;
     Color textColor;
     switch (normalizedRole) {

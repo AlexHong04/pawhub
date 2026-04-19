@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,6 +10,8 @@ import 'package:pawhub/module/Profile/service/profile_service.dart';
 import 'package:pawhub/module/auth/service/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/widgets/profile_avatar.dart';
+import '../../volunteer/model/OSMPlace.dart';
+import '../../volunteer/service/OSMService.dart';
 
 class ProfileEditPage extends StatefulWidget {
   const ProfileEditPage({super.key});
@@ -30,11 +33,15 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   // final genderController = TextEditingController();
   final contactController = TextEditingController();
   final locationController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   File? _selectedImage;
   String? _selectedGender;
   String? _currentAvatarUrl;
   String? _userId;
   bool loading = false;
+  List<OSMPlace> _suggestions = [];
+  OSMPlace? _selectedPlace;
+  Timer? _debounce;
 
   Future<void> _exitEditPage() async {
     bool reachedLayoutRoute = false;
@@ -53,6 +60,28 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(context, targetRoute, (route) => false);
     }
+  }
+  Future<void> _onSearchChanged(String value) async {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+
+    _debounce = Timer(const Duration(milliseconds: 800), () async {
+      if (value.isEmpty) {
+        setState(() => _suggestions.clear());
+        return;
+      }
+
+      try {
+        final results = await OSMService.searchPlaces(value);
+
+        if (!mounted) return;
+
+        setState(() {
+          _suggestions = results;
+        });
+      } catch (e) {
+        print("Search error: $e");
+      }
+    });
   }
 
   @override
@@ -345,7 +374,51 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                     labelText: "Location",
                     prefixIcon: Icons.location_on_outlined,
                   ),
+                  validator: (v) {
+                    if (_selectedPlace == null) {
+                      return "Please select a location from the search results";
+                    }
+                    return null;
+                  },
+                  onFieldSubmitted: _onSearchChanged,
+                  onChanged: (val) {
+                    if (_selectedPlace != null) {
+                      setState(() => _selectedPlace = null);
+                    }
+                    _onSearchChanged(val);
+                  },
                 ),
+
+                if (_suggestions.isNotEmpty)
+                  Container(
+                    height: 200,
+                    margin: const EdgeInsets.only(top: 8),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: ListView.builder(
+                      itemCount: _suggestions.length,
+                      itemBuilder: (context, index) {
+                        final place = _suggestions[index];
+
+                        return ListTile(
+                          title: Text(
+                            place.displayName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () {
+                            setState(() {
+                              _selectedPlace = place;
+                              _searchController.text = place.displayName;
+                              _suggestions.clear();
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  ),
                 const SizedBox(height: 40),
                 SizedBox(
                   width: double.infinity,

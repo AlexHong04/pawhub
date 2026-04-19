@@ -209,10 +209,20 @@ class PostService {
           .single();
 
       return CommunityPostModel.fromJson(response, userId);
-
     } catch (e) {
       debugPrint("Fetch Post By ID Error: $e");
       return null;
     }
   }
+  Future<int> fetchLikedPostsCountByUser(String userId) async {
+    if (userId.trim().isEmpty) return 0;
+          .toSet();
+
+      return uniquePostIds.length;
+    } catch (e) {
+      debugPrint('Fetch liked posts count error: $e');
+      return 0;
+    }
+  }
+
 }
