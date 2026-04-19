@@ -237,38 +237,79 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     }
   }
   void _showImageSourceOptions() {
-    // Hide the keyboard if it's open
     FocusScope.of(context).unfocus();
 
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.only(bottom: 30, top: 12),
+        decoration: const BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 5,
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.camera_alt_rounded,
+                  color: Colors.blue.shade600,
+                  size: 22,
+                ),
+              ),
+              title: const Text(
+                'Take a Photo',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.photo_library_rounded,
+                  color: Colors.green.shade600,
+                  size: 22,
+                ),
+              ),
+              title: const Text(
+                'Choose from Gallery',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
       ),
-      builder: (context) {
-        return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.camera_alt, color: AppColors.primary),
-                title: const Text('Take a Photo'),
-                onTap: () {
-                  Navigator.pop(context); // Close the menu
-                  _pickImage(ImageSource.camera); // Open Camera!
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library, color: AppColors.primary),
-                title: const Text('Choose from Gallery'),
-                onTap: () {
-                  Navigator.pop(context); // Close the menu
-                  _pickImage(ImageSource.gallery); // Open Gallery!
-                },
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
@@ -559,6 +600,4 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     );
   }
 }
-
-
 
