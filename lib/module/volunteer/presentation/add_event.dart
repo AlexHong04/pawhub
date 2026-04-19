@@ -43,6 +43,8 @@ class _AddEventScreenState extends State<AddEventScreen> {
   TimeOfDay? _endTime;
   String _category = 'Rescue Activities';
   bool _showFlyerError = false;
+  int? _originalCapacity;
+  int? _originalSpotLeft;
 
   // Flyer state (Supabase URL + optional new local file)
   File? _flyerFile;
@@ -208,6 +210,8 @@ class _AddEventScreenState extends State<AddEventScreen> {
       final event = await EventService.getEventById(widget.eventId!);
       if (event != null && mounted) {
         setState(() {
+          _originalCapacity = event['volunteer_capacity'];
+          _originalSpotLeft = event['spot_left'];
           _titleController.text = event['title'] ?? '';
           _descController.text = event['description'] ?? '';
           _addressController.text = event['address'] ?? '';
@@ -559,6 +563,13 @@ class _AddEventScreenState extends State<AddEventScreen> {
                   final val = int.tryParse(v);
                   if (val == null) return "Enter a valid number";
                   if (val <= 0) return "Capacity must be at least 1";
+
+                  if (_isEditMode && _originalCapacity != null && _originalSpotLeft != null) {
+                    int joined = _originalCapacity! - _originalSpotLeft!;
+                    if (val < joined) {
+                      return "Min capacity is $joined (people already joined)";
+                    }
+                  }
                   return null;
                 },
               ),
@@ -669,15 +680,6 @@ class _AddEventScreenState extends State<AddEventScreen> {
       setState(() => _showFlyerError = false);
     }
 
-    if (!_formKey.currentState!.validate() || !hasFlyer) {
-      if (!hasFlyer) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Event Flyer is required"), backgroundColor: Colors.red),
-        );
-      }
-      return;
-    }
-
     if (_selectedPlace == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -734,6 +736,13 @@ class _AddEventScreenState extends State<AddEventScreen> {
 
       bool ok;
       if (_isEditMode) {
+
+        int newSpotLeft = capacity;
+        if (_originalCapacity != null && _originalSpotLeft != null) {
+          int joined = _originalCapacity! - _originalSpotLeft!;
+          newSpotLeft = capacity - joined;
+        }
+
         final updates = <String, dynamic>{
           'title': cleanTitle,
           'description': cleanDesc,
@@ -742,14 +751,15 @@ class _AddEventScreenState extends State<AddEventScreen> {
           'latitude': lat,
           'longitude': lng,
           'volunteer_capacity': capacity,
+          'spot_left': newSpotLeft,
           'event_date': DateFormat('yyyy-MM-dd').format(_selectedDate!),
           'start_time': startTimeStr,
           'end_time': endTimeStr,
-          'flyerFile': _flyerFile, // handled by EventService.updateEvent
+          'flyerFile': _flyerFile,
         };
 
         ok = await EventService.updateEvent(widget.eventId!, updates);
-      } else {
+      }  else {
         final newEvent = EventModel(
           title: cleanTitle,
           eventDate: _selectedDate!,

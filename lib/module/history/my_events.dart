@@ -133,6 +133,47 @@ class _MyEventsPageState extends State<MyEventsPage>
     );
   }
 
+  // ==========================================
+  // ADDED: CANCEL REGISTRATION LOGIC
+  // ==========================================
+  void _confirmCancelRegistration(String eventId, String title) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Cancel Registration"),
+        content: Text("Are you sure you want to cancel your registration for '$title'? This action cannot be undone."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("No"),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx); // Close the dialog
+              _showLoadingDialog(); // Show loader while processing
+
+              bool success = await EventService.cancelRegistration(eventId, widget.userId);
+
+              if (mounted) Navigator.pop(context); // Hide loader
+
+              if (success) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Registration cancelled successfully"), backgroundColor: Colors.green),
+                );
+                _fetchMyEvents(); // Refresh the list to remove it
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Failed to cancel registration"), backgroundColor: Colors.red),
+                );
+              }
+            },
+            child: const Text("Yes, Cancel", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showCertificatePreview({String? url, File? file}) {
     showDialog(
       context: context,
@@ -361,7 +402,6 @@ class _MyEventsPageState extends State<MyEventsPage>
             _buildFilterButtonItem("Completed", 1),
             const SizedBox(width: 8),
             _buildFilterButtonItem("Incomplete", 2),
-            // You can now easily add more filters without breaking the UI
             const SizedBox(width: 8),
             _buildFilterButtonItem("Cancelled", 3),
           ],
@@ -457,7 +497,7 @@ class _MyEventsPageState extends State<MyEventsPage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      event?['title'] ?? 'Event Title',
+                      eventTitle,
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -566,6 +606,28 @@ class _MyEventsPageState extends State<MyEventsPage>
                             ),
                           ),
                         ),
+                        const SizedBox(height: 8),
+
+                        // ==========================================
+                        // ADDED: CANCEL REGISTRATION BUTTON
+                        // ==========================================
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _confirmCancelRegistration(eventId, eventTitle),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            icon: const Icon(Icons.cancel_outlined, size: 18),
+                            label: const Text(
+                              "Cancel Registration",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
                       ],
                     ] else ...[
                       // Completed section
@@ -592,11 +654,9 @@ class _MyEventsPageState extends State<MyEventsPage>
                         width: double.infinity,
                         child: OutlinedButton(
                           onPressed: () async {
-                            // 1. If we already have the URL from Supabase, just show it!
                             if (data['certificate_url'] != null && data['certificate_url'].toString().isNotEmpty) {
                               _showCertificatePreview(url: data['certificate_url']);
                             }
-                            // 2. Otherwise, generate and upload to Supabase
                             else {
                               _showLoadingDialog();
                               try {
@@ -609,9 +669,7 @@ class _MyEventsPageState extends State<MyEventsPage>
                                 if (mounted) Navigator.pop(context); // close dialog
 
                                 if (newUrl != null) {
-                                  // Update the UI state so the button text changes
                                   setState(() { data['certificate_url'] = newUrl; });
-                                  // Show the newly uploaded certificate
                                   _showCertificatePreview(url: newUrl);
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(

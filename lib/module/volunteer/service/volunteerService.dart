@@ -218,9 +218,26 @@ class EventService {
     try {
       if (userId.isEmpty || userId == "GUEST") return false;
 
+      // 1. Check if already joined
       final alreadyJoined = await checkIfUserJoined(eventId, userId);
       if (alreadyJoined) return false;
 
+      // 2. Fetch the current spot_left from the Event table
+      final eventData = await supabase
+          .from('Event')
+          .select('spot_left')
+          .eq('event_id', eventId)
+          .single();
+
+      int currentSpotLeft = eventData['spot_left'] ?? 0;
+
+      // Prevent joining if the event is already full
+      if (currentSpotLeft <= 0) {
+        print('Event is already full');
+        return false;
+      }
+
+      // 3. Insert the user into JoinedEvent
       await supabase.from('JoinedEvent').insert({
         'user_id': userId,
         'event_id': eventId,
@@ -229,12 +246,58 @@ class EventService {
         'certificate_url': null,
         'check_in_time': null,
       });
+
+      // 4. Decrease spot_left by 1 in the Event table
+      await supabase
+          .from('Event')
+          .update({'spot_left': currentSpotLeft - 1})
+          .eq('event_id', eventId);
+
       return true;
     } catch (e) {
       print('joinEvent error: $e');
       return false;
     }
   }
+  static Future<bool> cancelRegistration(String eventId, String userId) async {
+    try {
+      // 1. Fetch the current spot_left from the Event
+      final eventData = await supabase
+          .from('Event')
+          .select('spot_left')
+          .eq('event_id', eventId)
+          .single();
+
+      int currentSpotLeft = eventData['spot_left'] ?? 0;
+
+      // 2. DELETE the user's registration completely
+      // We use .select() to ensure the row actually existed and was deleted
+      final deletedRows = await supabase
+          .from('JoinedEvent')
+          .delete()
+          .eq('event_id', eventId)
+          .eq('user_id', userId)
+          .select();
+
+      // If no rows were deleted, the user wasn't actually registered
+      if (deletedRows.isEmpty) {
+        print('No matching registration found to delete.');
+        return false;
+      }
+
+      // 3. Add the spot back (+1) to the Event table
+      await supabase
+          .from('Event')
+          .update({'spot_left': currentSpotLeft + 1})
+          .eq('event_id', eventId);
+
+      return true;
+    } catch (e) {
+      print('cancelRegistration error: $e');
+      return false;
+    }
+  }
+
 
   static Future<String?> copyFlyerLocally(File? flyerFile,
       String eventTitle) async {
