@@ -62,7 +62,7 @@ class EventService {
 
       final response = await supabase
           .from('Event')
-          .delete()
+          .update({'event_status': 'Cancelled'})
           .eq('event_id', eventId)
           .select();
 
@@ -93,10 +93,10 @@ class EventService {
 
   static Future<List<Map<String, dynamic>>> getAllEventsAdmin() async {
     try {
-
       final response = await supabase
           .from('Event')
           .select('*')
+          .neq('event_status', 'Cancelled')
           .order('event_date', ascending: true);
 
       return List<Map<String, dynamic>>.from(response);

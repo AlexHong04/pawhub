@@ -30,10 +30,21 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   String _selectedStatus = 'All';
   String _sortOption = 'Newest';
 
+  // Scroll Controller for "Back to Top" functionality
+  final ScrollController _scrollController = ScrollController();
+  bool _showBackToTopButton = false;
+
   @override
   void initState() {
     super.initState();
     _loadEvents();
+
+    // Listen to scroll to show/hide the back-to-top button
+    _scrollController.addListener(() {
+      setState(() {
+        _showBackToTopButton = _scrollController.offset >= 400;
+      });
+    });
   }
 
   // ================= DATA LOADING & FILTERING =================
@@ -53,10 +64,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
             event['start_time'] != null) {
 
           try {
-            // Parse Date
             DateTime eventDate = DateTime.parse(event['event_date']);
-
-            // Parse Time
             List<String> timeParts = event['start_time'].toString().split(':');
             int hour = int.parse(timeParts[0]);
             int minute = int.parse(timeParts[1]);
@@ -194,32 +202,57 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
           // Status Filter Row
           _buildFilterRow(),
 
-          // Listview
+          // Listview with Pull-to-Refresh
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
                 : _filteredEvents.isEmpty
                 ? _buildEmptyState()
-                : ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              itemCount: _filteredEvents.length,
-              itemBuilder: (context, index) => _buildEventCard(_filteredEvents[index]),
+                : RefreshIndicator(
+              onRefresh: _loadEvents,
+              color: AppColors.primary,
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                itemCount: _filteredEvents.length,
+                itemBuilder: (context, index) => _buildEventCard(_filteredEvents[index]),
+              ),
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AddEventScreen()),
-        ).then((_) => _loadEvents()),
-        icon: const Icon(Icons.add, color: Colors.blue),
-        label: const Text(
-          "New Event",
-          style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: AppColors.primaryLight,
-        elevation: 0,
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (_showBackToTopButton)
+            FloatingActionButton.small(
+              heroTag: 'btnScrollTop',
+              onPressed: () {
+                _scrollController.animateTo(
+                  0,
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeInOut,
+                );
+              },
+              backgroundColor: Colors.white,
+              child: const Icon(Icons.arrow_upward, color: AppColors.primary),
+            ),
+          const SizedBox(height: 10),
+          FloatingActionButton.extended(
+            heroTag: 'btnAddEvent',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AddEventScreen()),
+            ).then((_) => _loadEvents()),
+            icon: const Icon(Icons.add, color: Colors.blue),
+            label: const Text(
+              "New Event",
+              style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: AppColors.primaryLight,
+            elevation: 0,
+          ),
+        ],
       ),
     );
   }
@@ -270,7 +303,6 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
       totalJoinedVolunteers += (cap - left);
     }
 
-    // Show Dialog
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -282,7 +314,6 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Header
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -299,8 +330,6 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                   ],
                 ),
                 const SizedBox(height: 20),
-
-                // 2x2 Grid for Stats (Unified Color Series)
                 Row(
                   children: [
                     _buildPopupStatCard("Total\nEvents", totalEvents.toString(), Icons.event),
@@ -342,7 +371,6 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         ),
         child: Column(
           children: [
-            // Circular icon background using your primary theme color
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -357,7 +385,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textDark, // Dark grey/black for readability
+                color: AppColors.textDark,
               ),
             ),
             const SizedBox(height: 4),
@@ -366,7 +394,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey[600], // Muted grey for subtitles
+                color: Colors.grey[600],
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -376,10 +404,43 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
     );
   }
 
+  // ================= EVENT POPUP & TIME VALIDATION =================
+
   void _showEventPopup(Map<String, dynamic> event) {
     final String eventId = (event['event_id'] ?? '').toString();
     final String title = event['title'] ?? '';
-    final bool isExpired = event['event_status'] == 'Expired'; // ✅ Check if expired
+    final bool isExpired = event['event_status'] == 'Expired';
+
+    // QR Time Validation Logic
+    bool isTimeForQR = false;
+    String qrWarningMessage = "Cannot generate QR code right now.";
+
+    try {
+      if (event['event_date'] != null && event['start_time'] != null && event['end_time'] != null) {
+        DateTime eventDate = DateTime.parse(event['event_date']);
+
+        List<String> startParts = event['start_time'].toString().split(':');
+        DateTime startDT = DateTime(eventDate.year, eventDate.month, eventDate.day, int.parse(startParts[0]), int.parse(startParts[1]));
+
+        List<String> endParts = event['end_time'].toString().split(':');
+        DateTime endDT = DateTime(eventDate.year, eventDate.month, eventDate.day, int.parse(endParts[0]), int.parse(endParts[1]));
+
+        DateTime now = DateTime.now();
+        DateTime allowedStart = startDT.subtract(const Duration(minutes: 30));
+
+        if (now.isBefore(allowedStart)) {
+          qrWarningMessage = "QR will be officially available 30 minutes before the event starts.";
+        } else if (now.isAfter(endDT)) {
+          qrWarningMessage = "This event has already ended officially.";
+        } else {
+          isTimeForQR = true;
+        }
+      } else {
+        isTimeForQR = true; // Fallback if data is missing
+      }
+    } catch (e) {
+      isTimeForQR = true;
+    }
 
     showDialog(
       context: context,
@@ -425,37 +486,61 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                   padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                   child: Column(
                     children: [
-                      // ✅ Hide QR Generation if Expired
-                      if (!isExpired) ...[
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () {
+                      // ✅ ALWAYS SHOW QR GENERATION BUTTON (even if expired)
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            if (isTimeForQR) {
                               showDialog(
                                 context: context,
                                 builder: (_) => QRDialog(data: eventId, title: 'Event QR'),
                               );
-                            },
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              side: const BorderSide(color: AppColors.primary),
-                              foregroundColor: AppColors.primary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            icon: const Icon(Icons.qr_code_scanner, size: 18),
-                            label: const Text(
-                              "Generate Event QR",
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
+                            } else {
+                              // ⚠️ Override Dialog if outside normal time window
+                              showDialog(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text("Time Warning"),
+                                  content: Text("$qrWarningMessage\n\nDo you want to generate the QR code anyway?"),
+                                  actions: [
+                                    TextButton(
+                                        onPressed: () => Navigator.pop(ctx),
+                                        child: const Text("Cancel")
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.pop(ctx);
+                                        showDialog(
+                                          context: context,
+                                          builder: (_) => QRDialog(data: eventId, title: 'Event QR'),
+                                        );
+                                      },
+                                      child: const Text("Generate Anyway", style: TextStyle(color: Colors.blue)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            side: BorderSide(color: isTimeForQR ? AppColors.primary : Colors.orange),
+                            foregroundColor: isTimeForQR ? AppColors.primary : Colors.orange,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: Icon(isTimeForQR ? Icons.qr_code_scanner : Icons.warning_amber_rounded, size: 18),
+                          label: const Text(
+                            "Generate Event QR",
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
-                        const SizedBox(height: 20),
-                      ],
+                      ),
+                      const SizedBox(height: 20),
 
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          // Volunteers still visible
                           _buildSmallAction(Icons.group, "Volunteers", Colors.blue, () {
                             Navigator.pop(context);
                             Navigator.push(
@@ -469,7 +554,6 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                             );
                           }),
 
-                          // ✅ Hide Edit Button if Expired
                           if (!isExpired)
                             _buildSmallAction(Icons.edit, "Edit", Colors.orange, () {
                               Navigator.pop(context);
@@ -479,7 +563,6 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                               ).then((_) => _loadEvents());
                             }),
 
-                          // Delete still visible
                           _buildSmallAction(Icons.delete, "Delete", Colors.red, () {
                             Navigator.pop(context);
                             _showDeleteConfirmation(eventId, title);
@@ -592,19 +675,16 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ================= IMAGE =================
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: _buildFlyerPreview(event['flyer_url']),
             ),
 
-            // ================= CONTENT =================
             Padding(
               padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // TITLE + STATUS
                   Row(
                     children: [
                       Expanded(
@@ -623,10 +703,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                       _buildStatusChip(event['event_status']),
                     ],
                   ),
-
                   const SizedBox(height: 10),
-
-                  // CATEGORY + DATE
                   Wrap(
                     spacing: 10,
                     runSpacing: 6,
@@ -635,10 +712,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                       _infoChip(Icons.calendar_today, _formatDate(event['event_date'])),
                     ],
                   ),
-
                   const SizedBox(height: 10),
-
-                  // ADDRESS
                   Row(
                     children: [
                       const Icon(Icons.location_on, size: 14, color: Colors.grey),
@@ -656,10 +730,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 14),
-
-                  // ================= STATS =================
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                     decoration: BoxDecoration(
@@ -860,6 +931,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
