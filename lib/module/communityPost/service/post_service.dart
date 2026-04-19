@@ -181,7 +181,9 @@ class PostService {
 
   Future<List<CommunityPostModel>> fetchRecentlyDeletedPosts() async {
     final String userId = await getCurrentUserId();
-    final threshold = DateTime.now().subtract(const Duration(days: 7)).toIso8601String();
+    final threshold = DateTime.now()
+        .subtract(const Duration(days: 7))
+        .toIso8601String();
 
     final response = await _supabase
         .from('CommunityPost')
@@ -192,16 +194,15 @@ class PostService {
         .order('updated_at', ascending: false);
 
     final List<dynamic> data = response as List;
-    return data.map((json) => CommunityPostModel.fromJson(json, userId)).toList();
+    return data
+        .map((json) => CommunityPostModel.fromJson(json, userId))
+        .toList();
   }
 
   Future<void> reactivePost(String postId) async {
     await _supabase
         .from('CommunityPost')
-        .update({
-      'is_active': true,
-      'updated_at': _getTimestamp(),
-    })
+        .update({'is_active': true, 'updated_at': _getTimestamp()})
         .eq('post_id', postId);
   }
 
@@ -214,14 +215,21 @@ class PostService {
           .select('*, User!user_id(*), PostInteractions(*, User!user_id(name))')
           .eq('post_id', postId)
           .eq('is_active', true)
-          .single();
+          .maybeSingle(); // can return null instead of crash program
 
-      return CommunityPostModel.fromJson(response, userId);
+      // if data fetch successful, parse it into our model and return it.
+      if (response != null) {
+        return CommunityPostModel.fromJson(response, userId);
+      }
+
+      //If both queries fail to find anything, return null.
+      return null;
     } catch (e) {
-      debugPrint("Fetch Post By ID Error: $e");
+      debugPrint("[DeepLink] Query exception: $e");
       return null;
     }
   }
+
   Future<int> fetchLikedPostsCountByUser(String userId) async {
     if (userId.trim().isEmpty) return 0;
 
@@ -245,38 +253,39 @@ class PostService {
     }
   }
 
-Future<List<CommunityPostModel>> fetchLikedPostsByUser(String userId) async {
-  try {
-    final String currentId = await getCurrentUserId();
+  Future<List<CommunityPostModel>> fetchLikedPostsByUser(String userId) async {
+    try {
+      final String currentId = await getCurrentUserId();
 
-    final interactionResponse = await _supabase
-        .from('PostInteractions')
-        .select('post_id')
-        .eq('user_id', userId)
-        .eq('like', true)
-        .filter('comment_text', 'is', null);
+      final interactionResponse = await _supabase
+          .from('PostInteractions')
+          .select('post_id')
+          .eq('user_id', userId)
+          .eq('like', true)
+          .filter('comment_text', 'is', null);
 
-    final List<dynamic> interactions = interactionResponse as List;
-    if (interactions.isEmpty) return [];
+      final List<dynamic> interactions = interactionResponse as List;
+      if (interactions.isEmpty) return [];
 
-    final List<String> likedPostIds = interactions
-        .map((item) => item['post_id'].toString())
-        .toList();
+      final List<String> likedPostIds = interactions
+          .map((item) => item['post_id'].toString())
+          .toList();
 
-    final postsResponse = await _supabase
-        .from('CommunityPost')
-        .select('*, User!user_id(*), PostInteractions(*, User!user_id(name))')
-        .filter('post_id', 'in', '(${likedPostIds.join(',')})')
-        .eq('is_active', true)
-        .order('created_at', ascending: false);
+      final postsResponse = await _supabase
+          .from('CommunityPost')
+          .select('*, User!user_id(*), PostInteractions(*, User!user_id(name))')
+          .filter('post_id', 'in', '(${likedPostIds.join(',')})')
+          .eq('is_active', true)
+          .order('created_at', ascending: false);
 
-    final List<dynamic> postsData = postsResponse as List;
+      final List<dynamic> postsData = postsResponse as List;
 
-    return postsData
-        .map((json) => CommunityPostModel.fromJson(json, currentId))
-        .toList();
-  } catch (e) {
-    debugPrint("Fetch Liked Posts Error: $e");
-    return [];
+      return postsData
+          .map((json) => CommunityPostModel.fromJson(json, currentId))
+          .toList();
+    } catch (e) {
+      debugPrint("Fetch Liked Posts Error: $e");
+      return [];
+    }
   }
-}}
+}

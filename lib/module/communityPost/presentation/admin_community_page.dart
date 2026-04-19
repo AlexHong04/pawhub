@@ -990,8 +990,11 @@ class _AdminCommunityPageState extends State<AdminCommunityPage>
                                           title: "Share Post",
                                           data: "pawhub://post/${post.postId}",
                                           showSaveButton: true,
-                                          shareText:
-                                              "Check out this cute post on PawHub! 🐾\n\nClick here: pawhub://post/${post.postId}", // 激活系统分享
+                                          shareText: "🐾 Look at this adorable post on PawHub!\n\n"
+                                              "👤 Posted by: ${post.userName}\n\n"
+                                              "✨ Click the link to view the full story:\n"
+                                              "https://pawhub.hongjin.site/post/${post.postId}\n\n"
+                                              "❤️ Join our pet-loving community today!",
                                         ),
                                       );
                                     },

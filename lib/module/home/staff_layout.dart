@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:app_links/app_links.dart';
 
 import '../../core/constants/colors.dart';
 import '../Profile/presentation/profile_page.dart';
@@ -7,6 +9,8 @@ import '../pet/presentation/pet_list_page.dart';
 import '../petAdoption/presentation/adoption_application_list.dart';
 import '../volunteer/presentation/admin_event_management.dart';
 import 'admin_dashboard_page.dart';
+import '../communityPost/service/post_service.dart';
+import '../communityPost/presentation/post_details_page.dart';
 
 class StaffLayout extends StatefulWidget {
   const StaffLayout({super.key});
@@ -18,6 +22,9 @@ class StaffLayout extends StatefulWidget {
 class StaffLayoutState extends State<StaffLayout> {
   int _selectedIndex = 2;
 
+  late AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
+
   final List<Widget> _pages = [
     const AdminEventsPage(),
     const AdminCommunityPage(),
@@ -26,6 +33,70 @@ class StaffLayoutState extends State<StaffLayout> {
     const AdoptionApplicationListPage(),
     const ProfilePage(),
   ];
+
+
+  @override
+  void initState() {
+    super.initState();
+    _initDeepLinks();
+  }
+
+  // Sets up listeners for Deep Links (e.g., when a staff clicks a shared URL).
+  void _initDeepLinks() {
+    _appLinks = AppLinks();
+
+    // Listen for URLs received while the app is in the background or foreground
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      debugPrint('[StaffLayout] Received DeepLink: $uri');
+      _handleDeepLink(uri);
+    });
+  }
+
+  // Parses the incoming URI and navigates to the appropriate screen.
+  Future<void> _handleDeepLink(Uri uri) async {
+    // Check if the URL contains 'post'
+    if (uri.pathSegments.contains('post')) {
+      // Extract the post ID from the end of the URL
+      final postId = uri.pathSegments.last;
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      try {
+        final postService = PostService();
+        final post = await postService.fetchPostById(postId);
+
+        // Dismiss the loading dialog if the widget is still active
+        if (mounted) Navigator.pop(context);
+
+        if (post != null && mounted) {
+          // If the post is found, navigate to the Post Details page
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => PostDetailsPage(post: post)),
+          );
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Post not found or has been deleted.")),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) Navigator.pop(context);
+        debugPrint("Deep Link Error: $e");
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
 
   void _onDestinationSelected(int index) {
     if (index < 0 || index >= _pages.length) return;

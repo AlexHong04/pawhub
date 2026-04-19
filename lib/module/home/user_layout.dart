@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:app_links/app_links.dart';
+import 'dart:async';
 import 'package:pawhub/module/home/user_dashboard.dart';
 import 'package:pawhub/module/petAdoption/presentation/pet_adoption.dart';
 
 import '../../core/constants/colors.dart';
 import '../Profile/presentation/profile_page.dart';
 import '../communityPost/presentation/community_feed_page.dart';
+import '../communityPost/presentation/post_details_page.dart';
+import '../communityPost/service/post_service.dart';
+import '../../app.dart';
 import '../history/history_page.dart';
 import '../volunteer/presentation/volunteerList.dart';
 
@@ -16,6 +21,9 @@ class UserLayout extends StatefulWidget {
 }
 
 class UserLayoutState extends State<UserLayout> {
+  late AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
+
   // Default to Home tab
   int _selectedIndex = 2;
 
@@ -27,6 +35,70 @@ class UserLayoutState extends State<UserLayout> {
     const UserCollectionsPage(),
     const ProfilePage(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initDeepLinks();
+  }
+
+  // Sets up listeners for Deep Links (e.g., when a user clicks a shared URL).
+  void _initDeepLinks() {
+    _appLinks = AppLinks();
+
+    // Handle cold start (App was completely closed and opened via a link)
+    _appLinks.getInitialLink().then((uri) {
+      if (uri != null && mounted) {
+        _handleNavigation(uri);
+      }
+    });
+
+    // Handle background/foreground links (App was already running in the background)
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      if (mounted) {
+        _handleNavigation(uri);
+      }
+    });
+  }
+
+  // Parses the incoming URI and navigates to the appropriate screen.
+  void _handleNavigation(Uri uri) async {
+    if (uri.path.startsWith('/post/')) {
+      // Extract the post ID from the end of the URL
+      String postId = uri.pathSegments.last.trim();
+
+      if (postId.isEmpty && uri.pathSegments.length >= 2) {
+        postId = uri.pathSegments[uri.pathSegments.length - 2];
+      }
+
+      debugPrint("[DeepLink] Received navigation request, ID: $postId");
+
+      final postService = PostService();
+      final postModel = await postService.fetchPostById(postId);
+
+      if (postModel != null && mounted) {
+        // If the post exists, use the global navigator key to push the details page
+        // over the current bottom navigation layout.
+        navigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (context) => PostDetailsPage(post: postModel),
+          ),
+        );
+      } else {
+        debugPrint("DeepLink] Unable to find post data, ID: $postId");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Post not found or has been deleted.")),
+          );
+        }
+      }
+    }
+  }
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
 
   void _onDestinationSelected(int index) {
     if (index < 0 || index >= _pages.length) return;
