@@ -6,6 +6,7 @@ import '../../../core/utils/generatorId.dart';
 
 class PostService {
   final _supabase = Supabase.instance.client;
+  static final ValueNotifier<int> refreshTrigger = ValueNotifier(0);
 
   Future<String> getCurrentUserId() async {
     final userModel = await CurrentUserStore.read();
@@ -45,37 +46,44 @@ class PostService {
     }
   }
 
-  Future<void> toggleLike(String postId) async {
-    final String userId = await getCurrentUserId();
-    final List<dynamic> existing = await _supabase
-        .from('PostInteractions')
-        .select()
-        .eq('post_id', postId)
-        .eq('user_id', userId)
-        .filter('comment_text', 'is', null);
-
-    if (existing.isEmpty) {
-      final String newId = await GeneratorId.generateId(
-        tableName: 'PostInteractions',
-        idColumnName: 'interaction_id',
-        prefix: 'PI',
-        numberLength: 4,
-      );
-      await _supabase.from('PostInteractions').insert({
-        'interaction_id': newId,
-        'post_id': postId,
-        'user_id': userId,
-        'like': true,
-        'comment_text': null,
-        'created_at': _getTimestamp(),
-      });
-    } else {
-      final String interactionId = existing[0]['interaction_id'];
-      final bool currentLike = existing[0]['like'] ?? false;
-      await _supabase
+  Future<bool> toggleLike(String postId) async {
+    try {
+      final String userId = await getCurrentUserId();
+      final List<dynamic> existing = await _supabase
           .from('PostInteractions')
-          .update({'like': !currentLike})
-          .eq('interaction_id', interactionId);
+          .select()
+          .eq('post_id', postId)
+          .eq('user_id', userId)
+          .filter('comment_text', 'is', null);
+
+      if (existing.isEmpty) {
+        final String newId = await GeneratorId.generateId(
+          tableName: 'PostInteractions',
+          idColumnName: 'interaction_id',
+          prefix: 'PI',
+          numberLength: 4,
+        );
+        await _supabase.from('PostInteractions').insert({
+          'interaction_id': newId,
+          'post_id': postId,
+          'user_id': userId,
+          'like': true,
+          'comment_text': null,
+          'created_at': _getTimestamp(),
+        });
+      } else {
+        final String interactionId = existing[0]['interaction_id'];
+        final bool currentLike = existing[0]['like'] ?? false;
+        await _supabase
+            .from('PostInteractions')
+            .update({'like': !currentLike})
+            .eq('interaction_id', interactionId);
+      }
+      refreshTrigger.value++;
+      return true;
+    } catch (e) {
+      debugPrint("Toggle like error: $e");
+      return false;
     }
   }
 
@@ -237,4 +245,38 @@ class PostService {
     }
   }
 
-}
+Future<List<CommunityPostModel>> fetchLikedPostsByUser(String userId) async {
+  try {
+    final String currentId = await getCurrentUserId();
+
+    final interactionResponse = await _supabase
+        .from('PostInteractions')
+        .select('post_id')
+        .eq('user_id', userId)
+        .eq('like', true)
+        .filter('comment_text', 'is', null);
+
+    final List<dynamic> interactions = interactionResponse as List;
+    if (interactions.isEmpty) return [];
+
+    final List<String> likedPostIds = interactions
+        .map((item) => item['post_id'].toString())
+        .toList();
+
+    final postsResponse = await _supabase
+        .from('CommunityPost')
+        .select('*, User!user_id(*), PostInteractions(*, User!user_id(name))')
+        .filter('post_id', 'in', '(${likedPostIds.join(',')})')
+        .eq('is_active', true)
+        .order('created_at', ascending: false);
+
+    final List<dynamic> postsData = postsResponse as List;
+
+    return postsData
+        .map((json) => CommunityPostModel.fromJson(json, currentId))
+        .toList();
+  } catch (e) {
+    debugPrint("Fetch Liked Posts Error: $e");
+    return [];
+  }
+}}

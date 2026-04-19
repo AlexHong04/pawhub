@@ -37,6 +37,11 @@ class _CommunityFeedPageState extends State<CommunityFeedPage>
   void initState() {
     super.initState();
     _initializeData();
+    PostService.refreshTrigger.addListener(() {
+      if (mounted) {
+        _loadPosts(silent: true);
+      }
+    });
   }
 
   Future<void> _initializeData() async {

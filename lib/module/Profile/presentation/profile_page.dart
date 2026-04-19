@@ -7,6 +7,7 @@ import 'package:pawhub/module/petAdoption/service/pet_adoption_service.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/current_user_store.dart';
 import '../../auth/service/auth_service.dart';
+import '../../communityPost/presentation/favourite_posts_page.dart';
 import '../../donation/presentation/donation_page.dart';
 import '../service/profile_service.dart';
 import '../../../core/widgets/profile_avatar.dart';
@@ -249,6 +250,16 @@ class _ProfilePageState extends State<ProfilePage> {
                     number: _favoritesCount.toString(),
                     label: "FAVORITES",
                     numberColor: AppColors.textDark,
+                    onTap: () {
+                      if (_userProfile != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => FavouritePostsPage(userId: _userProfile!.id),
+                          ),
+                        ).then((_) => _loadUserData());
+                      }
+                    },
                   ),
                 ),
               ],
@@ -391,9 +402,12 @@ class _ProfilePageState extends State<ProfilePage> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: (_userProfile?.role.toLowerCase() == 'user')
+          ? FloatingActionButton(
         onPressed: () {
-          Navigator.push(context,MaterialPageRoute(builder: (context) => const DonationPage())
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const DonationPage()),
           );
         },
         backgroundColor: Colors.white,
@@ -404,7 +418,8 @@ class _ProfilePageState extends State<ProfilePage> {
           color: Colors.red,
           size: 32,
         ),
-      ),
+      )
+          : null,
     );
   }
 
@@ -520,34 +535,45 @@ class _ProfilePageState extends State<ProfilePage> {
     required String number,
     required String label,
     required Color numberColor,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Text(
-            number,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: numberColor,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.0,
-              color: AppColors.textLight,
+          ],
+        ),
+        child: Column(
+          children: [
+            Text(
+              number,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: numberColor,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.0,
+                color: AppColors.textLight,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
