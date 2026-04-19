@@ -423,10 +423,10 @@ class _MyEventsPageState extends State<MyEventsPage>
   }
 
   Widget _buildEventList(String tabType) {
+    // 1. FILTER THE LIST (Keep this clean and simple)
     List<Map<String, dynamic>> filtered = _allJoinedEvents.where((item) {
       if (tabType == 'Upcoming') {
-        return item['check_in_time'] == null &&
-            item['joinned_status'] == 'Upcoming';
+        return item['check_in_time'] == null && item['joinned_status'] == 'Upcoming';
       }
       if (tabType == 'Completed') {
         return item['check_in_time'] != null;
@@ -456,6 +456,7 @@ class _MyEventsPageState extends State<MyEventsPage>
       );
     }
 
+    // 2. BUILD THE CARDS
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: filtered.length,
@@ -465,6 +466,41 @@ class _MyEventsPageState extends State<MyEventsPage>
         bool isCompleted = tabType == 'Completed';
         final String eventId = data['event_id'].toString();
         final String eventTitle = event?['title'] ?? 'Event';
+
+        bool canCancel = true;
+        String cancelWarning = "";
+
+        if (tabType == 'Upcoming' && event != null && event['event_date'] != null && event['start_time'] != null) {
+          try {
+            DateTime eventDate = DateTime.parse(event['event_date'].toString());
+
+            String startTimeStr = event['start_time'].toString();
+            List<String> startParts = startTimeStr.split(':');
+            int hour = int.parse(startParts[0]);
+            int minute = int.parse(startParts[1]);
+
+            DateTime startDT = DateTime(
+              eventDate.year,
+              eventDate.month,
+              eventDate.day,
+              hour,
+              minute,
+            );
+
+            DateTime deadline = startDT.subtract(const Duration(hours: 24));
+            DateTime now = DateTime.now();
+
+            if (now.isAfter(deadline)) {
+              canCancel = false;
+              cancelWarning = "Cancellations are locked 24 hours before the event starts.";
+            }
+          } catch (e) {
+            print("Error calculating deadline: $e");
+            canCancel = false; // Safe fallback if date is corrupted
+            cancelWarning = "Unable to verify cancellation time.";
+          }
+        }
+        // ==========================================
 
         return Container(
           margin: const EdgeInsets.only(bottom: 20),
@@ -483,8 +519,7 @@ class _MyEventsPageState extends State<MyEventsPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
-                borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                 child: SizedBox(
                   height: 180,
                   width: double.infinity,
@@ -608,23 +643,30 @@ class _MyEventsPageState extends State<MyEventsPage>
                         ),
                         const SizedBox(height: 8),
 
-                        // ==========================================
-                        // ADDED: CANCEL REGISTRATION BUTTON
-                        // ==========================================
+                        // Cancel Button
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton.icon(
-                            onPressed: () => _confirmCancelRegistration(eventId, eventTitle),
+                            onPressed: canCancel
+                                ? () => _confirmCancelRegistration(eventId, eventTitle)
+                                : () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(cancelWarning),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                            },
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red,
-                              side: const BorderSide(color: Colors.red),
+                              foregroundColor: canCancel ? Colors.red : Colors.grey,
+                              side: BorderSide(color: canCancel ? Colors.red : Colors.grey.shade400),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
-                            icon: const Icon(Icons.cancel_outlined, size: 18),
-                            label: const Text(
-                              "Cancel Registration",
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                            icon: Icon(canCancel ? Icons.cancel_outlined : Icons.lock_clock, size: 18),
+                            label: Text(
+                              canCancel ? "Cancel Registration" : "Cancellation Locked",
+                              style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),
@@ -666,7 +708,7 @@ class _MyEventsPageState extends State<MyEventsPage>
                                   eventTitle: eventTitle,
                                 );
 
-                                if (mounted) Navigator.pop(context); // close dialog
+                                if (mounted) Navigator.pop(context);
 
                                 if (newUrl != null) {
                                   setState(() { data['certificate_url'] = newUrl; });
@@ -677,7 +719,7 @@ class _MyEventsPageState extends State<MyEventsPage>
                                   );
                                 }
                               } catch (e) {
-                                if (mounted) Navigator.pop(context); // close dialog on error
+                                if (mounted) Navigator.pop(context);
                               }
                             }
                           },
