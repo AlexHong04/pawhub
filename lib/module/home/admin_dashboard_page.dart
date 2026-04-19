@@ -79,7 +79,9 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
 
     bool matchRange(DateTime date) {
       if (_selectedFilterIndex == 0) {
-        return date.year == now.year && date.month == now.month && date.day == now.day;
+        return date.year == now.year &&
+            date.month == now.month &&
+            date.day == now.day;
       }
       if (_selectedFilterIndex == 1) {
         return date.year == now.year && date.month == now.month;
@@ -107,11 +109,15 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
     _pendingCount = pending;
     _totalFund = sum;
   }
+
   void _processScannedData(String? scannedValue) async {
     if (scannedValue == null || !scannedValue.startsWith("pawhub://post/")) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Invalid PawHub QR Code"), backgroundColor: Colors.orange),
+          const SnackBar(
+            content: Text("Invalid PawHub QR Code"),
+            backgroundColor: Colors.orange,
+          ),
         );
       }
       return;
@@ -120,212 +126,261 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
     final String postId = scannedValue.replaceFirst("pawhub://post/", "");
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Loading post...")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Loading post...")));
     }
 
     try {
-      final CommunityPostModel? targetPost = await _postService.fetchPostById(postId);
+      final CommunityPostModel? targetPost = await _postService.fetchPostById(
+        postId,
+      );
 
       if (!mounted) return;
 
       if (targetPost != null) {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => PostDetailsPage(post: targetPost, isAdmin: true)),
+          MaterialPageRoute(
+            builder: (context) =>
+                PostDetailsPage(post: targetPost, isAdmin: true),
+          ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Post not found or deleted"), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text("Post not found or deleted"),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Error loading post"), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text("Error loading post"),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
   }
 
-   void _showScanOptions() {
-     showModalBottomSheet(
-       context: context,
-       backgroundColor: Colors.transparent,
-       builder: (context) => Container(
-         padding: const EdgeInsets.only(bottom: 30, top: 12),
-         decoration: const BoxDecoration(
-           color: Colors.white,
-           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-         ),
-         child: Column(
-           mainAxisSize: MainAxisSize.min,
-           children: [
-             Container(
-               width: 40,
-               height: 5,
-               margin: const EdgeInsets.only(bottom: 24),
-               decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
-             ),
-             ListTile(
-               contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-               leading: Container(
-                 padding: const EdgeInsets.all(10),
-                 decoration: BoxDecoration(color: Colors.blue.shade50, shape: BoxShape.circle),
-                 child: Icon(Icons.camera_alt_rounded, color: Colors.blue.shade600, size: 22),
-               ),
-               title: const Text('Scan with Camera', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-               onTap: () async {
-                 Navigator.pop(context);
-                 final result = await Navigator.push(
-                   context,
-                   MaterialPageRoute(builder: (context) => const QRScannerPage(id: 'admin_dashboard')),
-                 );
-                 _processScannedData(result as String?);
-               },
-             ),
-             const SizedBox(height: 8),
-             ListTile(
-               contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-               leading: Container(
-                 padding: const EdgeInsets.all(10),
-                 decoration: BoxDecoration(color: Colors.green.shade50, shape: BoxShape.circle),
-                 child: Icon(Icons.photo_library_rounded, color: Colors.green.shade600, size: 22),
-               ),
-               title: const Text('Pick from Gallery', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-               onTap: () async {
-                 Navigator.pop(context);
-                 final ImagePicker picker = ImagePicker();
-                 final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+  void _showScanOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.only(bottom: 30, top: 12),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 5,
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.camera_alt_rounded,
+                  color: Colors.blue.shade600,
+                  size: 22,
+                ),
+              ),
+              title: const Text(
+                'Scan with Camera',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        const QRScannerPage(id: 'admin_dashboard'),
+                  ),
+                );
+                _processScannedData(result as String?);
+              },
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.photo_library_rounded,
+                  color: Colors.green.shade600,
+                  size: 22,
+                ),
+              ),
+              title: const Text(
+                'Pick from Gallery',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                final ImagePicker picker = ImagePicker();
+                final XFile? image = await picker.pickImage(
+                  source: ImageSource.gallery,
+                );
 
-                 if (image != null) {
-                   final MobileScannerController controller = MobileScannerController();
-                   final BarcodeCapture? capture = await controller.analyzeImage(image.path);
+                if (image != null) {
+                  final MobileScannerController controller =
+                      MobileScannerController();
+                  final BarcodeCapture? capture = await controller.analyzeImage(
+                    image.path,
+                  );
 
-                   if (capture != null && capture.barcodes.isNotEmpty) {
-                     _processScannedData(capture.barcodes.first.rawValue);
-                   } else {
-                     if (mounted) {
-                       ScaffoldMessenger.of(context).showSnackBar(
-                         const SnackBar(content: Text("No QR Code found in the image"), backgroundColor: Colors.orange),
-                       );
-                     }
-                   }
-                   controller.dispose();
-                 }
-               },
-             ),
-           ],
-         ),
-       ),
-     );
-   }
+                  if (capture != null && capture.barcodes.isNotEmpty) {
+                    _processScannedData(capture.barcodes.first.rawValue);
+                  } else {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("No QR Code found in the image"),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
+                  }
+                  controller.dispose();
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-   Future<void> _handleBiometricLoginTap() async {
-     final enabled = await BiometricSessionService.isEnabled();
+  Future<void> _handleBiometricLoginTap() async {
+    final enabled = await BiometricSessionService.isEnabled();
 
-     if (enabled) {
-       if (!mounted) return;
-       final disable = await _confirmDisableBiometricLogin();
+    if (enabled) {
+      if (!mounted) return;
+      final disable = await _confirmDisableBiometricLogin();
 
-       if (disable) {
-         await BiometricSessionService.setEnabled(false);
-         if (mounted) {
-           _showBiometricSnackBar('Biometric login disabled');
-         }
-       }
-       return;
-     }
+      if (disable) {
+        await BiometricSessionService.setEnabled(false);
+        if (mounted) {
+          _showBiometricSnackBar('Biometric login disabled');
+        }
+      }
+      return;
+    }
 
-     final supported = await BiometricSessionService.isSupported();
-     if (!supported) {
-       if (mounted) {
-         _showBiometricSnackBar('Biometric authentication is not available on this device.');
-       }
-       return;
-     }
+    final supported = await BiometricSessionService.isSupported();
+    if (!supported) {
+      if (mounted) {
+        _showBiometricSnackBar(
+          'Biometric authentication is not available on this device.',
+        );
+      }
+      return;
+    }
 
-     if (!mounted) return;
-     final enable = await _confirmEnableBiometricLogin();
+    if (!mounted) return;
+    final enable = await _confirmEnableBiometricLogin();
 
-     if (enable) {
-       final unlocked = await BiometricSessionService.authenticate(
-         localizedReason: 'Verify your identity to enable biometric login',
-       );
+    if (enable) {
+      final unlocked = await BiometricSessionService.authenticate(
+        localizedReason: 'Verify your identity to enable biometric login',
+      );
 
-       if (!unlocked) {
-         if (mounted) {
-           _showBiometricSnackBar('Biometric verification failed. Not enabled.');
-         }
-         return;
-       }
+      if (!unlocked) {
+        if (mounted) {
+          _showBiometricSnackBar('Biometric verification failed. Not enabled.');
+        }
+        return;
+      }
 
-       await BiometricSessionService.saveCurrentSession();
-       final hasSession = await BiometricSessionService.hasStoredSession();
-       if (!hasSession) {
-         if (mounted) {
-           _showBiometricSnackBar('No active session found. Please login again first.');
-         }
-         return;
-       }
+      await BiometricSessionService.saveCurrentSession();
+      final hasSession = await BiometricSessionService.hasStoredSession();
+      if (!hasSession) {
+        if (mounted) {
+          _showBiometricSnackBar(
+            'No active session found. Please login again first.',
+          );
+        }
+        return;
+      }
 
-       await BiometricSessionService.setEnabled(true);
-       if (mounted) {
-         _showBiometricSnackBar('Biometric login enabled');
-       }
-     }
-   }
+      await BiometricSessionService.setEnabled(true);
+      if (mounted) {
+        _showBiometricSnackBar('Biometric login enabled');
+      }
+    }
+  }
 
-   Future<bool> _confirmEnableBiometricLogin() {
-     return showDialog<bool>(
-           context: context,
-           builder: (context) => AlertDialog(
-             title: const Text('Enable biometric login?'),
-             content: const Text(
-               'Allow fingerprint / Face ID to unlock your saved Supabase session next time.',
-             ),
-             actions: [
-               TextButton(
-                 onPressed: () => Navigator.pop(context, false),
-                 child: const Text('Not now'),
-               ),
-               ElevatedButton(
-                 onPressed: () => Navigator.pop(context, true),
-                 child: const Text('Enable'),
-               ),
-             ],
-           ),
-         )
-         .then((value) => value ?? false);
-   }
+  Future<bool> _confirmEnableBiometricLogin() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Enable biometric login?'),
+        content: const Text(
+          'Allow fingerprint / Face ID to unlock your saved Supabase session next time.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Not now'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Enable'),
+          ),
+        ],
+      ),
+    ).then((value) => value ?? false);
+  }
 
-   Future<bool> _confirmDisableBiometricLogin() {
-     return showDialog<bool>(
-           context: context,
-           builder: (context) => AlertDialog(
-             title: const Text('Disable biometric login?'),
-             content: const Text(
-               'This will turn off fingerprint / Face ID unlock for the next app launch.',
-             ),
-             actions: [
-               TextButton(
-                 onPressed: () => Navigator.pop(context, false),
-                 child: const Text('Cancel'),
-               ),
-               ElevatedButton(
-                 onPressed: () => Navigator.pop(context, true),
-                 child: const Text('Disable'),
-               ),
-             ],
-           ),
-         )
-         .then((value) => value ?? false);
-   }
+  Future<bool> _confirmDisableBiometricLogin() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Disable biometric login?'),
+        content: const Text(
+          'This will turn off fingerprint / Face ID unlock for the next app launch.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Disable'),
+          ),
+        ],
+      ),
+    ).then((value) => value ?? false);
+  }
 
-   void _showBiometricSnackBar(String message) {
-     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-   }
+  void _showBiometricSnackBar(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -338,195 +393,75 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
               onRefresh: _loadDashboardData,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-            // Data View Toggle
-            _buildDataViewToggle(),
-            const SizedBox(height: 24),
+                    // Data View Toggle
+                    _buildDataViewToggle(),
+                    const SizedBox(height: 24),
 
-            // 4 Stats Grid
-            _buildStatsGrid(),
-            const SizedBox(height: 24),
+                    // 4 Stats Grid
+                    _buildStatsGrid(),
+                    const SizedBox(height: 24),
 
-            // Bar Chart Card (Monthly Donations)
-            _buildBarChartCard(),
-            const SizedBox(height: 24),
+                    // Bar Chart Card (Monthly Donations)
+                    _buildBarChartCard(),
+                    const SizedBox(height: 24),
 
-            // Line Chart Card (Adoption Trends)
-            _buildLineChartCard(),
-            const SizedBox(height: 32),
+                    // Line Chart Card (Adoption Trends)
+                    _buildLineChartCard(),
+                    const SizedBox(height: 32),
 
-            // Recent Donations Header
-             Row(
-               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-               children: [
-                 const Expanded(
-                   child: Text(
-                     "Recent Donations",
-                     maxLines: 1,
-                     overflow: TextOverflow.ellipsis,
-                     style: TextStyle(
-                       fontSize: 18,
-                       fontWeight: FontWeight.bold,
-                       color: AppColors.dashboardHeading,
-                     ),
-                   ),
-                 ),
-                 TextButton(
-                   style: TextButton.styleFrom(
-                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                     minimumSize: Size.zero,
-                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                   ),
-                   onPressed: () {
-                     Navigator.push(
-                       context,
-                       MaterialPageRoute(builder: (_) => const AdminDonationPage()),
-                     );
-                   },
-                   child: const Text(
-                     "VIEW ALL",
-                     style: TextStyle(
-                       fontWeight: FontWeight.bold,
-                       color: AppColors.dashboardBlue,
-                       fontSize: 12,
-                       letterSpacing: 1.0,
-                     ),
-                   ),
-                 ),
-               ],
-             ),
-             const SizedBox(height: 8),
+                    // Recent Donations Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            "Recent Donations",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.dashboardHeading,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AdminDonationPage(),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            "VIEW ALL",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.dashboardBlue,
+                              fontSize: 12,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
 
-             // Donation List
-             ..._buildRecentDonationCards(),
-
-             const SizedBox(height: 48),
-
-             // Account Settings Section
-             const Align(
-               alignment: Alignment.centerLeft,
-               child: Text(
-                 "ACCOUNT",
-                 style: TextStyle(
-                   fontSize: 12,
-                   fontWeight: FontWeight.bold,
-                   letterSpacing: 1.2,
-                   color: AppColors.textLight,
-                 ),
-               ),
-             ),
-             const SizedBox(height: 12),
-
-             // Account Settings List
-             Container(
-               decoration: BoxDecoration(
-                 color: Colors.white,
-                 borderRadius: BorderRadius.circular(16),
-                 border: Border.all(color: AppColors.dashboardBorder),
-               ),
-               child: Column(
-                 children: [
-                   _buildAdminSettingTile(
-                     icon: Icons.person,
-                     iconBgColor: AppColors.primary.withAlpha(26),
-                     iconColor: AppColors.primary,
-                     title: "Edit Profile",
-                     onTap: () {
-                       Navigator.pushNamed(context, '/edit_profile').then((_) {
-                         _loadDashboardData();
-                       });
-                     },
-                   ),
-                   const Divider(height: 1, color: AppColors.borderGray),
-                   _buildAdminSettingTile(
-                     icon: Icons.lock,
-                     iconBgColor: Colors.orange.withAlpha(26),
-                     iconColor: Colors.orange,
-                     title: "Reset Password",
-                     onTap: () {
-                       Navigator.pushNamed(context, '/reset_password');
-                     },
-                   ),
-                   const Divider(height: 1, color: AppColors.borderGray),
-                   _buildAdminSettingTile(
-                     icon: Icons.fingerprint,
-                     iconBgColor: Colors.orange.withAlpha(26),
-                     iconColor: Colors.orange,
-                     title: "Biometric Login",
-                     onTap: () {
-                       _handleBiometricLoginTap();
-                     },
-                   ),
-                 ],
-               ),
-             ),
-             const SizedBox(height: 24),
-
-             // Lock App Button
-             SizedBox(
-               width: double.infinity,
-               child: OutlinedButton.icon(
-                 style: OutlinedButton.styleFrom(
-                   padding: const EdgeInsets.symmetric(vertical: 16),
-                   side: const BorderSide(color: AppColors.primary),
-                   foregroundColor: AppColors.primary,
-                   shape: RoundedRectangleBorder(
-                     borderRadius: BorderRadius.circular(12),
-                   ),
-                 ),
-                 onPressed: () async {
-                   await AuthService.lockApp();
-                   if (!context.mounted) return;
-
-                   Navigator.pushNamedAndRemoveUntil(
-                     context,
-                     '/login',
-                     (route) => false,
-                   );
-                 },
-                 icon: const Icon(Icons.lock_outline, color: AppColors.primary),
-                 label: const Text(
-                   'Lock App',
-                   style: TextStyle(
-                     fontSize: 16,
-                     fontWeight: FontWeight.w600,
-                     color: AppColors.primary,
-                   ),
-                 ),
-               ),
-             ),
-             const SizedBox(height: 12),
-
-             // Sign Out Button
-             SizedBox(
-               width: double.infinity,
-               child: OutlinedButton.icon(
-                 style: OutlinedButton.styleFrom(
-                   padding: const EdgeInsets.symmetric(vertical: 16),
-                   side: const BorderSide(color: Colors.red),
-                   foregroundColor: Colors.red,
-                   shape: RoundedRectangleBorder(
-                     borderRadius: BorderRadius.circular(12),
-                   ),
-                 ),
-                 onPressed: () async {
-                   await AuthService.logout();
-                 },
-                 icon: const Icon(Icons.logout, color: Colors.red),
-                 label: const Text(
-                   "Sign Out",
-                   style: TextStyle(
-                     fontSize: 16,
-                     fontWeight: FontWeight.w600,
-                     color: Colors.red,
-                   ),
-                 ),
-               ),
-             ),
-             const SizedBox(height: 40),
+                    // Donation List
+                    ..._buildRecentDonationCards(),
                   ],
                 ),
               ),
@@ -576,13 +511,19 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             "Welcome back, $_currentUserName",
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13, color: AppColors.dashboardSubtitle),
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.dashboardSubtitle,
+            ),
           ),
         ],
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.qr_code_scanner_rounded, color:AppColors.dashboardSubtitle),
+          icon: const Icon(
+            Icons.qr_code_scanner_rounded,
+            color: AppColors.dashboardSubtitle,
+          ),
           onPressed: _showScanOptions,
         ),
         Stack(
@@ -680,9 +621,9 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-              color: isSelected
-                    ? AppColors.dashboardBlue
-                    : AppColors.dashboardSubtitle,
+            color: isSelected
+                ? AppColors.dashboardBlue
+                : AppColors.dashboardSubtitle,
           ),
         ),
       ),
@@ -799,7 +740,8 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
     if (row is! Map) return null;
 
     final user = row['User'];
-    if (user is Map && (user['avatar_url'] ?? '').toString().trim().isNotEmpty) {
+    if (user is Map &&
+        (user['avatar_url'] ?? '').toString().trim().isNotEmpty) {
       return user['avatar_url'].toString();
     }
 
@@ -823,7 +765,10 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
         final createdAt = _parseDonationDate(row);
         if (createdAt == null) continue;
 
-        final bucketIndex = (createdAt.hour / 4).floor().clamp(0, labels.length - 1);
+        final bucketIndex = (createdAt.hour / 4).floor().clamp(
+          0,
+          labels.length - 1,
+        );
         totals[bucketIndex] += _parseDonationAmount(row);
       }
 
@@ -841,20 +786,23 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
       for (final row in source) {
         if (_parseDonationStatus(row) != 'successful') continue;
         final createdAt = _parseDonationDate(row);
-        if (createdAt == null || createdAt.year != now.year || createdAt.month != now.month) continue;
+        if (createdAt == null ||
+            createdAt.year != now.year ||
+            createdAt.month != now.month)
+          continue;
 
         final day = createdAt.day;
         final bucketIndex = day <= 5
             ? 0
             : day <= 10
-                ? 1
-                : day <= 15
-                    ? 2
-                    : day <= 20
-                        ? 3
-                        : day <= 25
-                            ? 4
-                            : 5;
+            ? 1
+            : day <= 15
+            ? 2
+            : day <= 20
+            ? 3
+            : day <= 25
+            ? 4
+            : 5;
         totals[bucketIndex] += _parseDonationAmount(row);
       }
 
@@ -882,7 +830,9 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
       if (createdAt == null) continue;
 
       final index = monthDates.indexWhere(
-        (monthDate) => monthDate.year == createdAt.year && monthDate.month == createdAt.month,
+        (monthDate) =>
+            monthDate.year == createdAt.year &&
+            monthDate.month == createdAt.month,
       );
 
       if (index == -1) continue;
@@ -897,21 +847,24 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildChartBars(List<_DonationChartBucket> buckets) {
-    final maxValue = buckets.fold<double>(0, (max, bucket) => bucket.value > max ? bucket.value : max);
+    final maxValue = buckets.fold<double>(
+      0,
+      (max, bucket) => bucket.value > max ? bucket.value : max,
+    );
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
-        children: buckets
-            .map((bucket) {
-              final percentage = maxValue <= 0 ? 0.0 : (bucket.value / maxValue).toDouble();
-              return Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: _buildBar(percentage, bucket.label, bucket.value),
-              );
-            })
-            .toList(),
+        children: buckets.map((bucket) {
+          final percentage = maxValue <= 0
+              ? 0.0
+              : (bucket.value / maxValue).toDouble();
+          return Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: _buildBar(percentage, bucket.label, bucket.value),
+          );
+        }).toList(),
       ),
     );
   }
@@ -992,9 +945,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: isPositive
-                      ? AppColors.successBg
-                      : AppColors.errorBg,
+                  color: isPositive ? AppColors.successBg : AppColors.errorBg,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -1029,7 +980,9 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Widget _buildBarChartCard() {
     final buckets = _buildChartBuckets();
-    final successful = _filteredDonations.where((row) => _parseDonationStatus(row) == 'successful').length;
+    final successful = _filteredDonations
+        .where((row) => _parseDonationStatus(row) == 'successful')
+        .length;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1145,7 +1098,9 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Widget _buildLineChartCard() {
     final buckets = _buildChartBuckets();
-    final successful = _filteredDonations.where((row) => _parseDonationStatus(row) == 'successful').length;
+    final successful = _filteredDonations
+        .where((row) => _parseDonationStatus(row) == 'successful')
+        .length;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1256,7 +1211,10 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
           width: 20,
           child: Text(
             value,
-            style: const TextStyle(fontSize: 10, color: AppColors.dashboardHint),
+            style: const TextStyle(
+              fontSize: 10,
+              color: AppColors.dashboardHint,
+            ),
           ),
         ),
         const SizedBox(width: 8),
@@ -1295,10 +1253,7 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
             backgroundImage: hasAvatar ? NetworkImage(imageUrl) : null,
             child: hasAvatar
                 ? null
-                : const Icon(
-                    Icons.person,
-                    color: AppColors.white,
-                  ),
+                : const Icon(Icons.person, color: AppColors.white),
           ),
           const SizedBox(width: 16),
           // Names
@@ -1382,7 +1337,11 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
       final amount = _parseDonationAmount(row);
       final donor = _parseDonorName(row);
       final avatarUrl = _parseDonorAvatar(row);
-      final status = (_parseDonationStatus(row).isEmpty ? 'pending' : _parseDonationStatus(row)).toUpperCase();
+      final status =
+          (_parseDonationStatus(row).isEmpty
+                  ? 'pending'
+                  : _parseDonationStatus(row))
+              .toUpperCase();
       final created = _parseDonationDate(row);
       final time = created == null ? 'Unknown' : _timeAgo(created);
 
@@ -1406,48 +1365,48 @@ class AdminDashboardPageState extends State<AdminDashboardPage> {
     }).toList();
   }
 
-   String _timeAgo(DateTime dateTime) {
-     final diff = DateTime.now().difference(dateTime);
-     if (diff.inMinutes < 1) return 'Just now';
-     if (diff.inHours < 1) return '${diff.inMinutes} min ago';
-     if (diff.inDays < 1) return '${diff.inHours} hr ago';
-     return '${diff.inDays} day ago';
-   }
-
-    // Helper for the Account Settings List Tiles
-    Widget _buildAdminSettingTile({
-      required IconData icon,
-      required Color iconBgColor,
-      required Color iconColor,
-      required String title,
-      required VoidCallback onTap,
-    }) {
-      return ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        onTap: onTap,
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: iconBgColor, shape: BoxShape.circle),
-          child: Icon(icon, color: iconColor, size: 22),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textDark,
-          ),
-        ),
-        trailing: const Icon(Icons.chevron_right, color: AppColors.textLight),
-      );
-    }
+  String _timeAgo(DateTime dateTime) {
+    final diff = DateTime.now().difference(dateTime);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inHours < 1) return '${diff.inMinutes} min ago';
+    if (diff.inDays < 1) return '${diff.inHours} hr ago';
+    return '${diff.inDays} day ago';
   }
 
-class _DonationChartBucket {
-   final String label;
-   final double value;
+  // Helper for the Account Settings List Tiles
+  Widget _buildAdminSettingTile({
+    required IconData icon,
+    required Color iconBgColor,
+    required Color iconColor,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      onTap: onTap,
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(color: iconBgColor, shape: BoxShape.circle),
+        child: Icon(icon, color: iconColor, size: 22),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textDark,
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right, color: AppColors.textLight),
+    );
+  }
+}
 
-   const _DonationChartBucket(this.label, this.value);
+class _DonationChartBucket {
+  final String label;
+  final double value;
+
+  const _DonationChartBucket(this.label, this.value);
 }
 
 // --- CUSTOM PAINTER FOR THE SMOOTH LINE CHART ---
@@ -1460,7 +1419,10 @@ class _DonationTrendPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (values.isEmpty) return;
 
-    final maxValue = values.fold<double>(0, (max, value) => value > max ? value : max);
+    final maxValue = values.fold<double>(
+      0,
+      (max, value) => value > max ? value : max,
+    );
     final normalized = values.map((value) {
       if (maxValue <= 0) return 0.0;
       return value / maxValue;
@@ -1477,12 +1439,18 @@ class _DonationTrendPainter extends CustomPainter {
 
     for (int i = 0; i < normalized.length; i++) {
       final x = stepX * i.toDouble();
-      final y = size.height - (normalized[i].toDouble() * size.height * 0.9) - (size.height * 0.05);
+      final y =
+          size.height -
+          (normalized[i].toDouble() * size.height * 0.9) -
+          (size.height * 0.05);
       if (i == 0) {
         path.moveTo(x, y);
       } else {
         final previousX = stepX * (i - 1).toDouble();
-        final previousY = size.height - (normalized[i - 1].toDouble() * size.height * 0.9) - (size.height * 0.05);
+        final previousY =
+            size.height -
+            (normalized[i - 1].toDouble() * size.height * 0.9) -
+            (size.height * 0.05);
         final controlX = (previousX + x) / 2;
         path.quadraticBezierTo(controlX, previousY, x, y);
       }
@@ -1505,7 +1473,10 @@ class _DonationTrendPainter extends CustomPainter {
 
     for (int i = 0; i < normalized.length; i++) {
       final x = stepX * i.toDouble();
-      final y = size.height - (normalized[i].toDouble() * size.height * 0.9) - (size.height * 0.05);
+      final y =
+          size.height -
+          (normalized[i].toDouble() * size.height * 0.9) -
+          (size.height * 0.05);
       drawDot(Offset(x, y));
     }
   }

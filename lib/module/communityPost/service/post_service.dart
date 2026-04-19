@@ -253,8 +253,8 @@ class PostService {
           .from('CommunityPost')
           .select('post_id')
           .inFilter('post_id', likedPostIds.toList())
-          .eq('is_private', true)
-          .eq('is_active', false);
+          .eq('is_private', false)
+          .eq('is_active', true);
 
       return (visiblePosts as List).length;
     } catch (e) {
