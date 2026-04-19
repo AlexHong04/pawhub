@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:pawhub/core/constants/colors.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
@@ -88,6 +89,7 @@ class _QRDialogState extends State<QRDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
+      backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -122,9 +124,12 @@ class _QRDialogState extends State<QRDialog> {
             if (!widget.showSaveButton && widget.shareText == null) ...[
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text("Close"),
+                  child: const Text(
+                    "Close",
+                    style: TextStyle(color: AppColors.primary),
+                  ),
                 ),
               ),
             ] else ...[
@@ -192,7 +197,7 @@ class _QRDialogState extends State<QRDialog> {
                 onPressed: () => Navigator.pop(context),
                 child: const Text(
                   "Close",
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: AppColors.primary),
                 ),
               ),
             ],
