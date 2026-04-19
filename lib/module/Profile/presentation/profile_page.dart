@@ -69,7 +69,7 @@ class _ProfilePageState extends State<ProfilePage> {
     int adoptedCount = 0;
     int favoritesCount = 0;
 
-    // Step 1: Try to fetch from Supabase (primary source)
+    // To fetch from Supabase (primary source)
     try {
       profileData = await ProfileService.getCurrentUserProfileWithTimeout();
 
@@ -79,8 +79,8 @@ class _ProfilePageState extends State<ProfilePage> {
         debugPrint('Avatar cached locally: $storageKey');
       }
 
-      // Important: Supabase methods may return null on offline/timeouts.
-      // In that case we must still fallback to local SharedPreferences.
+      // Supabase methods may return null on offline or timeouts.
+      // must still fallback to local SharedPreferences.
       if (profileData == null) {
         debugPrint('Supabase returned null profile, loading offline cache...');
         profileData = await _loadOfflineProfileFromCache();
@@ -225,7 +225,6 @@ class _ProfilePageState extends State<ProfilePage> {
         )
         .then((value) => value ?? false);
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -552,7 +551,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
 
-  // Helper for the Adopted/Favorites Cards
+  // Helper for the Adopted and Favorites Cards
   Widget _buildStatCard({
     required String number,
     required String label,

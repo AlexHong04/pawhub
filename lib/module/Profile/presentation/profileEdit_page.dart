@@ -184,7 +184,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
     String? newAvatarUrl = _currentAvatarUrl;
 
-    // Upload to Supabase first, keep local file as fallback.
+    // Upload to Supabase first keep local file as fallback.
     if (_selectedImage != null) {
       final uploadedAvatarUrl = await ProfileService.uploadAvatar(_selectedImage!);
       if (!mounted) return;

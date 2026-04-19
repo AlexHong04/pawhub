@@ -103,8 +103,8 @@ class LocalFileService {
     return a.index.compareTo(b.index);
   }
 
-  /// Save image and cache metadata in SharedPreferences.
-  /// Supports multiple images under the same `storageKey` by upserting via `id + index`.
+  // Save image and cache metadata in SharedPreferences.
+  // Supports multiple images under the same `storageKey` by upserting via `id + index`.
   static Future<File?> storeImageLocally(
     String id,
     String filePath,
@@ -175,9 +175,9 @@ class LocalFileService {
     }
   }
 
-  /// Load a saved image by SharedPreferences key.
-  /// For multi-image keys this returns the first valid file (lowest index).
-  /// Supports list JSON, single metadata JSON, and old raw-path values.
+  // Load a saved image by SharedPreferences key.
+  // For multi-image keys this returns the first valid file (lowest index).
+  // Supports list JSON, single metadata JSON, and old raw-path values.
   static Future<File?> loadSavedImage(String storageKey) async {
     final prefs = await SharedPreferences.getInstance();
     final savedValue = prefs.getString(storageKey);
@@ -216,8 +216,8 @@ class LocalFileService {
     return firstFile;
   }
 
-  /// Load all saved images by SharedPreferences key.
-  /// Use `id` to filter records for a specific entity (for example a post or user).
+  // Load all saved images by SharedPreferences key.
+  // Use `id` to filter records for a specific entity (for example a post or user).
   static Future<List<File>> loadSavedImages(String storageKey, {String? id}) async {
     final prefs = await SharedPreferences.getInstance();
     final savedValue = prefs.getString(storageKey);
@@ -258,8 +258,8 @@ class LocalFileService {
     return files;
   }
 
-  /// Update an existing local image record with the Supabase remote URL.
-  /// For multi-image keys, this updates the first record (lowest index).
+  // Update an existing local image record with the Supabase remote URL.
+  // For multi-image keys, this updates the first record (lowest index).
   static Future<void> cacheRemoteUrl(String storageKey, String remoteUrl) async {
     final prefs = await SharedPreferences.getInstance();
     final savedValue = prefs.getString(storageKey);
@@ -279,7 +279,7 @@ class LocalFileService {
     await prefs.setString(storageKey, _encodeMetadataList(items));
   }
 
-  /// Update remote URL for a specific image record identified by `id + index`.
+  // Update remote URL for a specific image record identified by `id + index`.
   static Future<void> cacheRemoteUrlByIndex(
     String storageKey, {
     required String id,

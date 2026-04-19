@@ -48,7 +48,6 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void register() async {
-    // Hide the keyboard immediately to prevent TimeoutException
     FocusScope.of(context).unfocus();
     if (formKey.currentState!.validate()) {
       setState(() {

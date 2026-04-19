@@ -253,6 +253,17 @@ class EventService {
           .update({'spot_left': currentSpotLeft - 1})
           .eq('event_id', eventId);
 
+      // 5. Mark user as volunteer after successful event application.
+      try {
+        await supabase
+            .from('User')
+            .update({'is_volunteer': true})
+            .eq('user_id', userId);
+      } catch (e) {
+        // Keep join success even if this profile flag update fails.
+        print('joinEvent warning: failed to set is_volunteer=true for $userId: $e');
+      }
+
       return true;
     } catch (e) {
       print('joinEvent error: $e');

@@ -13,7 +13,7 @@ class OtpVerificationPage extends StatefulWidget {
 }
 
 class _OtpVerificationPageState extends State<OtpVerificationPage> {
-  // Focus nodes for automatic jumping (Now 6)
+  // Focus nodes for automatic jumping
   final focus1 = FocusNode();
   final focus2 = FocusNode();
   final focus3 = FocusNode();
@@ -21,7 +21,6 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   final focus5 = FocusNode();
   final focus6 = FocusNode();
 
-  // Controllers (Now 6)
   final ctrl1 = TextEditingController();
   final ctrl2 = TextEditingController();
   final ctrl3 = TextEditingController();
@@ -42,11 +41,8 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
 
   void verifyOtp() async {
     final email = ModalRoute.of(context)!.settings.arguments as String;
-
-    // Combine all 6 controllers
     final otpCode = ctrl1.text + ctrl2.text + ctrl3.text + ctrl4.text + ctrl5.text + ctrl6.text;
 
-    // Check for 6 digits
     if (otpCode.length < 6) {
       AppSnackBar.error(context, 'Please enter all 6 digits');
       return;
@@ -268,7 +264,6 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
       FocusNode? nextFocus,
       ) {
     return Container(
-      // Reduced width and height from 68 to 48/56 so 6 boxes fit on screen!
       width: 48,
       height: 56,
       decoration: BoxDecoration(

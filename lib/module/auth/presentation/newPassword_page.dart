@@ -59,7 +59,7 @@ class _SetNewPasswordPageState extends State<SetNewPasswordPage> {
       setState(() => loading = false);
       if (success) {
         setState(() {
-          isSuccess = true; // Triggers the smooth animation to the Success UI!
+          isSuccess = true;
         });
       } else {
         AppSnackBar.error(context, 'Failed to update password. Try again.');
@@ -85,7 +85,7 @@ class _SetNewPasswordPageState extends State<SetNewPasswordPage> {
     );
   }
 
-  // VIEW 3: THE PASSWORD FORM (Originally Screen 3)
+  // THE PASSWORD FORM Originally Screen 3
   Widget _buildFormView() {
     return SingleChildScrollView(
       key: const ValueKey('form_view'),
@@ -260,7 +260,7 @@ class _SetNewPasswordPageState extends State<SetNewPasswordPage> {
     );
   }
 
-  // VIEW 4: THE SUCCESS SCREEN (Originally Screen 4)
+  // THE SUCCESS SCREEN Originally Screen 4
   Widget _buildSuccessView() {
     return Padding(
       key: const ValueKey('success_view'), // Key for AnimatedSwitcher
@@ -335,21 +335,10 @@ class _SetNewPasswordPageState extends State<SetNewPasswordPage> {
     );
   }
 
-  // --- Helpers ---
-
   Widget _buildSmallIconBadge() {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // Container(
-        //   width: 80,
-        //   height: 80,
-        //   decoration: BoxDecoration(
-        //     color: const Color(0xFF2E82F4).withOpacity(0.08),
-        //     shape: BoxShape.circle,
-        //   ),
-        //   child: const Icon(Icons.lock, size: 32, color: Color(0xFF2E82F4)),
-        // ),
         Image.asset('assets/images/lock.png', height: 100, width: 100),
         Positioned(
           bottom: 0,

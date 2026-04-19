@@ -58,7 +58,7 @@ class BiometricSessionService {
     try {
       final dynamic auth = client.auth;
 
-      // Supabase/Gotrue versions differ: some use setSession(refreshToken),
+      // Supabase versions differ with some use setSession(refreshToken),
       // others recoverSession(serializedSession). Try both safely.
       try {
         await auth.setSession(refreshToken);

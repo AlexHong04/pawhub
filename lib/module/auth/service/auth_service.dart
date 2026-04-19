@@ -227,8 +227,7 @@ class AuthService {
 							.single();
 					break;
 				} on PostgrestException catch (e) {
-					// Duplicate Key / Unique Constraint Violation
-					// PostgreSQL  unique violation normal 23505
+					// Duplicate Key or Unique Constraint Violation
 					if (e.code == '23505' || e.message.toLowerCase().contains('duplicate') || e.message.toLowerCase().contains('unique')) {
 						print(' Duplicate Key, in  ${i + 1} please try again...');
 
@@ -272,8 +271,7 @@ class AuthService {
 		}
 	}
 
-	static const String _duplicateEmailMessage =
-			'This email is already registered. Please use another email or login.';
+	static const String _duplicateEmailMessage ='This email is already registered. Please use another email or login.';
 
 	static bool _isDuplicateEmailError(String? message) {
 		final text = (message ?? '').toLowerCase();
@@ -304,7 +302,7 @@ class AuthService {
 
 	static Future<bool> sendOtp(String email) async {
 		try {
-			// Send a recovery/login OTP without creating a new account.
+			// Send a recovery or login OTP without creating a new account.
 			await supabase.auth.resetPasswordForEmail(email);
 			return true;
 		} catch (e) {
@@ -377,7 +375,7 @@ class AuthService {
 	}
 
 	static Future<void> lockApp() async {
-		// Soft lock: keep Supabase session and biometric token, clear only cached profile.
+		// keep Supabase session and biometric token, clear only cached profile.
 		await CurrentUserStore.clear();
 	}
 
@@ -474,7 +472,6 @@ class AuthService {
 				return candidate.trim();
 			}
 		}
-
 		return 'User';
 	}
 
@@ -589,7 +586,6 @@ class AuthService {
 				rethrow;
 			}
 		}
-
 		return null;
 	}
 }

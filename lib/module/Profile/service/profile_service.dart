@@ -88,13 +88,13 @@ class ProfileService {
     Duration timeout = const Duration(seconds: 5),
   }) async {
     try {
-      print('⏱️ Fetching user profile from Supabase (timeout: ${timeout.inSeconds}s)...');
+      print('Fetching user profile from Supabase (timeout: ${timeout.inSeconds}s)...');
       return await getCurrentUserProfile().timeout(timeout);
     } on TimeoutException catch (e) {
-      print('⏰ Timeout fetching user profile (network unavailable?): $e');
+      print('imeout fetching user profile network unavailable: $e');
       return null;
     } catch (e) {
-      print('❌ Error fetching user profile: $e');
+      print('Error fetching user profile: $e');
       return null;
     }
   }

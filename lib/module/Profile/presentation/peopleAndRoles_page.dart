@@ -50,7 +50,7 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
     super.dispose();
   }
 
-  // 1. Fetch data from Supabase
+  // Fetch data from Supabase
   Future<void> _fetchUsers() async {
     setState(() => _isLoading = true);
 
@@ -79,12 +79,12 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
     }
   }
 
-  // 2. Filter Logic (Handles both Search typing AND Chip clicking)
+  // Filter Logic Handles both Search typing AND Chip clicking
   void _applyFilters() {
     // Start with all users
     List<UserModel> results = List.from(_allUsers);
 
-    // 1. Apply Chip Filter
+    // Apply Chip Filter
     final selectedFilter = _activeFilters[_selectedFilterIndex];
     if (selectedFilter == 'Volunteers') {
       results = results.where((u) => u.isVolunteer).toList();
@@ -99,7 +99,7 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
           .toList();
     }
 
-    // 2. Apply Text Search (Case-insensitive & space-trimmed)
+    // Apply Text Search Case-insensitive & space-trimmed
     if (_searchQuery.trim().isNotEmpty) {
       final searchLower = _searchQuery.trim().toLowerCase();
 
@@ -114,7 +114,7 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
       }).toList();
     }
 
-    // 3. Update the UI
+    // Update the UI
     setState(() {
       _filteredUsers = results;
     });
@@ -184,8 +184,7 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
     );
   }
 
-  // --- WIDGET BUILDERS ---
-
+  // widget builders
   Widget _buildSearchBar() {
     return CustomSearchField(
       controller: searchController,
@@ -232,29 +231,6 @@ class _PeopleAndRolesPageState extends State<PeopleAndRolesPage> {
       ),
     );
   }
-
-  // Widget _buildFilterChips() {
-  //   return SingleChildScrollView(
-  //     scrollDirection: Axis.horizontal,
-  //     padding: const EdgeInsets.symmetric(horizontal: 24),
-  //     child: Row(
-  //       children: List.generate(_filters.length, (index) {
-  //         final isSelected = _selectedFilterIndex == index;
-  //         return Padding(
-  //           padding: const EdgeInsets.only(right: 12),
-  //           child: FilterButton(
-  //             text: _filters[index],
-  //             isSelected: isSelected,
-  //             onPressed: () {
-  //               setState(() => _selectedFilterIndex = index);
-  //               _applyFilters();
-  //             },
-  //           ),
-  //         );
-  //       }),
-  //     ),
-  //   );
-  // }
 
   Widget _buildUserCard(UserModel user) {
     return Container(

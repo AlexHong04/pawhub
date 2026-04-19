@@ -6,10 +6,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class SupabaseFileService {
   static final _supabase = Supabase.instance.client;
 
-  /// SHARED UPLOAD FUNCTION
-  /// [bucketName] - e.g., 'avatars', 'pet_images', 'documents'
-  /// [folderPath] - e.g., 'profiles', 'dogs', 'medical_records'
-  /// [fileNamePrefix] - e.g., 'user_123', 'pet_456'
+  // bucketName - e.g., 'avatars', 'pet_images', 'documents'
+  // folderPath - e.g., 'profiles', 'dogs', 'medical_records'
+  // fileNamePrefix  - e.g., 'user_123', 'pet_456'
   static Future<String?> uploadImage({
     required File imageFile,
     required String bucketName,
@@ -56,9 +55,9 @@ class SupabaseFileService {
           .from(bucketName)
           .remove([path]);
 
-      debugPrint('✅ Supabase delete result: $result');
+      debugPrint('Supabase delete result: $result');
     } catch (e) {
-      debugPrint('❌ Supabase delete error: $e');
+      debugPrint('Supabase delete error: $e');
       rethrow;
     }
   }
