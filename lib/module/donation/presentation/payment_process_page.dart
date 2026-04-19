@@ -162,8 +162,7 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
 
     try {
       final url = Uri.parse(
-        //Computer IP address , if emulator --> localhost
-        'http://192.168.100.169:3000/create-payment-intent',
+        'https://pawhub.hongjin.site/create-payment-intent',
       );
 
       final response = await http.post(
@@ -288,7 +287,7 @@ class _PaymentProcessPageState extends State<PaymentProcessPage>
     ''';
 
     http.post(
-      Uri.parse('http://192.168.100.169:3000/send-general-email'),
+      Uri.parse('https://pawhub.hongjin.site/send-general-email'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'email': targetEmail,
