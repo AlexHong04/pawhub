@@ -73,15 +73,33 @@ class EventService {
     }
   }
 
-  // Get all events
   static Future<List<Map<String, dynamic>>> getAllEvents() async {
     try {
+      final today = DateTime.now();
+
+      final response = await supabase
+          .from('Event')
+          .select('*')
+          .eq('event_status', 'Available')
+          .gte('event_date', today.toIso8601String().split('T')[0])
+          .order('event_date', ascending: true);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('getAllEvents error: $e');
+      return [];
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getAllEventsAdmin() async {
+    try {
+
       final response = await supabase
           .from('Event')
           .select('*')
           .order('event_date', ascending: true);
-      print('Raw response: $response');
-      return response;
+
+      return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       print('getAllEvents error: $e');
       return [];
@@ -138,11 +156,17 @@ class EventService {
   }
 
   static Future<List<Map<String, dynamic>>> getEventsByCategory(
+
       String categoryName) async {
     try {
+      final today = DateTime.now();
+      final tomorrow = today.add(const Duration(days: 1));
       final response = await supabase
           .from('Event')
           .select('*')
+          .eq('event_status', 'Available')
+          .eq('event_status', 'Available')
+          .gte('event_date', today.toIso8601String().split('T')[0])
           .eq('event_category', categoryName)
           .order('event_date', ascending: true);
 
@@ -205,7 +229,6 @@ class EventService {
         'certificate_url': null,
         'check_in_time': null,
       });
-
       return true;
     } catch (e) {
       print('joinEvent error: $e');
@@ -245,10 +268,9 @@ class EventService {
           .eq('user_id', userId)
           .maybeSingle();
 
-      final userName =
-      (userData?['name'] ?? 'Volunteer').toString().trim();
+      final userName = (userData?['name'] ?? 'Volunteer').toString().trim();
 
-      // 2. Check JoinedEvent
+      // 2. Check if user joined event
       final joined = await supabase
           .from('JoinedEvent')
           .select('user_id,event_id')
@@ -258,83 +280,79 @@ class EventService {
 
       if (joined == null) return null;
 
-      // 3. Load template
-      final templateData =
-      await rootBundle.load('assets/images/Certificate.png');
-
-      final certImage =
-      img.decodeImage(templateData.buffer.asUint8List());
+      // 3. Load certificate template
+      final templateData = await rootBundle.load('assets/images/Certificate.png');
+      final certImage = img.decodeImage(templateData.buffer.asUint8List());
 
       if (certImage == null) return null;
 
       final textColor = img.ColorRgb8(0, 0, 0);
 
-      final nameText = userName.toUpperCase();
-      final eventText = eventTitle;
-
+      // 4. Draw text
       img.drawString(
-        certImage, nameText,
+        certImage,
+        userName.toUpperCase(),
         font: img.arial48,
-        x: (certImage.width ~/ 2) - (nameText.length * 12),
-        y: (certImage.height ~/ 2) - 100, color: textColor,
+        x: (certImage.width ~/ 2) - (userName.length * 12),
+        y: (certImage.height ~/ 2) - 100,
+        color: textColor,
       );
 
       img.drawString(
-        certImage, eventText,
+        certImage,
+        eventTitle,
         font: img.arial24,
-        x: (certImage.width ~/ 2) - (eventText.length * 6),
-        y: (certImage.height ~/ 2) + 150, color: textColor,
+        x: (certImage.width ~/ 2) - (eventTitle.length * 6),
+        y: (certImage.height ~/ 2) + 150,
+        color: textColor,
       );
 
+      // 5. Convert to PNG bytes and save as a Temporary File
       final bytes = Uint8List.fromList(img.encodePng(certImage));
-
-      // 5. TEMP FILE
       final tempDir = await getTemporaryDirectory();
-      final tempFile =
-      File('${tempDir.path}/cert_${userId}_$eventId.png');
+      final tempFile = File('${tempDir.path}/cert_${userId}_$eventId.png');
       await tempFile.writeAsBytes(bytes);
 
-      // 6. UPLOAD TO SUPABASE
-      final bucket = supabase.storage.from('documents');
-      final filePath = 'certificates/${userId}_${eventId}.png';
+      // 6. UPLOAD EXACT FILE NAME TO SUPABASE
+      print("CERTIFICATE FILE PATH: ${tempFile.path}");
 
-      await bucket.uploadBinary(
-        filePath,
-        bytes,
+      final exactFilePath = 'certificates/${userId}_$eventId.png';
+
+      await supabase.storage.from('documents').upload(
+        exactFilePath,
+        tempFile,
         fileOptions: const FileOptions(
           upsert: true,
           contentType: 'image/png',
         ),
       );
 
-      final publicUrl = bucket.getPublicUrl(filePath);
+      // Get the public URL for the exact file we just uploaded
+      final String certificateUrl = supabase.storage.from('documents').getPublicUrl(exactFilePath);
 
-      // 7. SAVE LOCALLY
-      await LocalFileService.storeImageLocally(
-        '${userId}_$eventId', // better unique id
-        tempFile.path,
-        'cert_path_${userId}_$eventId',
-        'certificates',
-        remoteUrl: publicUrl, // optional but recommended
-      );
+      print("CERTIFICATE UPLOAD RESULT: $certificateUrl");
 
-      // 8. CLEAN TEMP FILE (optional but good)
-      await tempFile.delete();
+      // Optional: Delete the temp file after upload to save phone storage
+      if (await tempFile.exists()) {
+        await tempFile.delete();
+      }
 
-      // 9. UPDATE DATABASE
-      final updatedRows = await supabase
+      // 7. UPDATE DATABASE attributes
+      final updated = await supabase
           .from('JoinedEvent')
-          .update({'certificate_url': publicUrl})
+          .update({'certificate_url': certificateUrl})
           .eq('user_id', userId)
           .eq('event_id', eventId)
           .select();
 
-      if (updatedRows.isEmpty) {
+      if (updated.isEmpty) {
+        print("Database update failed. Check RLS policies.");
         return null;
       }
 
-      return publicUrl;
+      return certificateUrl;
     } catch (e) {
+      print('generateAndUploadCertificate error: $e');
       return null;
     }
   }

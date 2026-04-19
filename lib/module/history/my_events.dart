@@ -55,20 +55,24 @@ class _MyEventsPageState extends State<MyEventsPage>
     DateTime now = DateTime.now();
 
     for (var item in data) {
-      if (item['joinned_status'] == 'Upcoming' && item['check_in_time'] == null) {
+      if (item['joinned_status'] == 'Upcoming' &&
+          item['check_in_time'] == null) {
+
         final event = item['Event'];
 
         if (event != null && event['event_date'] != null) {
           try {
-            DateTime eventDate = DateTime.parse(event['event_date']);
+            DateTime eventDate =
+            DateTime.parse(event['event_date']).toLocal();
 
             String endTimeStr = event['end_time'] ?? "23:59:59";
 
             List<String> timeParts = endTimeStr.split(':');
             int hour = int.parse(timeParts[0]);
             int minute = int.parse(timeParts[1]);
-            // Optional: handle seconds if they exist
-            int second = timeParts.length > 2 ? int.parse(timeParts[2].split('.')[0]) : 0;
+            int second = timeParts.length > 2
+                ? int.parse(timeParts[2].split('.')[0])
+                : 0;
 
             DateTime eventEndTime = DateTime(
               eventDate.year,
@@ -79,10 +83,13 @@ class _MyEventsPageState extends State<MyEventsPage>
               second,
             );
 
-            // 5. If 'now' is past the end time, it's officially incomplete
+            print("NOW: $now");
+            print("EVENT END: $eventEndTime");
+
             if (now.isAfter(eventEndTime)) {
               eventsToMarkIncomplete.add(item['event_id'].toString());
             }
+
           } catch (e) {
             debugPrint("Error processing event ${item['event_id']}: $e");
           }
@@ -97,7 +104,9 @@ class _MyEventsPageState extends State<MyEventsPage>
         newStatus: 'Incomplete',
       );
 
-      final updatedData = await EventService.getMyJoinedEvents(widget.userId);
+      final updatedData =
+      await EventService.getMyJoinedEvents(widget.userId);
+
       if (mounted) {
         setState(() {
           _allJoinedEvents = updatedData;
@@ -105,7 +114,6 @@ class _MyEventsPageState extends State<MyEventsPage>
         });
       }
     } else {
-      // No updates needed, just show the data we already fetched
       if (mounted) {
         setState(() {
           _allJoinedEvents = data;
@@ -487,7 +495,7 @@ class _MyEventsPageState extends State<MyEventsPage>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text("Event Status",
+                          const Text("Registration Status",
                               style: TextStyle(color: Colors.grey)),
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -584,16 +592,12 @@ class _MyEventsPageState extends State<MyEventsPage>
                         width: double.infinity,
                         child: OutlinedButton(
                           onPressed: () async {
-                            final String storageKey = 'cert_path_${widget.userId}_$eventId';
-
-                            // 1. Check local storage first via your service
-                            File? localFile = await LocalFileService.loadSavedImage(storageKey);
-
-                            if (localFile != null) {
-                              _showCertificatePreview(file: localFile);
-                            } else if (data['certificate_url'] != null && data['certificate_url'].toString().isNotEmpty) {
+                            // 1. If we already have the URL from Supabase, just show it!
+                            if (data['certificate_url'] != null && data['certificate_url'].toString().isNotEmpty) {
                               _showCertificatePreview(url: data['certificate_url']);
-                            } else {
+                            }
+                            // 2. Otherwise, generate and upload to Supabase
+                            else {
                               _showLoadingDialog();
                               try {
                                 String? newUrl = await EventService.generateAndUploadCertificate(
@@ -602,14 +606,20 @@ class _MyEventsPageState extends State<MyEventsPage>
                                   eventTitle: eventTitle,
                                 );
 
-                                if (mounted) Navigator.pop(context);
+                                if (mounted) Navigator.pop(context); // close dialog
 
                                 if (newUrl != null) {
+                                  // Update the UI state so the button text changes
                                   setState(() { data['certificate_url'] = newUrl; });
+                                  // Show the newly uploaded certificate
                                   _showCertificatePreview(url: newUrl);
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text("Failed to generate or upload certificate.")),
+                                  );
                                 }
                               } catch (e) {
-                                if (mounted) Navigator.pop(context);
+                                if (mounted) Navigator.pop(context); // close dialog on error
                               }
                             }
                           },

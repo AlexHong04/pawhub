@@ -41,7 +41,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
   Future<void> _loadEvents() async {
     setState(() => _isLoading = true);
     try {
-      List<Map<String, dynamic>> events = await EventService.getAllEvents();
+      List<Map<String, dynamic>> events = await EventService.getAllEventsAdmin();
 
       bool requiresRefresh = false;
       final DateTime now = DateTime.now();
@@ -82,7 +82,7 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
       }
 
       if (requiresRefresh) {
-        events = await EventService.getAllEvents();
+        events = await EventService.getAllEventsAdmin();
       }
 
       if (mounted) {
@@ -153,6 +153,14 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: AppColors.textDark,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.analytics_outlined, color: AppColors.primary, size: 28),
+            tooltip: 'Quick Look Dashboard',
+            onPressed: _showQuickLookPopup,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Column(
         children: [
@@ -245,9 +253,128 @@ class _AdminEventsPageState extends State<AdminEventsPage> {
     );
   }
 
-  // ================= MINIMALIST POPUP =================
+  // ================= QUICK LOOK POPUP =================
 
-  // ================= MINIMALIST POPUP =================
+  void _showQuickLookPopup() {
+    if (_allEvents.isEmpty && _isLoading) return;
+
+    // Calculate Stats
+    int totalEvents = _allEvents.length;
+    int activeEvents = _allEvents.where((e) => e['event_status'] == 'Available').length;
+    int expiredEvents = _allEvents.where((e) => e['event_status'] == 'Expired').length;
+
+    int totalJoinedVolunteers = 0;
+    for (var e in _allEvents) {
+      int cap = e['volunteer_capacity'] ?? 0;
+      int left = e['spot_left'] ?? cap;
+      totalJoinedVolunteers += (cap - left);
+    }
+
+    // Show Dialog
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Quick Look",
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textDark),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.grey),
+                      onPressed: () => Navigator.pop(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // 2x2 Grid for Stats (Unified Color Series)
+                Row(
+                  children: [
+                    _buildPopupStatCard("Total\nEvents", totalEvents.toString(), Icons.event),
+                    const SizedBox(width: 12),
+                    _buildPopupStatCard("Active\nEvents", activeEvents.toString(), Icons.check_circle_outline),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _buildPopupStatCard("Expired\nEvents", expiredEvents.toString(), Icons.history),
+                    const SizedBox(width: 12),
+                    _buildPopupStatCard("Total\nJoined", totalJoinedVolunteers.toString(), Icons.people_outline),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPopupStatCard(String title, String count, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Circular icon background using your primary theme color
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: AppColors.primary, size: 24),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              count,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textDark, // Dark grey/black for readability
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600], // Muted grey for subtitles
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _showEventPopup(Map<String, dynamic> event) {
     final String eventId = (event['event_id'] ?? '').toString();

@@ -42,6 +42,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
   String _category = 'Rescue Activities';
+  bool _showFlyerError = false;
 
   // Flyer state (Supabase URL + optional new local file)
   File? _flyerFile;
@@ -84,7 +85,17 @@ class _AddEventScreenState extends State<AddEventScreen> {
     if (_isEditMode) return;
 
     final draft = await EventDraftStore.read();
-    if (draft == null) return;
+    if (draft == null || draft.isEmpty) return;
+
+    // Check if the draft actually has any text typed into it
+    bool hasActualData = draft.values.any((value) =>
+    value != null && value.toString().trim().isNotEmpty);
+
+    if (!hasActualData) {
+      // If it's just empty strings, silently clear it
+      await _clearDraftAll();
+      return;
+    }
 
     if (!mounted) return;
     final restore = await showDialog<bool>(
@@ -138,9 +149,16 @@ class _AddEventScreenState extends State<AddEventScreen> {
           _selectedPlace = OSMPlace(displayName: displayName, lat: lat, lon: lon);
         }
 
-        // Restore flyer file from local metadata
+        // Restore flyer file from local metadata safely
         final localFlyer = await LocalFileService.loadSavedImage(_draftImageKey);
-        if (localFlyer != null) _flyerFile = localFlyer;
+        if (localFlyer != null && await localFlyer.exists()) {
+          if (await localFlyer.length() > 0) {
+            _flyerFile = localFlyer;
+          } else {
+            // Delete corrupted 0-byte file
+            await localFlyer.delete();
+          }
+        }
 
         if (mounted) setState(() {});
       } finally {
@@ -293,7 +311,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionLabel("Event Flyer (Optional)"),
+        _buildSectionLabel("Event Flyer *"),
         InkWell(
           onTap: _handleFlyerTap,
           child: Container(
@@ -302,12 +320,28 @@ class _AddEventScreenState extends State<AddEventScreen> {
             decoration: BoxDecoration(
               color: Colors.grey[100],
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(
+                color: _showFlyerError ? Colors.red.shade700 : Colors.grey[300]!,
+                width: _showFlyerError ? 1.5 : 1.0,
+              ),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: hasLocal
-                  ? Image.file(_flyerFile!, fit: BoxFit.cover)
+                  ? Image.file(
+                _flyerFile!,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.broken_image_outlined, size: 40, color: Colors.grey),
+                      SizedBox(height: 8),
+                      Text("Corrupted image", style: TextStyle(color: Colors.grey)),
+                    ],
+                  );
+                },
+              )
                   : hasRemote
                   ? Image.network(
                 _existingFlyerUrl!,
@@ -342,6 +376,14 @@ class _AddEventScreenState extends State<AddEventScreen> {
             ),
           ),
         ),
+        if (_showFlyerError)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0, left: 12.0),
+            child: Text(
+              "Flyer image is required",
+              style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+            ),
+          ),
       ],
     );
   }
@@ -458,9 +500,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
                             _startTime!.hour,
                             _startTime!.minute,
                           );
-                          if (selectedDT.isBefore(now)) {
-                            return "Time cannot be in the past";
-                          }
+                          if (selectedDT.isBefore(now)) return "Cannot be in past";
                         }
                         return null;
                       },
@@ -474,7 +514,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
                       onTap: () async {
                         TimeOfDay? picked = await showTimePicker(
                           context: context,
-                          initialTime: _startTime ?? TimeOfDay.now(),
+                          initialTime: _endTime ?? _startTime ?? TimeOfDay.now(),
                         );
                         if (picked != null) {
                           setState(() {
@@ -493,10 +533,9 @@ class _AddEventScreenState extends State<AddEventScreen> {
                         if (_startTime != null) {
                           final startMinutes = _startTime!.hour * 60 + _startTime!.minute;
                           final endMinutes = _endTime!.hour * 60 + _endTime!.minute;
-                          if (endMinutes <= startMinutes) return "Must be after start time";
-                          if (endMinutes - startMinutes < 30) {
-                            return "Duration must be at least 30 mins";
-                          }
+
+                          if (endMinutes <= startMinutes) return "Must be after start";
+                          if (endMinutes - startMinutes < 30) return "Min 30 mins";
                         }
                         return null;
                       },
@@ -621,7 +660,23 @@ class _AddEventScreenState extends State<AddEventScreen> {
 
   void _submitForm() async {
     if (_isLoading) return;
-    if (!_formKey.currentState!.validate()) return;
+
+    final hasFlyer = _flyerFile != null || (_existingFlyerUrl != null && _existingFlyerUrl!.trim().isNotEmpty);
+
+    if (!hasFlyer) {
+      setState(() => _showFlyerError = true);
+    } else {
+      setState(() => _showFlyerError = false);
+    }
+
+    if (!_formKey.currentState!.validate() || !hasFlyer) {
+      if (!hasFlyer) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Event Flyer is required"), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
 
     if (_selectedPlace == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -781,6 +836,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
 
       setState(() {
         _flyerFile = file;
+        _showFlyerError = false;
       });
 
       await _saveDraftSafely();
@@ -802,7 +858,13 @@ class _AddEventScreenState extends State<AddEventScreen> {
           children: [
             InteractiveViewer(
               child: hasLocal
-                  ? Image.file(_flyerFile!, fit: BoxFit.contain)
+                  ? Image.file(
+                _flyerFile!,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => const Center(
+                  child: Icon(Icons.broken_image, color: Colors.white, size: 64),
+                ),
+              )
                   : Image.network(_existingFlyerUrl!, fit: BoxFit.contain),
             ),
             Positioned(
