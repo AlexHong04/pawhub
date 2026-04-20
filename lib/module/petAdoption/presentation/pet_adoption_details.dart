@@ -40,9 +40,15 @@ class _AdoptionDetailsState extends State<AdoptionDetailsPage> {
   @override
   void initState() {
     super.initState();
-    _fetchCurrentUser();
+    _init();
+  }
+
+  Future<void> _init() async {
+    await _fetchCurrentUser();
     if (_user != null) {
-      _fetchAdoption();
+      await _fetchAdoption();
+    } else {
+      setState(() => _isLoading = false);
     }
   }
 
