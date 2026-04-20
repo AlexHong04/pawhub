@@ -48,8 +48,8 @@ class SupabaseFileService {
     try {
       final path = '$folderPath/$fileName';
 
-      debugPrint('🗑️ Supabase delete path: $path');
-      debugPrint('🗑️ Bucket: $bucketName');
+      debugPrint('Supabase delete path: $path');
+      debugPrint('Bucket: $bucketName');
 
       final result = await _supabase.storage
           .from(bucketName)
